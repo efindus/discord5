@@ -1,10 +1,9 @@
 const { randomBytes, createHash } = require('crypto');
 const { createReadStream, existsSync, lstatSync } = require('fs');
-const { parse } = require('querystring');
-const { bold, green, blue } = require('./utils/colors.js');
 
-const { Http2ServerResponse } = require('http2');
+const { bold, green, blue } = require('./utils/colors.js');
 const { WebSocket } = require('./utils/websocket.js');
+const db = require('./utils/database');
 
 const contentTypes = {
     "html": "text/html; charset=utf-8",
@@ -24,7 +23,7 @@ const basePath = './src/frontend';
  * @param {string} path
  * @param {object} cookies
  * @param {string} data
- * @param {Http2ServerResponse} response
+ * @param {import('http2').Http2ServerResponse} response
  */
 const request = (method, path, cookies, data, response) => {
     if(method === 'GET' && path === '/') {
@@ -44,6 +43,11 @@ const request = (method, path, cookies, data, response) => {
 };
 
 const webSockets = {};
+const sessions = {
+	'[Server]': {
+		connected: true,
+	},
+};
 const messagesToLoad = 35;
 global.webSockets = webSockets;
 
@@ -55,52 +59,57 @@ global.updateClients = () => {
     }
 }
 
-const websocket = (request, socket) => {
+const websocket = async (request, socket) => {
     if(request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
         socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
         socket.end();
         return;
     }
 
-    let webSocket = new WebSocket(socket, request.headers['sec-websocket-key'] || '');
+    const webSocket = new WebSocket(socket, request.headers['sec-websocket-key'] || '');
 
-    if (db.ipBans.includes(webSocket.getIp())) {
-        webSocket.close();
-        return;
-    }
+	db.findOne('ipBans', { ip: webSocket.getIp() }).then(res => {
+		if (res) {
+			webSocket.close();
+        	return;
+		}
+	})
 
     console.log(bold(green(`New socket connected: ${webSocket.getIp()}`)));
 
-    let webSocketId = randomBytes(8).toString('base64');
     webSocket.data = {
-        sessionID: '',
-        lastMessage: -2,
+        session: null,
+        lastMessage: 0,
     };
 
+	const webSocketId = randomBytes(8).toString('base64');
     webSockets[webSocketId] = webSocket;
 
-    webSocket.on('message', (message) => {
+    webSocket.on('message', async (message) => {
         const data = JSON.parse(message);
 
-        if (webSocket.data.sessionID.length === 0 && data.type === 'connect') {
+        if (!webSocket.data.session && data.type === 'connect') {
             if (data.sessionID && typeof data.sessionID === 'string' && data.sessionID.length > 0 && data.sessionID.length < 2048) {
                 console.log(bold(blue(`[${webSocket.getIp()}] Socket provided sessionID: ${data.sessionID.slice(0, 100)}`)));
 
-                if (db.sessions[data.sessionID]?.connected === true) {
+                if (sessions[data.sessionID]?.connected === true) {
                     webSocket.send(JSON.stringify({
                         type: 'connect-cb',
                         message: 'sessionID-already-online',
                     }));
                 } else {
-                    webSocket.data.sessionID = data.sessionID;
-                    if (!db.sessions[data.sessionID]) {
-                        db.sessions[data.sessionID] = {
-                            username: '',
-                            sessionIDHash: createHash('sha256').update(data.sessionID).digest('hex'),
-                        };
+					webSocket.data.session = await db.findOne('sessions', { sid: data.sessionID });
+                    if (!webSocket.data.session) {
+						webSocket.data.session = {
+							sid: data.sessionID,
+							username: '',
+                            sidHash: createHash('sha256').update(data.sessionID).digest('hex'),
+						};
+
+						await db.insertOne('sessions', webSocket.data.session);
                     }
 
-                    if (db.sessions[data.sessionID].username.length < 3 || db.sessions[data.sessionID].username.length > 32) {
+                    if (webSocket.data.session.username.length < 3 || webSocket.data.session.username.length > 32) {
                         webSocket.send(JSON.stringify({
                             type: 'connect-cb',
                             message: 'request-username',
@@ -109,58 +118,56 @@ const websocket = (request, socket) => {
                         webSocket.send(JSON.stringify({
                             type: 'connect-cb',
                             message: 'accepted',
-                            username: db.sessions[data.sessionID].username,
+                            username: webSocket.data.session.username,
                         }));
                     }
 
-                    db.sessions[data.sessionID].connected = true;
+                    sessions[data.sessionID] = {
+						connected: true,
+					};
                 }
             }
         } else if (data.type === 'set-username') {
             if (data.username && typeof data.username === 'string' && data.username.length > 2 && data.username.length <= 32) {
-                db.sessions[webSocket.data.sessionID].username = data.username;
+				webSocket.data.session.username = data.username;
+				await db.updateOne('sessions', { sid: webSocket.data.session.sid }, { username: data.username });
+
                 for (const [x, ws] of Object.entries(webSockets)) {
                     ws.send(JSON.stringify({
                         type: 'update-username',
-                        sessionIDHash: db.sessions[webSocket.data.sessionID].sessionIDHash,
-                        username: db.sessions[webSocket.data.sessionID].username,
+                        sessionIDHash: webSocket.data.session.sidHash,
+                        username: webSocket.data.session.username,
                     }));
                 }
             }
-        } else if (db.sessions[webSocket.data.sessionID] && db.sessions[webSocket.data.sessionID].username.length > 2 && db.sessions[webSocket.data.sessionID].username.length <= 32) {
+        } else if (webSocket.data.session && webSocket.data.session.username.length > 2 && webSocket.data.session.username.length <= 32) {
             if (data.type === 'get-session-id-hash') {
                 if (data.sessionIDHash && typeof data.sessionIDHash === 'string') {
-                    let found = false;
-                    for (const session of Object.entries(db.sessions)) {
-                        if (data.sessionIDHash === session[1].sessionIDHash) {
-                            found = true;
-                            webSocket.send(JSON.stringify({
-                                type: 'update-username',
-                                sessionIDHash: data.sessionIDHash,
-                                username: session[1].username,
-                            }));
-                            break;
-                        }
-                    }
+					const session = await db.findOne('sessions', { sidHash: data.sessionIDHash });
 
-                    if (!found) {
-                        webSocket.send(JSON.stringify({
-                            type: 'update-username',
-                            sessionIDHash: data.sessionIDHash,
-                            username: '',
-                        }));
-                    }
+					webSocket.send(JSON.stringify({
+						type: 'update-username',
+						sessionIDHash: data.sessionIDHash,
+						username: session?.username ?? '',
+					}));
                 }
             } else if (data.type === 'get-messages') {
-                if (webSocket.data.lastMessage === -2) webSocket.data.lastMessage = db.messages.length;
+				let messagesToSend = [];
+				if (webSocket.data.lastMessage !== -1) {
+					const messages = await db.findMany('messages', {}, messagesToLoad, webSocket.data.lastMessage, { ts: -1 });
+					if (messages.length < messagesToLoad) webSocket.data.lastMessage = -1;
+					else webSocket.data.lastMessage += messagesToLoad;
 
-                let messagesToSend = [];
-                if (webSocket.data.lastMessage !== -1) {
-                    webSocket.data.lastMessage -= messagesToLoad
-                    messagesToSend = db.messages.slice((webSocket.data.lastMessage < 0 ? 0 : webSocket.data.lastMessage), webSocket.data.lastMessage + messagesToLoad)
-                    messagesToSend.reverse()
-                    if (webSocket.data.lastMessage <= 0) webSocket.data.lastMessage = -1
-                }
+					messagesToSend = messages.map(msg => {
+						return {
+							messageID: msg.id,
+							ts: msg.ts,
+							message: msg.message,
+							sessionIDHash: msg.sidHash,
+						};
+					});
+					// messagesToSend.reverse();
+				}
 
                 webSocket.send(JSON.stringify({
                     type: 'load-messages',
@@ -173,19 +180,24 @@ const websocket = (request, socket) => {
                         messageID: `${ts}-${randomBytes(8).toString('hex')}`,
                         ts,
                         message: data.message,
-                        sessionIDHash: db.sessions[webSocket.data.sessionID].sessionIDHash,
+                        sessionIDHash: webSocket.data.session.sidHash,
                     };
 
-                    if (message.message === '/ile') {
-                        message.message = `Aktualna liczba wiadomości: ${db.messages.length}.`;
-                        message.sessionIDHash = db.sessions['[Server]'].sessionIDHash;
-                    }
+                    // if (message.message === '/ile') {
+                    //     message.message = `Aktualna liczba wiadomości: ${db.messages.length}.`;
+                    //     message.sessionIDHash = createHash('sha256').update('[Server]').digest('hex');
+                    // }
 
-                    db.messages.push(message);
+					await db.insertOne('messages', {
+						id: message.messageID,
+						ts: message.ts,
+						message: message.message,
+						sidHash: message.sessionIDHash,
+					});
 
-                    for (const ws of Object.entries(webSockets)) {
-                        if (db.sessions[ws[1].data.sessionID]?.username?.length > 0) {
-                            ws[1].send(JSON.stringify({
+                    for (const [x, ws] of Object.entries(webSockets)) {
+                        if (ws.data.session?.username?.length > 0) {
+                            ws.send(JSON.stringify({
                                 type: 'new-message',
                                 ...message,
                             }));
@@ -205,9 +217,7 @@ const websocket = (request, socket) => {
     });
 
     webSocket.on('close', () => {
-        if (db.sessions[webSocket.data.sessionID]) {
-            db.sessions[webSocket.data.sessionID].connected = false;
-        }
+		if (sessions[webSocket.data.session?.sid]) delete sessions[webSocket.data.session?.sid];
 
         delete webSockets[webSocketId];
     });
