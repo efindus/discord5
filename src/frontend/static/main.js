@@ -92,7 +92,7 @@ const sha256 = async (message) => {
 }
 
 const regenSessionID = () => {
-    localStorage.removeItem('sessionID');
+    localStorage.removeItem('sid');
     socket.close();
 }
 
@@ -107,15 +107,15 @@ const generateMessage = (msgData) => {
 	}
 
     if (addNL && codeBlockIndex !== -1) msgData.message = '\n' + msgData.message;
-    return `<div class='message' id='${msgData.messageID}'><div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sessionIDHash].split('<').join('&lt;')}</span><div class='message-content'>${sanitize(msgData.message)}</div></div>`;
+    return `<div class='message' id='${msgData.id}'><div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash].split('<').join('&lt;')}</span><div class='message-content'>${sanitize(msgData.message)}</div></div>`;
 }
 
 const addMessage = (msgData) => {
-    if (!sessions[msgData.sessionIDHash]) {
-        sessions[msgData.sessionIDHash] = msgData.sessionIDHash.slice(0, 10);
+    if (!sessions[msgData.sidHash]) {
+        sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
         socket.send(JSON.stringify({
             type: 'get-session-id-hash',
-            sessionIDHash: msgData.sessionIDHash,
+            sidHash: msgData.sidHash,
         }));
     }
 
@@ -126,7 +126,7 @@ const addMessage = (msgData) => {
 
 	if (!document.hasFocus() && Notification.permission === 'granted') {
         let notif = new Notification('Discord 4.0: New Message', {
-            body: `${sessions[msgData.sessionIDHash].split('<').join('&lt;')}: ${msgData.message.slice(0, 150)}`,
+            body: `${sessions[msgData.sidHash].split('<').join('&lt;')}: ${msgData.message.slice(0, 150)}`,
             icon: '/favicon.ico',
         });
 
@@ -142,11 +142,11 @@ const addMessage = (msgData) => {
 }
 
 const insertMessage = (msgData) => {
-    if (!sessions[msgData.sessionIDHash]) {
-        sessions[msgData.sessionIDHash] = msgData.sessionIDHash.slice(0, 10);
+    if (!sessions[msgData.sidHash]) {
+        sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
         socket.send(JSON.stringify({
             type: 'get-session-id-hash',
-            sessionIDHash: msgData.sessionIDHash,
+            sidHash: msgData.sidHash,
         }));
     }
 
@@ -178,7 +178,7 @@ const connect = () => {
     let pinger;
 
     socket.onopen = () => {
-        if (localStorage.getItem('sessionID') === null || localStorage.getItem('sessionID').length === 0) {
+        if (localStorage.getItem('sid') === null || localStorage.getItem('sid').length === 0) {
             let randArr = new Uint32Array(40);
             crypto.getRandomValues(randArr);
 
@@ -186,7 +186,7 @@ const connect = () => {
             for (let rand of randArr) randString += `${rand}`;
 
             randString = btoa(randString);
-            localStorage.setItem('sessionID', randString);
+            localStorage.setItem('sid', randString);
         }
 
         pinger = setInterval(() => {
@@ -197,7 +197,7 @@ const connect = () => {
 
         socket.send(JSON.stringify({
             type: 'connect',
-            sessionID: localStorage.getItem('sessionID')
+            sid: localStorage.getItem('sid')
         }));
     }
 
@@ -224,7 +224,7 @@ const connect = () => {
 
             if (data.messages.length === messagesToLoad) elements.loadMessagesButton.style.display = 'table';
         } else if (data.type === 'update-username') {
-            if (data.sessionIDHash === await sha256(localStorage.getItem('sessionID'))) {
+            if (data.sidHash === await sha256(localStorage.getItem('sid'))) {
                 if (messages.length === 0) {
                     loadMessages();
                     propagateUsername(data.username);
@@ -234,11 +234,11 @@ const connect = () => {
             }
 
             if (data.username.length !== 0) {
-                sessions[data.sessionIDHash] = data.username;
+                sessions[data.sidHash] = data.username;
 
                 for (const msg of messages) {
-                    if (msg.sessionIDHash === data.sessionIDHash) {
-                        document.getElementById(msg.messageID).childNodes[1].innerHTML = sessions[data.sessionIDHash];
+                    if (msg.sidHash === data.sidHash) {
+                        document.getElementById(msg.id).childNodes[1].innerHTML = sessions[data.sidHash];
                     }
                 }
             }
