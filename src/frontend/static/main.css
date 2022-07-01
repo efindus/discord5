@@ -226,9 +226,8 @@ html, body
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: rgb(35, 35, 39);
-    border: 1px solid rgb(56, 56, 61);
-    border-radius: 4px;
+    background-color: rgb(38, 38, 42);
+    border-radius: 14px;
     padding: 24px;
     box-sizing: border-box;
 }
@@ -255,9 +254,9 @@ html, body
     height: 48px;
     box-sizing: border-box;
     padding: 8px 12px;
-    background-color: rgb(30, 30, 30);
+    background-color: rgb(29, 29, 29);
     border: 1px solid rgb(56, 56, 61);
-    border-radius: 4px;
+    border-radius: 14px;
     color: rgb(255, 255, 255);
     font-family: "Consolas", monospace;
     width: 100%
