@@ -3,7 +3,7 @@ let socket;
 const sessions = {};
 const messages = [];
 const notifications = [];
-const messagesToLoad = 35;
+const messagesToLoad = 50;
 let isDropdownOpen = false, isUsernamePopupOpen = false;
 
 const elements = {
@@ -107,7 +107,11 @@ const generateMessage = (msgData) => {
 	}
 
     if (addNL && codeBlockIndex !== -1) msgData.message = '\n' + msgData.message;
-    return `<div class='message' id='${msgData.id}'><div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash].split('<').join('&lt;')}</span><div class='message-content'>${sanitize(msgData.message)}</div></div>`;
+	const message = document.createElement('div');
+	message.id = msgData.id;
+	message.classList.add('message');
+	message.innerHTML = `<div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash].split('<').join('&lt;')}</span><div class='message-content'>${sanitize(msgData.message)}</div>`;
+	return message;
 }
 
 const addMessage = (msgData) => {
@@ -120,7 +124,7 @@ const addMessage = (msgData) => {
     }
 
     const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
-    elements.messages.innerHTML += generateMessage(msgData);
+    elements.messages.appendChild(generateMessage(msgData));
 
     messages.push(msgData);
 
@@ -150,12 +154,9 @@ const insertMessage = (msgData) => {
         }));
     }
 
-    const oldHeight = elements.messageContainer.scrollHeight;
-
     messages.splice(0, 0, msgData);
 
-    elements.messages.innerHTML = generateMessage(msgData) + elements.messages.innerHTML;
-    elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
+	elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
 }
 
 const loadMessages = () => {
@@ -218,10 +219,12 @@ const connect = () => {
         } else if (data.type === 'new-message') {
             addMessage(data);
         } else if (data.type === 'load-messages') {
+			const oldHeight = elements.messageContainer.scrollHeight;
             for (const message of data.messages) {
                 insertMessage(message);
             }
 
+			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
             if (data.messages.length === messagesToLoad) elements.loadMessagesButton.style.display = 'table';
         } else if (data.type === 'update-username') {
             if (data.sidHash === await sha256(localStorage.getItem('sid'))) {

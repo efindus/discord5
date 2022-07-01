@@ -49,7 +49,7 @@ const sessions = {
 		sidHash: createHash('sha256').update('[Server]').digest('hex'),
 	},
 };
-const messagesToLoad = 35;
+const messagesToLoad = 50;
 global.webSockets = webSockets;
 
 global.updateClients = () => {
