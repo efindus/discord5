@@ -110,7 +110,7 @@ const generateMessage = (msgData) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	message.innerHTML = `<div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash].split('<').join('&lt;')}</span><div class='message-content'>${sanitize(msgData.message)}</div>`;
+	message.innerHTML = `<div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash]}</span><div class='message-content'>${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 }
 
@@ -130,7 +130,7 @@ const addMessage = (msgData) => {
 
 	if (!document.hasFocus() && Notification.permission === 'granted') {
         let notif = new Notification('Discord 4.0: New Message', {
-            body: `${sessions[msgData.sidHash].split('<').join('&lt;')}: ${msgData.message.slice(0, 150)}`,
+            body: `${sessions[msgData.sidHash]}: ${msgData.message.slice(0, 150)}`,
             icon: '/favicon.ico',
         });
 
@@ -166,12 +166,11 @@ const loadMessages = () => {
     }));
 }
 
-const sanitize = (text) => {
-    text = text.split('&').join('&amp;');
+const sanitizeText = (text) => {
+	text = text.split('&').join('&amp;');
     text = text.split('<').join('&lt;');
-
-    return markdownToHTML(text).split('\n').join('<br>');
-}
+	return text;
+};
 
 const connect = () => {
     socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
@@ -227,6 +226,7 @@ const connect = () => {
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
             if (data.messages.length === messagesToLoad) elements.loadMessagesButton.style.display = 'table';
         } else if (data.type === 'update-username') {
+			data.username = sanitizeText(data.username);
             if (data.sidHash === await sha256(localStorage.getItem('sid'))) {
                 if (messages.length === 0) {
                     loadMessages();
