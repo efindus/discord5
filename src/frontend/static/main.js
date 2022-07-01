@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 let username = '';
 let socket;
 const sessions = {};
@@ -44,39 +45,39 @@ const svgs = {
 };
 
 const showPopup = (title, subtitle = '', input = false) => {
-    elements.topBar.style.display = 'none';
-    elements.siteBody.style.display = 'none';
-    elements.bottomBar.style.display = 'none';
+	elements.topBar.style.display = 'none';
+	elements.siteBody.style.display = 'none';
+	elements.bottomBar.style.display = 'none';
 
-    elements.popup.style.display = '';
-    elements.popupTitle.innerHTML = title;
+	elements.popup.style.display = '';
+	elements.popupTitle.innerHTML = title;
 
-    if (subtitle?.length > 0) {
-        elements.popupTitle.style.margin = '16px 16px 16px 0px';
-        elements.popupSubtitle.style.display = '';
-        elements.popupSubtitle.innerHTML = subtitle;
-    } else {
-        elements.popupSubtitle.style.display = 'none';
-        if (input) {
-            elements.popupTitle.style.margin = '';
-        } else {
-            elements.popupTitle.style.margin = '0px';
-        }
-    }
-
-    if (input) {
-        elements.popupInput.style.display = '';
+	if (subtitle?.length > 0) {
+		elements.popupTitle.style.margin = '16px 16px 16px 0px';
+		elements.popupSubtitle.style.display = '';
+		elements.popupSubtitle.innerHTML = subtitle;
 	} else {
-        elements.popupInput.style.display = 'none';
-    }
+		elements.popupSubtitle.style.display = 'none';
+		if (input) {
+			elements.popupTitle.style.margin = '';
+		} else {
+			elements.popupTitle.style.margin = '0px';
+		}
+	}
+
+	if (input) {
+		elements.popupInput.style.display = '';
+	} else {
+		elements.popupInput.style.display = 'none';
+	}
 };
 
 const hidePopup = () => {
-    elements.topBar.style.display = '';
-    elements.siteBody.style.display = '';
-    elements.bottomBar.style.display = '';
+	elements.topBar.style.display = '';
+	elements.siteBody.style.display = '';
+	elements.bottomBar.style.display = '';
 
-    elements.popup.style.display = 'none';
+	elements.popup.style.display = 'none';
 };
 
 const propagateUsername = (username) => {
@@ -84,16 +85,16 @@ const propagateUsername = (username) => {
 };
 
 const sha256 = async (message) => {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
+	const msgBuffer = new TextEncoder().encode(message);
+	const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+	const hashArray = Array.from(new Uint8Array(hashBuffer));
+	const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+	return hashHex;
 };
 
 const regenSessionID = () => {
-    localStorage.removeItem('sid');
-    socket.close();
+	localStorage.removeItem('sid');
+	socket.close();
 };
 
 const generateMessage = (msgData) => {
@@ -106,7 +107,7 @@ const generateMessage = (msgData) => {
 		}
 	}
 
-    if (addNL && codeBlockIndex !== -1) msgData.message = '\n' + msgData.message;
+	if (addNL && codeBlockIndex !== -1) msgData.message = '\n' + msgData.message;
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
@@ -115,199 +116,199 @@ const generateMessage = (msgData) => {
 };
 
 const addMessage = (msgData) => {
-    if (!sessions[msgData.sidHash]) {
-        sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
-        socket.send(JSON.stringify({
-            type: 'get-session-id-hash',
-            sidHash: msgData.sidHash,
-        }));
-    }
+	if (!sessions[msgData.sidHash]) {
+		sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
+		socket.send(JSON.stringify({
+			type: 'get-session-id-hash',
+			sidHash: msgData.sidHash,
+		}));
+	}
 
-    const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
-    elements.messages.appendChild(generateMessage(msgData));
+	const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
+	elements.messages.appendChild(generateMessage(msgData));
 
-    messages.push(msgData);
+	messages.push(msgData);
 
 	if (!document.hasFocus() && Notification.permission === 'granted') {
-        let notif = new Notification('Discord 4.0: New Message', {
-            body: `${sessions[msgData.sidHash]}: ${msgData.message.slice(0, 150)}`,
-            icon: '/favicon.ico',
-        });
+		const notif = new Notification('Discord 4.0: New Message', {
+			body: `${sessions[msgData.sidHash]}: ${msgData.message.slice(0, 150)}`,
+			icon: '/favicon.ico',
+		});
 
-        notif.index = notifications.length;
-        notif.onclose = () => {
-            notifications.splice(notif.index, 1);
-        }
+		notif.index = notifications.length;
+		notif.onclose = () => {
+			notifications.splice(notif.index, 1);
+		};
 
-        notifications.push(notif);
-    }
+		notifications.push(notif);
+	}
 
-    if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
+	if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 };
 
 const insertMessage = (msgData) => {
-    if (!sessions[msgData.sidHash]) {
-        sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
-        socket.send(JSON.stringify({
-            type: 'get-session-id-hash',
-            sidHash: msgData.sidHash,
-        }));
-    }
+	if (!sessions[msgData.sidHash]) {
+		sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
+		socket.send(JSON.stringify({
+			type: 'get-session-id-hash',
+			sidHash: msgData.sidHash,
+		}));
+	}
 
-    messages.splice(0, 0, msgData);
+	messages.splice(0, 0, msgData);
 
 	elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
 };
 
 const loadMessages = () => {
-    elements.loadMessagesButton.style.display = 'none';
-    socket.send(JSON.stringify({
-        type: 'get-messages',
-    }));
+	elements.loadMessagesButton.style.display = 'none';
+	socket.send(JSON.stringify({
+		type: 'get-messages',
+	}));
 };
 
 const sanitizeText = (text) => {
 	text = text.split('&').join('&amp;');
-    text = text.split('<').join('&lt;');
+	text = text.split('<').join('&lt;');
 	return text;
 };
 
 const connect = () => {
-    socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
-    showPopup('Łączenie...');
-    let pinger;
+	socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
+	showPopup('Łączenie...');
+	let pinger;
 
-    socket.onopen = () => {
-        if (localStorage.getItem('sid') === null || localStorage.getItem('sid').length === 0) {
-            let randArr = new Uint32Array(40);
-            crypto.getRandomValues(randArr);
+	socket.onopen = () => {
+		if (localStorage.getItem('sid') === null || localStorage.getItem('sid').length === 0) {
+			const randArr = new Uint32Array(40);
+			crypto.getRandomValues(randArr);
 
-            let randString = '';
-            for (let rand of randArr) randString += `${rand}`;
+			let randString = '';
+			for (const rand of randArr) randString += `${rand}`;
 
-            randString = btoa(randString);
-            localStorage.setItem('sid', randString);
-        }
+			randString = btoa(randString);
+			localStorage.setItem('sid', randString);
+		}
 
-        pinger = setInterval(() => {
-            socket.send(JSON.stringify({
-                type: 'ping',
-            }));
-        }, 5000);
+		pinger = setInterval(() => {
+			socket.send(JSON.stringify({
+				type: 'ping',
+			}));
+		}, 5000);
 
-        socket.send(JSON.stringify({
-            type: 'connect',
-            sid: localStorage.getItem('sid')
-        }));
-    };
+		socket.send(JSON.stringify({
+			type: 'connect',
+			sid: localStorage.getItem('sid'),
+		}));
+	};
 
-    socket.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
+	socket.onmessage = async (event) => {
+		const data = JSON.parse(event.data);
 
-        if (data.type === 'connect-cb') {
-            if (data.message === 'accepted') {
-                propagateUsername(data.username);
-                username = data.username;
-                loadMessages();
-                hidePopup();
-            } else if (data.message === 'sessionID-already-online') {
-                showPopup('Ta sesja jest obecnie aktywna...', 'Jeżeli chcesz nowe ID sesji wpisz regenSessionID() w konsoli lub wyczyść dane strony');
-            } else if (data.message === 'request-username') {
-                changeUsername();
-            }
-        } else if (data.type === 'new-message') {
-            addMessage(data);
-        } else if (data.type === 'load-messages') {
+		if (data.type === 'connect-cb') {
+			if (data.message === 'accepted') {
+				propagateUsername(data.username);
+				username = data.username;
+				loadMessages();
+				hidePopup();
+			} else if (data.message === 'sessionID-already-online') {
+				showPopup('Ta sesja jest obecnie aktywna...', 'Jeżeli chcesz nowe ID sesji wpisz regenSessionID() w konsoli lub wyczyść dane strony');
+			} else if (data.message === 'request-username') {
+				changeUsername();
+			}
+		} else if (data.type === 'new-message') {
+			addMessage(data);
+		} else if (data.type === 'load-messages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
-            for (const message of data.messages) {
-                insertMessage(message);
-            }
+			for (const message of data.messages) {
+				insertMessage(message);
+			}
 
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
-            if (data.messages.length === messagesToLoad) elements.loadMessagesButton.style.display = 'table';
-        } else if (data.type === 'update-username') {
+			if (data.messages.length === messagesToLoad) elements.loadMessagesButton.style.display = 'table';
+		} else if (data.type === 'update-username') {
 			data.username = sanitizeText(data.username);
-            if (data.sidHash === await sha256(localStorage.getItem('sid'))) {
-                if (messages.length === 0) {
-                    loadMessages();
-                    propagateUsername(data.username);
-                    username = data.username;
-                }
-                hidePopup();
-            }
+			if (data.sidHash === await sha256(localStorage.getItem('sid'))) {
+				if (messages.length === 0) {
+					loadMessages();
+					propagateUsername(data.username);
+					username = data.username;
+				}
+				hidePopup();
+			}
 
-            if (data.username.length !== 0) {
-                sessions[data.sidHash] = data.username;
+			if (data.username.length !== 0) {
+				sessions[data.sidHash] = data.username;
 
-                for (const msg of messages) {
-                    if (msg.sidHash === data.sidHash) {
-                        document.getElementById(msg.id).childNodes[1].innerHTML = sessions[data.sidHash];
-                    }
-                }
-            }
-        } else if (data.type === 'reload') {
-            window.location.reload();
-        }
-    };
+				for (const msg of messages) {
+					if (msg.sidHash === data.sidHash) {
+						document.getElementById(msg.id).childNodes[1].innerHTML = sessions[data.sidHash];
+					}
+				}
+			}
+		} else if (data.type === 'reload') {
+			window.location.reload();
+		}
+	};
 
-    socket.onclose = () => {
-        clearInterval(pinger);
-        elements.messages.innerHTML = '';
-        showPopup('Łączenie...');
+	socket.onclose = () => {
+		clearInterval(pinger);
+		elements.messages.innerHTML = '';
+		showPopup('Łączenie...');
 
-        setTimeout(connect, 1000);
-    };
+		setTimeout(connect, 1000);
+	};
 };
 
 elements.popupInput.addEventListener('keyup', event => {
-    if(event.code === 'Enter' || event.keyCode === 13) {
-        const value = elements.popupInput.value.trim();
+	if(event.code === 'Enter' || event.keyCode === 13) {
+		const value = elements.popupInput.value.trim();
 
-        if(value.length < 3 || value.length > 32) {
-            showPopup('Ustaw swój pseudonim', 'Pseudonim powinien zawierać od 3 do 32 znaków.', true);
-        } else {
-            username = value;
-            socket.send(JSON.stringify({
-                type: 'set-username',
-                username,
-            }));
+		if(value.length < 3 || value.length > 32) {
+			showPopup('Ustaw swój pseudonim', 'Pseudonim powinien zawierać od 3 do 32 znaków.', true);
+		} else {
+			username = value;
+			socket.send(JSON.stringify({
+				type: 'set-username',
+				username,
+			}));
 
-            propagateUsername(username);
+			propagateUsername(username);
 			isUsernamePopupOpen = false;
-        }
-    }
+		}
+	}
 });
 
 const changeUsername = () => {
 	isUsernamePopupOpen = true;
-    showPopup('Ustaw swój pseudonim', '', true);
+	showPopup('Ustaw swój pseudonim', '', true);
 	elements.popupInput.value = username;
 };
 
 elements.input.addEventListener('keydown', event => {
-    if((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
-        event.preventDefault();
+	if((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
+		event.preventDefault();
 
-        let value = elements.input.value.trim();
+		let value = elements.input.value.trim();
 
-        if(value === '/tableflip') {
-            value = '(╯°□°）╯︵ ┻━┻'
-        } else if(value === '/unflip') {
-            value = '┬─┬ ノ( ゜-゜ノ)'
-        } else if(value === '/shrug') {
-            value = '¯\\\\_(ツ)_/¯'
-        }
+		if(value === '/tableflip') {
+			value = '(╯°□°）╯︵ ┻━┻';
+		} else if(value === '/unflip') {
+			value = '┬─┬ ノ( ゜-゜ノ)';
+		} else if(value === '/shrug') {
+			value = '¯\\\\_(ツ)_/¯';
+		}
 
-        if(value.length >= 1 && value.length <= 2000) {
-            elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
-            elements.input.value = '';
+		if(value.length >= 1 && value.length <= 2000) {
+			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
+			elements.input.value = '';
 
-            socket.send(JSON.stringify({
-                type: 'send-message',
-                message: value,
-            }));
-        }
-    }
+			socket.send(JSON.stringify({
+				type: 'send-message',
+				message: value,
+			}));
+		}
+	}
 });
 
 const toggleDropdown = () => {

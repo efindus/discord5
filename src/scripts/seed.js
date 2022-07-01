@@ -12,7 +12,7 @@ const main = async () => {
 			sid: '[Server]',
 			username: '[Server]',
 			sidHash: '0170fdf90e06a44d9fdb151332dd0c9e121854eca9280251a2f884d167820f92',
-		}
+		},
 	]);
 
 	await db.insertOne('messages', {

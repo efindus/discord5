@@ -5,7 +5,7 @@ class WebSocket extends EventEmitter {
 	/**
 	 * @type {import('net').Socket}
 	 */
-    #socket;
+	#socket;
 	/**
 	 * @type {string}
 	 */
@@ -15,13 +15,13 @@ class WebSocket extends EventEmitter {
 	 * @param {import('net').Socket} socket Socket.
 	 * @param {string} webSocketKey WS key.
 	 */
-    constructor(socket, webSocketKey) {
-        super();
+	constructor(socket, webSocketKey) {
+		super();
 
-        this.#socket = socket;
+		this.#socket = socket;
 		this.#id = randomBytes(8).toString('base64');
 
-        socket.on('error', (error) => {
+		socket.on('error', (error) => {
 			this.close();
 			this.emit('close');
 
@@ -35,19 +35,19 @@ class WebSocket extends EventEmitter {
 			'Connection: Upgrade',
 			`Sec-WebSocket-Accept: ${createHash('sha1').update(`${webSocketKey}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64')}`,
 			'',
-			''
+			'',
 		].join('\r\n'));
 
-        socket.setTimeout(40000);
+		socket.setTimeout(40000);
 
 		let inputBuffer = Buffer.alloc(0);
 		let messageBuffer = Buffer.alloc(0);
 		let isBinary = true;
 
-        socket.on('data', data => {
+		socket.on('data', data => {
 			inputBuffer = Buffer.concat([ inputBuffer, data ]);
 
-            try {
+			try {
 				do {
 					if(inputBuffer.length <= 2) return;
 
@@ -147,18 +147,18 @@ class WebSocket extends EventEmitter {
 					}
 
 					inputBuffer = Uint8Array.prototype.slice.call(inputBuffer, start + length);
-				} while(inputBuffer.length > 0)
+				} while(inputBuffer.length > 0);
 			} catch(error) {
 				console.log(error);
 			}
-        });
+		});
 
-        socket.on('end', () => {
-            this.emit('close');
-        });
+		socket.on('end', () => {
+			this.emit('close');
+		});
 
-        socket.on('timeout', socket.end);
-    };
+		socket.on('timeout', socket.end);
+	}
 
 	/**
 	 * Sends a message to a WebSocket.
@@ -184,7 +184,7 @@ class WebSocket extends EventEmitter {
 
 		header[0] = 0b10000000 | code;
 		this.#socket.write(Buffer.concat([ header, message ]));
-    }
+	};
 
 	/**
 	 * ID of the WebSocket
@@ -196,17 +196,17 @@ class WebSocket extends EventEmitter {
 	/**
 	 * Close the socket
 	 */
-    close = () => {
-        this.#socket.end();
-    }
+	close = () => {
+		this.#socket.end();
+	};
 
 	/**
 	 * IP address of the client
 	 * @returns {string} IP address
 	 */
-    getIp = () => {
-        return this.#socket.remoteAddress?.split(':')[3];
-    }
+	getIp = () => {
+		return this.#socket.remoteAddress?.split(':')[3];
+	};
 }
 
 module.exports = { WebSocket };
