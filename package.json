@@ -1,15 +1,16 @@
 {
-  "name": "discord-4.0",
-  "version": "0.0.1",
+  "name": "discord",
+  "version": "4.1.0",
   "description": "",
   "main": "src/index.js",
   "scripts": {
+		"start": "node .",
 		"seed": "node ./src/seed",
-    "test": "echo \"Error: no test specified\" && exit 1"
+		"migrate": "node ./src/migrate"
   },
-  "keywords": [],
   "author": "efindus",
-  "license": "MPL-2.0",
+  "license": "UNLICENSED",
+	"private": true,
   "dependencies": {
     "mongodb": "^4.7.0"
   }
