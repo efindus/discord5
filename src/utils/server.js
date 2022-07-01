@@ -5,16 +5,14 @@ const { parse } = require('querystring');
 const { createSecureServer } = require('http2');
 const { green, blue, bold } = require('./colors.js');
 
-class Server extends EventEmitter
-{
+class Server extends EventEmitter {
     /**
      * Launches new HTTPS server.
      * @param {string} key Server key.
      * @param {string} cert Server cert.
 	 * @param {number} port Server port.
      */
-    constructor(key, cert, port = 443)
-    {
+    constructor(key, cert, port = 443) {
         super();
 
 		if (port === 443) {
@@ -27,40 +25,34 @@ class Server extends EventEmitter
 			});
 		}
 
-        let server = createSecureServer({
+        const server = createSecureServer({
             key: key,
             cert: cert,
             allowHTTP1: true
-        })
+        });
 
-        server.on('upgrade', (request, socket) =>
-        {
+        server.on('upgrade', (request, socket) => {
             this.emit('websocket', request, socket);
         });
 
-        server.on('request', (request, response) =>
-        {
-            let start = process.hrtime.bigint();
+        server.on('request', (request, response) => {
+            const start = process.hrtime.bigint();
 
-            response.on('finish', () =>
-            {
-                let end = process.hrtime.bigint();
+            response.on('finish', () => {
+                const end = process.hrtime.bigint();
 
-                if(request.socket.bytesSent === undefined)
-                {
+                if (request.socket.bytesSent === undefined) {
                     request.socket.bytesSent = 0;
                     request.socket.bytesReceived = 0;
                 }
 
                 let url = request.url;
 
-                if(request.method.length + url.length > 30)
-                {
+                if (request.method.length + url.length > 30) {
                     url = `${url.slice(0, 27 - request.method.length)}...`;
                 }
 
-                while(request.method.length + url.length < 30)
-                {
+                while (request.method.length + url.length < 30) {
                     url += ' ';
                 }
 
@@ -72,18 +64,18 @@ class Server extends EventEmitter
 
             let data = '';
 
-            request.on('data', (buffer) =>
-            {
+            request.on('data', (buffer) => {
                 data += buffer.toString();
             });
 
-            request.on('end', () =>
-            {
+            request.on('end', () => {
                 this.emit('request', request.method, path, parse(request.headers.cookie || '', '; ', '=', { decodeURIComponent }), data, response);
             });
         });
 
-        server.on('error', () => {});
+        server.on('error', () => {
+			// TODO: Do sth?
+		});
         server.listen(port, () => {
             console.log('HTTPS server started!');
         });

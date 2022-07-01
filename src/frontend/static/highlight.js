@@ -1,13 +1,3 @@
-const isAtPosition = (text, value, position) => {
-    for (let i = 0; i < value.length; i++) {
-        if (text[position + i] !== value[i]) {
-            return false;
-        }
-    }
-
-    return true;
-};
-
 const expressions = {
     split: /(\s)*[A-Za-z0-9_]*[^A-Za-z0-9_]/g,
     multiline_comment: /^(\s)*\/\*/g,
@@ -27,6 +17,16 @@ const expressions = {
 };
 
 let mode;
+
+const isAtPosition = (text, value, position) => {
+    for (let i = 0; i < value.length; i++) {
+        if (text[position + i] !== value[i]) {
+            return false;
+        }
+    }
+
+    return true;
+};
 
 const highlightPart = (text) => {
     if (text.length === 0) return '';

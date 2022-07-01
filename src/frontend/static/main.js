@@ -69,7 +69,7 @@ const showPopup = (title, subtitle = '', input = false) => {
 	} else {
         elements.popupInput.style.display = 'none';
     }
-}
+};
 
 const hidePopup = () => {
     elements.topBar.style.display = '';
@@ -77,11 +77,11 @@ const hidePopup = () => {
     elements.bottomBar.style.display = '';
 
     elements.popup.style.display = 'none';
-}
+};
 
 const propagateUsername = (username) => {
 	elements.usernameDisplay.innerText = username;
-}
+};
 
 const sha256 = async (message) => {
     const msgBuffer = new TextEncoder().encode(message);
@@ -89,12 +89,12 @@ const sha256 = async (message) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
-}
+};
 
 const regenSessionID = () => {
     localStorage.removeItem('sid');
     socket.close();
-}
+};
 
 const generateMessage = (msgData) => {
 	const codeBlockIndex = msgData.message.indexOf('```');
@@ -112,7 +112,7 @@ const generateMessage = (msgData) => {
 	message.classList.add('message');
 	message.innerHTML = `<div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash]}</span><div class='message-content'>${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
-}
+};
 
 const addMessage = (msgData) => {
     if (!sessions[msgData.sidHash]) {
@@ -143,7 +143,7 @@ const addMessage = (msgData) => {
     }
 
     if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
-}
+};
 
 const insertMessage = (msgData) => {
     if (!sessions[msgData.sidHash]) {
@@ -157,14 +157,14 @@ const insertMessage = (msgData) => {
     messages.splice(0, 0, msgData);
 
 	elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
-}
+};
 
 const loadMessages = () => {
     elements.loadMessagesButton.style.display = 'none';
     socket.send(JSON.stringify({
         type: 'get-messages',
     }));
-}
+};
 
 const sanitizeText = (text) => {
 	text = text.split('&').join('&amp;');
@@ -199,7 +199,7 @@ const connect = () => {
             type: 'connect',
             sid: localStorage.getItem('sid')
         }));
-    }
+    };
 
     socket.onmessage = async (event) => {
         const data = JSON.parse(event.data);
@@ -248,7 +248,7 @@ const connect = () => {
         } else if (data.type === 'reload') {
             window.location.reload();
         }
-    }
+    };
 
     socket.onclose = () => {
         clearInterval(pinger);
@@ -256,8 +256,8 @@ const connect = () => {
         showPopup('Łączenie...');
 
         setTimeout(connect, 1000);
-    }
-}
+    };
+};
 
 elements.popupInput.addEventListener('keyup', event => {
     if(event.code === 'Enter' || event.keyCode === 13) {
@@ -282,7 +282,7 @@ const changeUsername = () => {
 	isUsernamePopupOpen = true;
     showPopup('Ustaw swój pseudonim', '', true);
 	elements.popupInput.value = username;
-}
+};
 
 elements.input.addEventListener('keydown', event => {
     if((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
@@ -357,4 +357,4 @@ connect();
 
 elements.messageContainer.onscroll = () => {
 	if (Notification.permission === 'default') Notification.requestPermission();
-}
+};

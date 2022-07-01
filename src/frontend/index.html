@@ -6,6 +6,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+        <link rel="stylesheet" href="static/highlight.css">
         <link rel="stylesheet" href="static/main.css">
     </head>
 
@@ -30,12 +31,6 @@
 			</div>
 		</div>
 
-        <div id="popup">
-            <div id="popup-title">Ustaw swój pseudonim</div>
-            <div id="popup-subtitle">Pseudonim powinien zawierać od 3 do 32 znaków.</div>
-            <input id="popup-input" autocomplete="off" maxlength="32">
-        </div>
-
         <div class="bottom-bar">
 			<div class="upload-button-container">
 				<label id="upload-button" for="upload-input">
@@ -49,7 +44,13 @@
             <textarea id="input" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>
         </div>
 
-        <script src="static/sanitization.js"></script>
+		<div id="popup">
+            <div id="popup-title">Ustaw swój pseudonim</div>
+            <div id="popup-subtitle">Pseudonim powinien zawierać od 3 do 32 znaków.</div>
+            <input id="popup-input" autocomplete="off" maxlength="32">
+        </div>
+
+        <script src="static/highlight.js"></script>
         <script src="static/main.js"></script>
     </body>
 </html>

@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "scripts": {
 		"start": "node .",
-		"seed": "node ./src/seed",
-		"migrate": "node ./src/migrate"
+		"seed": "node ./src/scripts/seed",
+		"migrate": "node ./src/scripts/migrate"
   },
   "author": "efindus",
   "license": "UNLICENSED",

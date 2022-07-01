@@ -1,0 +1,92 @@
+table {
+    display: block;
+    tab-size: 4;
+    -moz-tab-size: 4;
+    background-color: rgb(35, 35, 39);
+    border: 1px solid rgb(56, 56, 61);
+    border-spacing: 0px;
+    border-radius: 4px;
+    margin: 8px 0px;
+}
+
+table > tbody {
+	display: table;
+	width: 100%;
+}
+
+table > tbody > tr {
+	display: flex;
+	width: 100%;
+}
+
+table > tbody > tr:hover {
+    background-color: rgb(30, 30, 30);
+}
+
+table > tbody > tr > td {
+    padding: 2px 8px;
+    white-space: pre-wrap;
+}
+
+table > tbody > tr > td:first-child {
+    text-align: right;
+    padding: 2px 20px;
+    display: block;
+	width: 20px;
+}
+
+table > tbody > tr > td:first-child::after {
+    content: attr(line);
+}
+
+.preprocessor {
+    color: rgb(155, 155, 155);
+}
+
+.string {
+    color: rgb(214, 157, 133);
+}
+
+.string-special {
+    color: rgb(232, 201, 178);
+}
+
+.keyword {
+    color: rgb(76, 156, 214);
+}
+
+.operator {
+    color: rgb(180, 180, 180);
+}
+
+.function {
+    color: rgb(220, 220, 180);
+}
+
+.other {
+    color: rgb(156, 220, 254);
+}
+
+.comment {
+    color: rgb(87, 166, 74);
+}
+
+.number {
+    color: rgb(181, 206, 168);
+}
+
+.instruction {
+    color: rgb(216, 160, 223);
+}
+
+.definition {
+    color: rgb(190, 183, 255);
+}
+
+.builtin {
+    color: rgb(78, 201, 176);
+}
+
+.white {
+    color: rgb(255, 255, 255);
+}

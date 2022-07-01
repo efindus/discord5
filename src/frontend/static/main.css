@@ -1,5 +1,4 @@
-html, body
-{
+html, body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -8,8 +7,8 @@ html, body
     background-color: rgb(30, 30, 30);
 }
 
-.top-bar
-{
+/* Sections */
+.top-bar {
 	width: 100%;
 	height: 35px;
 	z-index: 1;
@@ -25,67 +24,55 @@ html, body
 	user-select: none;
 }
 
-#username-container
-{
+.site-body {
+	height: calc(100vh - (35px + 57px));
+	width: 100%;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	padding-top: 35px;
+	padding-bottom: 57px;
+}
+
+.bottom-bar {
+	background-color: rgb(35, 35, 39);
+	position: absolute;
+	bottom: 0px;
+	width: calc(100vw - 6px);
+	height: 50px;
+	border-top-style: solid;
+	border-color: rgb(48, 48, 53);
+	display: grid;
+	grid-template-columns: max(50px, 8vw) auto;
+	grid-template-rows: auto;
+	column-gap: 5px;
+	padding: 3px;
+}
+
+/* Top bar */
+#username-container {
     right: 15px;
     position: absolute;
     color: rgb(155, 155, 155);
     border-color: rgb(155, 155, 155);
 }
 
-#username-container:hover
-{
+#username-container:hover {
     color: rgb(192, 192, 192);
     border-color: rgb(192, 192, 192);
 }
 
-#username-container:active
-{
+#username-container:active {
     color: rgb(255, 255, 255);
     border-color: rgb(255, 255, 255);
 }
 
-.dropdown-open
-{
-    color: rgb(255, 255, 255) !important;
-    border-color: rgb(255, 255, 255) !important;
-    z-index: 1;
-}
-
-#dropdown-trigger
-{
-    cursor: pointer;
-    padding: 5px 5px;
-}
-
-.dropdown-entry
-{
-    padding: 2px 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    cursor: pointer;
-}
-
-.dropdown-entry:hover
-{
-    background-color: rgb(233, 233, 233);
-}
-
-.dropdown-entry:active
-{
-    background-color: rgb(216, 216, 216);
-}
-
-#username-display
-{
+#username-display {
 	margin-right: 6px;
 	font-weight: 700;
 }
 
-.dropdown-arrow
-{
+.dropdown-arrow {
     border: solid white;
     border-width: 0 3px 3px 0;
     display: inline-block;
@@ -98,8 +85,7 @@ html, body
     border-color: inherit;
 }
 
-.dropdown
-{
+.dropdown {
     position: absolute;
     top: 45px;
     right: -4px;
@@ -119,8 +105,35 @@ html, body
 	font-family: Arial, Helvetica, sans-serif;
 }
 
-#dropdown-close
-{
+.dropdown-open {
+    color: rgb(255, 255, 255) !important;
+    border-color: rgb(255, 255, 255) !important;
+    z-index: 1;
+}
+
+.dropdown-entry {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+}
+
+.dropdown-entry:hover {
+    background-color: rgb(233, 233, 233);
+}
+
+.dropdown-entry:active {
+    background-color: rgb(216, 216, 216);
+}
+
+#dropdown-trigger {
+    cursor: pointer;
+    padding: 5px 5px;
+}
+
+#dropdown-close {
 	display: none;
     position: absolute;
     top: 0px;
@@ -129,19 +142,8 @@ html, body
     height: 100vh;
 }
 
-.site-body
-{
-	height: calc(100vh - (35px + 57px));
-	width: 100%;
-	position: absolute;
-	top: 0px;
-	left: 0px;
-	padding-top: 35px;
-	padding-bottom: 57px;
-}
-
-#message-container
-{
+/* Site body */
+#message-container {
     color: white;
 	word-wrap: break-word;
 	height: 100%;
@@ -149,57 +151,7 @@ html, body
 	overflow-y: scroll;
 }
 
-.bottom-bar
-{
-	background-color: rgb(35, 35, 39);
-	position: absolute;
-	bottom: 0px;
-	width: calc(100vw - 6px);
-	height: 50px;
-	border-top-style: solid;
-	border-color: rgb(48, 48, 53);
-	display: grid;
-	grid-template-columns: max(50px, 8vw) auto;
-	grid-template-rows: auto;
-	column-gap: 5px;
-	padding: 3px;
-}
-
-.upload-button-container
-{
-	display: grid;
-	grid-template-columns: auto 40px auto;
-	grid-template-rows: auto 40px auto;
-}
-
-#upload-button
-{
-	background-color: rgb(61, 61, 72);
-	grid-row: 2;
-	grid-column: 2;
-	border-radius: 10000vw;
-	border-style: solid;
-	border-width: 1px;
-	border-color: rgb(101, 101, 104);
-}
-
-#upload-button:hover
-{
-	background-color: rgb(81, 81, 90);
-}
-
-#upload-button:active
-{
-	background-color: rgb(95, 95, 102);
-}
-
-#upload-input
-{
-	display: none;
-}
-
-.message
-{
+.message {
     box-sizing: border-box;
     padding: 2px 8px;
     font-family: "Consolas", monospace;
@@ -208,19 +160,33 @@ html, body
     word-break: break-word;
 }
 
-.message-highlight
-{
+.message-highlight {
     margin-right: 6px;
     color: rgb(103, 205, 254);
 }
 
-.message-content
-{
+.message-content {
     flex-grow: 100;
 }
 
-#popup
-{
+#load-messages-button {
+    background-color: rgb(53, 130, 214);
+    font-family: Arial, Helvetica, sans-serif;
+    padding: 12px;
+    margin: 12px auto;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 4px;
+    display: table;
+}
+
+#load-messages-button:hover {
+    background-color: rgb(103, 205, 254);
+}
+
+/* Popup */
+#popup {
     width: 450px;
     position: absolute;
     top: 50%;
@@ -232,8 +198,7 @@ html, body
     box-sizing: border-box;
 }
 
-#popup-title
-{
+#popup-title {
     font-family: Arial, Helvetica, sans-serif;
     font-weight: bold;
     font-size: 22px;
@@ -241,16 +206,14 @@ html, body
     margin-bottom: 16px;
 }
 
-#popup-subtitle
-{
+#popup-subtitle {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 12px;
     color: white;
     margin-bottom: 16px;
 }
 
-#popup-input
-{
+#popup-input {
     height: 48px;
     box-sizing: border-box;
     padding: 8px 12px;
@@ -262,8 +225,8 @@ html, body
     width: 100%
 }
 
-#input
-{
+/* Bottom bar */
+#input {
     box-sizing: border-box;
 	color: rgb(255, 255, 255);
 	font-family: "Consolas", monospace;
@@ -276,136 +239,34 @@ html, body
 	height: 50px;
 }
 
-#input:focus
-{
+#input:focus {
 	outline: rgb(21, 21, 26) solid 2px;
 }
 
-#load-messages-button
-{
-    background-color: rgb(53, 130, 214);
-    font-family: Arial, Helvetica, sans-serif;
-    padding: 12px;
-    margin: 12px auto;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    border-radius: 4px;
-    display: table;
+.upload-button-container {
+	display: grid;
+	grid-template-columns: auto 40px auto;
+	grid-template-rows: auto 40px auto;
 }
 
-#messages-button:hover
-{
-    background-color: rgb(103, 205, 254);
+#upload-button {
+	background-color: rgb(61, 61, 72);
+	grid-row: 2;
+	grid-column: 2;
+	border-radius: 10000vw;
+	border-style: solid;
+	border-width: 1px;
+	border-color: rgb(101, 101, 104);
 }
 
-table
-{
-    display: block;
-    tab-size: 4;
-    -moz-tab-size: 4;
-    background-color: rgb(35, 35, 39);
-    border: 1px solid rgb(56, 56, 61);
-    border-spacing: 0px;
-    border-radius: 4px;
-    margin: 8px 0px;
+#upload-button:hover {
+	background-color: rgb(81, 81, 90);
 }
 
-table > tbody {
-	display: table;
-	width: 100%;
+#upload-button:active {
+	background-color: rgb(95, 95, 102);
 }
 
-table > tbody > tr {
-	display: flex;
-	width: 100%;
-}
-
-table > tbody > tr:hover
-{
-    background-color: rgb(30, 30, 30);
-}
-
-table > tbody > tr > td
-{
-    padding: 2px 8px;
-    white-space: pre-wrap;
-}
-
-table > tbody > tr > td:first-child
-{
-    text-align: right;
-    padding: 2px 20px;
-    display: block;
-	width: 20px;
-}
-
-table > tbody > tr > td:first-child::after
-{
-    content: attr(line);
-}
-
-.preprocessor
-{
-    color: rgb(155, 155, 155);
-}
-
-.string
-{
-    color: rgb(214, 157, 133);
-}
-
-.string-special
-{
-    color: rgb(232, 201, 178);
-}
-
-.keyword
-{
-    color: rgb(76, 156, 214);
-}
-
-.operator
-{
-    color: rgb(180, 180, 180);
-}
-
-.function
-{
-    color: rgb(220, 220, 180);
-}
-
-.other
-{
-    color: rgb(156, 220, 254);
-}
-
-.comment
-{
-    color: rgb(87, 166, 74);
-}
-
-.number
-{
-    color: rgb(181, 206, 168);
-}
-
-.instruction
-{
-    color: rgb(216, 160, 223);
-}
-
-.definition
-{
-    color: rgb(190, 183, 255);
-}
-
-.builtin
-{
-    color: rgb(78, 201, 176);
-}
-
-.white
-{
-    color: rgb(255, 255, 255);
+#upload-input {
+	display: none;
 }

@@ -1,5 +1,5 @@
-const db = require('./utils/database');
-const oldb = require('../data/db.json');
+const db = require('../utils/database');
+const oldb = require('../../data/db.json');
 
 const main = async () => {
 	await db.connect();
@@ -27,6 +27,6 @@ const main = async () => {
 	}
 
 	process.exit();
-}
+};
 
-main()
+main();

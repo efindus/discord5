@@ -1,4 +1,4 @@
-const db = require('./utils/database');
+const db = require('../utils/database');
 
 const main = async () => {
 	await db.connect();
@@ -27,6 +27,6 @@ const main = async () => {
 	});
 
 	process.exit();
-}
+};
 
-main()
+main();

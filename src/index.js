@@ -14,7 +14,7 @@ const main = async () => {
 	server.on('websocket', websocket);
 
 	console.log('Discord 4.0 started!');
-}
+};
 
 if (!existsSync('data/errors')) mkdirSync('data/errors', { recursive: true });
 process.on('uncaughtException', error => {

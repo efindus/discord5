@@ -58,7 +58,7 @@ global.updateClients = () => {
             type: 'reload',
         }));
     }
-}
+};
 
 const websocket = async (request, socket) => {
     if(request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
@@ -74,7 +74,7 @@ const websocket = async (request, socket) => {
 			webSocket.close();
         	return;
 		}
-	})
+	});
 
     console.log(bold(green(`New socket connected: ${webSocket.getIp()}`)));
 
