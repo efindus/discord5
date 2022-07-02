@@ -77,13 +77,13 @@ html, body {
 }
 
 .site-body {
-	height: calc(100vh - (35px + 57px));
+	height: calc(100vh - (35px + 59px));
 	width: 100%;
 	position: absolute;
 	top: 0px;
 	left: 0px;
 	padding-top: 35px;
-	padding-bottom: 57px;
+	padding-bottom: 59px;
 }
 
 .bottom-bar {
