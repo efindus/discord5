@@ -272,7 +272,7 @@ html, body {
 	filter: brightness(165%);
 }
 
-.popup-header {
+#popup-header {
 	margin-bottom: 16px;
 }
 

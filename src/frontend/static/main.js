@@ -14,6 +14,7 @@ const elements = {
 
 	popup: document.getElementById('popup'),
 	popupClose: document.getElementById('popup-close'),
+	popupHeader: document.getElementById('popup-header'),
 	popupTitle: document.getElementById('popup-title'),
 	popupSubtitle: document.getElementById('popup-subtitle'),
 	popupBody: document.getElementById('popup-body'),
@@ -65,7 +66,22 @@ const xd = {
 		},
 	],
 };
+/**
+ * @typedef Row
+ * @property {string} label Label of the row
+ * @property {object} input
+ * @property {string} input.id ID of the input
+ * @property {string} input.type Type of the input
+ */
 
+/**
+ * Create a modal
+ * @param {object} data Parameters used to construct the modal
+ * @param {string} data.title Popup title
+ * @param {string} data.subtitle Popup subtitle
+ * @param {boolean} data.closeable Allow closing the popup?
+ * @param {Record<number, Row>} data.body Popup body
+ */
 const showPopup = (data) => {
 	elements.topBar.style.display = 'none';
 	elements.siteBody.style.display = 'none';
@@ -86,39 +102,23 @@ const showPopup = (data) => {
 		isClosablePopupOpen = true;
 	} else {
 		elements.popupClose.style.display = 'none';
+		isClosablePopupOpen = false;
 	}
 
+	elements.popupBody.innerHTML = '';
 	if (data.body) {
+		elements.popupHeader.style.margin = '';
+		elements.popupTitle.style.margin = '';
 		for (const row of data.body) {
 			const rowElement = document.createElement('div');
-			const label = document.createElement('div');
-			label.innerHTML = row.label;
-			label.classList.add('popup-row-label');
-			const input = document.createElement('input');
-			input.id = row.input.id;
-			input.type = row.input.type;
-			input.classList.add('popup-row-input');
-			rowElement.appendChild(label);
-			rowElement.appendChild(input);
+			rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}">`;
 			elements.popupBody.appendChild(rowElement);
 		}
+	} else {
+		elements.popupHeader.style.margin = '0px';
+		elements.popupTitle.style.margin = '0px';
 	}
 };
-
-// showPopup({
-// 	title: 'Logowanie',
-// 	subtitle: '',
-// 	closeable: true,
-// 	body: [
-// 		{
-// 			label: 'Nazwa użytkownika',
-// 			input: {
-// 				id: 'popup-input-username',
-// 				type: 'text',
-// 			},
-// 		},
-// 	],
-// });
 
 const hidePopup = () => {
 	elements.topBar.style.display = '';
@@ -126,12 +126,12 @@ const hidePopup = () => {
 	elements.bottomBar.style.display = '';
 
 	elements.popup.style.display = 'none';
+	isClosablePopupOpen = false;
 };
 
 document.addEventListener('keyup', (ev) => {
 	if (ev.code === 'Escape' && isClosablePopupOpen) {
 		hidePopup();
-		isClosablePopupOpen = false;
 	}
 });
 
@@ -269,9 +269,12 @@ const connect = () => {
 				loadMessages();
 				hidePopup();
 			} else if (data.message === 'sessionID-already-online') {
-				showPopup('Ta sesja jest obecnie aktywna...', 'Jeżeli chcesz nowe ID sesji wpisz regenSessionID() w konsoli lub wyczyść dane strony');
+				showPopup({
+					title: 'Ta sesja jest obecnie aktywna...',
+					subtitle: 'Jeżeli chcesz nowe ID sesji wpisz regenSessionID() w konsoli lub wyczyść dane strony',
+				});
 			} else if (data.message === 'request-username') {
-				changeUsername();
+				changeUsername(false);
 			}
 		} else if (data.type === 'new-message') {
 			addMessage(data);
@@ -319,10 +322,11 @@ const connect = () => {
 	};
 };
 
-const changeUsername = () => {
-	isClosablePopupOpen = true;
+const changeUsername = (closeable = true, subtitle = '', startingValue = '') => {
 	showPopup({
 		title: 'Ustaw swój pseudonim',
+		subtitle: subtitle,
+		closeable: true,
 		body: [
 			{
 				label: '',
@@ -339,7 +343,7 @@ const changeUsername = () => {
 			const value = popupInput.value.trim();
 
 			if(value.length < 3 || value.length > 32) {
-				showPopup('Ustaw swój pseudonim', 'Pseudonim powinien zawierać od 3 do 32 znaków.', true);
+				changeUsername(closeable, 'Pseudonim powinien zawierać od 3 do 32 znaków.', value);
 			} else {
 				username = value;
 				socket.send(JSON.stringify({
@@ -348,12 +352,12 @@ const changeUsername = () => {
 				}));
 
 				propagateUsername(username);
-				isClosablePopupOpen = false;
 			}
 		}
 	};
 
-	popupInput.value = username;
+	popupInput.value = startingValue === '' ? username : startingValue;
+	popupInput.focus();
 };
 
 elements.input.addEventListener('keydown', event => {
