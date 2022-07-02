@@ -342,7 +342,7 @@ html, body {
 }
 
 #input:focus {
-	outline: var(--border) solid 2px;
+	outline: none;
 }
 
 .upload-button-container {

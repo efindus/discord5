@@ -153,16 +153,6 @@ const regenSessionID = () => {
 };
 
 const generateMessage = (msgData) => {
-	const codeBlockIndex = msgData.message.indexOf('```');
-	let addNL = true;
-	for (let i = 0; i < codeBlockIndex; i++) {
-		if (msgData.message[i] !== ' ') {
-			addNL = false;
-			break;
-		}
-	}
-
-	if (addNL && codeBlockIndex !== -1) msgData.message = '\n' + msgData.message;
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
