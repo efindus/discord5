@@ -6,6 +6,7 @@ const { Server } = require('./utils/server');
 const db = require('./utils/database');
 
 const main = async () => {
+	console.log('Connecting to DB...');
 	await db.connect();
 	await db.removeMany('sessions', { username: '' });
 	const server = new Server(readFileSync('server.key'), readFileSync('server.cert'), 8420);

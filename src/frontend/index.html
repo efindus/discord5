@@ -45,9 +45,12 @@
         </div>
 
 		<div id="popup">
-            <div id="popup-title">Ustaw swój pseudonim</div>
-            <div id="popup-subtitle">Pseudonim powinien zawierać od 3 do 32 znaków.</div>
-            <input id="popup-input" autocomplete="off" maxlength="32">
+			<div id="popup-close" onclick="hidePopup()">×</div>
+			<div class="popup-header">
+				<div id="popup-title">Ustaw swój pseudonim</div>
+            	<div id="popup-subtitle">Pseudonim powinien zawierać od 3 do 32 znaków.</div>
+			</div>
+            <div id="popup-body"></div>
         </div>
 
         <script src="static/highlight.js"></script>

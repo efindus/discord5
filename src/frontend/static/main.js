@@ -5,7 +5,7 @@ const sessions = {};
 const messages = [];
 const notifications = [];
 const messagesToLoad = 50;
-let isDropdownOpen = false, isUsernamePopupOpen = false;
+let isDropdownOpen = false, isClosablePopupOpen = false;
 
 const elements = {
 	topBar: document.querySelector('.top-bar'),
@@ -13,9 +13,10 @@ const elements = {
 	bottomBar: document.querySelector('.bottom-bar'),
 
 	popup: document.getElementById('popup'),
+	popupClose: document.getElementById('popup-close'),
 	popupTitle: document.getElementById('popup-title'),
 	popupSubtitle: document.getElementById('popup-subtitle'),
-	popupInput: document.getElementById('popup-input'),
+	popupBody: document.getElementById('popup-body'),
 
 	usernameContainer: document.getElementById('username-container'),
 	usernameDisplay: document.getElementById('username-display'),
@@ -44,33 +45,80 @@ const svgs = {
 		</svg>`,
 };
 
-const showPopup = (title, subtitle = '', input = false) => {
+const xd = {
+	title: '',
+	subtitle: '',
+	closeable: true,
+	body: [
+		{
+			label: '',
+			input: {
+				id: '',
+				type: '',
+			},
+		},
+	],
+	footer: [
+		{
+			label: '',
+			id: '',
+		},
+	],
+};
+
+const showPopup = (data) => {
 	elements.topBar.style.display = 'none';
 	elements.siteBody.style.display = 'none';
 	elements.bottomBar.style.display = 'none';
 
 	elements.popup.style.display = '';
-	elements.popupTitle.innerHTML = title;
+	elements.popupTitle.innerHTML = data.title;
 
-	if (subtitle?.length > 0) {
-		elements.popupTitle.style.margin = '16px 16px 16px 0px';
+	if (data.subtitle?.length > 0) {
 		elements.popupSubtitle.style.display = '';
-		elements.popupSubtitle.innerHTML = subtitle;
+		elements.popupSubtitle.innerHTML = data.subtitle;
 	} else {
 		elements.popupSubtitle.style.display = 'none';
-		if (input) {
-			elements.popupTitle.style.margin = '';
-		} else {
-			elements.popupTitle.style.margin = '0px';
-		}
 	}
 
-	if (input) {
-		elements.popupInput.style.display = '';
+	if (data.closeable) {
+		elements.popupClose.style.display = '';
+		isClosablePopupOpen = true;
 	} else {
-		elements.popupInput.style.display = 'none';
+		elements.popupClose.style.display = 'none';
+	}
+
+	if (data.body) {
+		for (const row of data.body) {
+			const rowElement = document.createElement('div');
+			const label = document.createElement('div');
+			label.innerHTML = row.label;
+			label.classList.add('popup-row-label');
+			const input = document.createElement('input');
+			input.id = row.input.id;
+			input.type = row.input.type;
+			input.classList.add('popup-row-input');
+			rowElement.appendChild(label);
+			rowElement.appendChild(input);
+			elements.popupBody.appendChild(rowElement);
+		}
 	}
 };
+
+showPopup({
+	title: 'Logowanie',
+	subtitle: '',
+	closeable: true,
+	body: [
+		{
+			label: 'Nazwa użytkownika',
+			input: {
+				id: 'popup-input-username',
+				type: 'text',
+			},
+		},
+	],
+});
 
 const hidePopup = () => {
 	elements.topBar.style.display = '';
@@ -79,6 +127,13 @@ const hidePopup = () => {
 
 	elements.popup.style.display = 'none';
 };
+
+document.addEventListener('keyup', (ev) => {
+	if (ev.code === 'Escape' && isClosablePopupOpen) {
+		hidePopup();
+		isClosablePopupOpen = false;
+	}
+});
 
 const propagateUsername = (username) => {
 	elements.usernameDisplay.innerText = username;
@@ -274,13 +329,13 @@ elements.popupInput.addEventListener('keyup', event => {
 			}));
 
 			propagateUsername(username);
-			isUsernamePopupOpen = false;
+			isClosablePopupOpen = false;
 		}
 	}
 });
 
 const changeUsername = () => {
-	isUsernamePopupOpen = true;
+	isClosablePopupOpen = true;
 	showPopup('Ustaw swój pseudonim', '', true);
 	elements.popupInput.value = username;
 };
@@ -340,12 +395,6 @@ elements.uploadButton.addEventListener('click', (evt) => {
 
 elements.usernameContainer.addEventListener('click', toggleDropdown);
 elements.dropdownClose.addEventListener('click', toggleDropdown);
-document.addEventListener('keyup', (ev) => {
-	if (ev.code === 'Escape' && isUsernamePopupOpen) {
-		hidePopup();
-		isUsernamePopupOpen = false;
-	}
-});
 
 const updateClock = () => {
 	const NOW = new Date();
@@ -353,8 +402,8 @@ const updateClock = () => {
 	setTimeout(updateClock, 1000 - (Date.now() % 1000));
 };
 
-updateClock();
-connect();
+// updateClock();
+// connect();
 
 elements.messageContainer.onscroll = () => {
 	if (Notification.permission === 'default') Notification.requestPermission();
