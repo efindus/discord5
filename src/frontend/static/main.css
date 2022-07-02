@@ -22,7 +22,6 @@
     --green: #a3be8c;
     --purple: #b48ead;
     --blue: #5e81ac;
-	--darkblue: #3c6eaa;
     --online: #41b37f;
 }
 
@@ -255,7 +254,7 @@ html, body {
 }
 
 #load-messages-button:hover {
-    background-color: var(--darkblue);
+    filter: saturate(170%);
 }
 
 /* Popup */
@@ -303,28 +302,52 @@ html, body {
 }
 
 #popup-subtitle {
-    font-size: 12px;
+    font-size: 14px;
+}
+
+.popup-row {
+	margin-bottom: 10px;
 }
 
 .popup-row-label {
 	font-size: 18px;
-	margin-bottom: 4px;
+	margin-bottom: 5px;
 }
 
-.popup-row-input[type='text'] {
+.popup-row-input[type='text'], .popup-row-input[type='password'] {
 	height: 48px;
     box-sizing: border-box;
     padding: 6px 12px;
     background-color: var(--input-background);
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     width: 100%;
 	color: var(--text);
 	font-size: 17px;
 }
 
-.popup-row-input[type='text']:focus {
-	outline: var(--border) solid 2px;
+.popup-row-input[type='text']:focus, .popup-row-input[type='password']:focus {
+	outline: none;
+}
+
+.popup-button {
+	background-color: var(--blue);
+	border-radius: 8px;
+	padding: 8px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-bottom: 8px;
+	user-select: none;
+	cursor: pointer;
+}
+
+.popup-button:hover {
+	filter: saturate(170%);
+}
+
+.popup-button:active {
+	filter: saturate(250%);
 }
 
 /* Bottom bar */

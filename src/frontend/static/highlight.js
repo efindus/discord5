@@ -100,6 +100,7 @@ const highlight = (text) => {
 
 	mode = 'default';
 
+	// TODO: maybe remove this
 	for (let i = 0; i < lines.length; i++) {
 		result += `<tr><td line='${i + 1}'><td>${highlightPart(`${lines[i]}\u200B`)}</tr>`;
 	}

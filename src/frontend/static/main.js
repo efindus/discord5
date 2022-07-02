@@ -18,6 +18,7 @@ const elements = {
 	popupTitle: document.getElementById('popup-title'),
 	popupSubtitle: document.getElementById('popup-subtitle'),
 	popupBody: document.getElementById('popup-body'),
+	popupFooter: document.getElementById('popup-footer'),
 
 	usernameContainer: document.getElementById('username-container'),
 	usernameDisplay: document.getElementById('username-display'),
@@ -46,26 +47,6 @@ const svgs = {
 		</svg>`,
 };
 
-const xd = {
-	title: '',
-	subtitle: '',
-	closeable: true,
-	body: [
-		{
-			label: '',
-			input: {
-				id: '',
-				type: '',
-			},
-		},
-	],
-	footer: [
-		{
-			label: '',
-			id: '',
-		},
-	],
-};
 /**
  * @typedef Row
  * @property {string} label Label of the row
@@ -75,12 +56,21 @@ const xd = {
  */
 
 /**
+ * @typedef FooterButton
+ * @property {string} label Label of the button
+ * @property {string} id ID of the button
+ * @property {string} color Color of the button
+ */
+
+/**
  * Create a modal
  * @param {object} data Parameters used to construct the modal
  * @param {string} data.title Popup title
  * @param {string} data.subtitle Popup subtitle
+ * @param {string} data.subtitleColor Popup subtitle color
  * @param {boolean} data.closeable Allow closing the popup?
  * @param {Record<number, Row>} data.body Popup body
+ * @param {Record<number, FooterButton>} data.footer Popup footer
  */
 const showPopup = (data) => {
 	elements.topBar.style.display = 'none';
@@ -93,6 +83,7 @@ const showPopup = (data) => {
 	if (data.subtitle?.length > 0) {
 		elements.popupSubtitle.style.display = '';
 		elements.popupSubtitle.innerHTML = data.subtitle;
+		elements.popupSubtitle.style.color = data.subtitleColor ?? '';
 	} else {
 		elements.popupSubtitle.style.display = 'none';
 	}
@@ -111,12 +102,28 @@ const showPopup = (data) => {
 		elements.popupTitle.style.margin = '';
 		for (const row of data.body) {
 			const rowElement = document.createElement('div');
+			rowElement.classList.add('popup-row');
 			rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}">`;
 			elements.popupBody.appendChild(rowElement);
 		}
+		elements.popupBody.lastChild.style.marginBottom = '0px';
 	} else {
 		elements.popupHeader.style.margin = '0px';
 		elements.popupTitle.style.margin = '0px';
+	}
+
+	elements.popupFooter.innerHTML = '';
+	if (data.footer) {
+		elements.popupBody.lastChild.style.marginBottom = '15px';
+		for (const button of data.footer) {
+			const buttonElement = document.createElement('div');
+			buttonElement.classList.add('popup-button');
+			buttonElement.id = button.id;
+			buttonElement.innerHTML = button.label;
+			buttonElement.style.backgroundColor = button.color ?? 'var(--blue)';
+			elements.popupFooter.appendChild(buttonElement);
+		}
+		elements.popupFooter.lastChild.style.marginBottom = '0px';
 	}
 };
 
@@ -316,7 +323,7 @@ const changeUsername = (closeable = true, subtitle = '', startingValue = '') => 
 	showPopup({
 		title: 'Ustaw swój pseudonim',
 		subtitle: subtitle,
-		closeable: true,
+		closeable: closeable,
 		body: [
 			{
 				label: '',
@@ -418,3 +425,38 @@ connect();
 elements.messageContainer.onscroll = () => {
 	if (Notification.permission === 'default') Notification.requestPermission();
 };
+
+/*
+showPopup({
+	title: 'Zaloguj się',
+	subtitle: '',
+	closeable: true,
+	body: [
+		{
+			label: 'Nazwa użytkownika',
+			input: {
+				id: 'popup-input-username',
+				type: 'text',
+			},
+		},
+		{
+			label: 'Hasło',
+			input: {
+				id: 'popup-input-password',
+				type: 'password',
+			},
+		},
+	],
+	footer: [
+		{
+			id: 'popup-button-login',
+			label: 'Zaloguj się',
+		},
+		{
+			id: 'popup-button-register',
+			label: 'Zarejestruj się',
+			color: 'var(--orange)',
+		},
+	],
+});
+*/
