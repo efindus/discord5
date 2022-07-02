@@ -2,11 +2,12 @@ table {
     display: block;
     tab-size: 4;
     -moz-tab-size: 4;
-    background-color: rgb(35, 35, 39);
-    border: 1px solid rgb(56, 56, 61);
+    background-color: var(--box);
+    border: 1px solid var(--border);
     border-spacing: 0px;
     border-radius: 4px;
     margin: 8px 0px;
+	box-shadow: 3px 3px 6px 0px var(--shadow);
 }
 
 table > tbody {
@@ -20,7 +21,7 @@ table > tbody > tr {
 }
 
 table > tbody > tr:hover {
-    background-color: rgb(30, 30, 30);
+    background-color: var(--hover);
 }
 
 table > tbody > tr > td {

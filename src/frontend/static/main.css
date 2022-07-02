@@ -15,12 +15,14 @@
 :root
 {
     --border: #4c566a;
+    --darkborder: #44484f;
     --red: #bf616a;
     --orange: #d08770;
     --yellow: #ebcb8b;
     --green: #a3be8c;
     --purple: #b48ead;
     --blue: #5e81ac;
+	--darkblue: #3c6eaa;
     --online: #41b37f;
 }
 
@@ -36,7 +38,11 @@
 :root .dark
 {
     --background:#292e39;
+	--input-background: #22252d;
+	--topbar: #161716;
     --box: #2e3440;
+	--lightbox: rgb(62, 62, 77);
+	--lighterbox: #4b535e;
     --shadow: rgb(15, 17, 21, 0.35);
     --hover: rgba(76, 86, 106, 0.5);
     --text: #d8dee9;
@@ -49,7 +55,9 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: rgb(30, 30, 30);
+    background-color: var(--background);
+	font-family: 'Rubik', Helvetica, Arial, sans-serif;
+	font-size: 18px;
 }
 
 /* Sections */
@@ -60,11 +68,11 @@ html, body {
 	position: absolute;
 	top: 0px;
 	left: 0px;
-	background-color: #161716;
+	background-color: var(--topbar);
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	color: white;
+	color: var(--text);
 	font-family: "Consolas", monospace;
 	user-select: none;
 }
@@ -80,13 +88,13 @@ html, body {
 }
 
 .bottom-bar {
-	background-color: rgb(35, 35, 39);
+	background-color: var(--box);
 	position: absolute;
 	bottom: 0px;
 	width: calc(100vw - 6px);
 	height: 50px;
 	border-top-style: solid;
-	border-color: rgb(48, 48, 53);
+	border-color: var(--darkborder);
 	display: grid;
 	grid-template-columns: max(50px, 8vw) auto;
 	grid-template-rows: auto;
@@ -98,18 +106,16 @@ html, body {
 #username-container {
     right: 15px;
     position: absolute;
-    color: rgb(155, 155, 155);
-    border-color: rgb(155, 155, 155);
+    color: var(--text);
+	filter: brightness(75%);
 }
 
 #username-container:hover {
-    color: rgb(192, 192, 192);
-    border-color: rgb(192, 192, 192);
+    filter: brightness(85%);
 }
 
 #username-container:active {
-    color: rgb(255, 255, 255);
-    border-color: rgb(255, 255, 255);
+    filter: brightness(100%);
 }
 
 #username-display {
@@ -136,9 +142,9 @@ html, body {
     right: -4px;
     padding: 8px;
     border-radius: 10px;
-    color: rgb(0, 0, 0);
-    background-color: rgb(255, 255, 255);
-    box-shadow: 0px 0px 16px 8px rgba(0, 0, 0, 0.2);
+    color: var(--text);
+    background-color: var(--lighterbox);
+    box-shadow: 0px 0px 16px 8px var(--shadow);
     font-weight: normal;
     font-size: 17px;
     display: none;
@@ -151,8 +157,7 @@ html, body {
 }
 
 .dropdown-open {
-    color: rgb(255, 255, 255) !important;
-    border-color: rgb(255, 255, 255) !important;
+    filter: brightness(100%) !important;
     z-index: 1;
 }
 
@@ -163,14 +168,16 @@ html, body {
     align-items: center;
     width: 100%;
     cursor: pointer;
+    background-color: var(--lighterbox);
+	border-radius: 8px;
 }
 
 .dropdown-entry:hover {
-    background-color: rgb(233, 233, 233);
+    filter: brightness(112%);
 }
 
 .dropdown-entry:active {
-    background-color: rgb(216, 216, 216);
+    filter: brightness(135%);
 }
 
 #dropdown-trigger {
@@ -189,7 +196,7 @@ html, body {
 
 /* Site body */
 #message-container {
-    color: white;
+    color: var(--text);
 	word-wrap: break-word;
 	height: 100%;
 	overflow-x: hidden;
@@ -207,7 +214,8 @@ html, body {
 
 .message-highlight {
     margin-right: 6px;
-    color: rgb(103, 205, 254);
+    color: var(--blue);
+	filter: brightness(140%);
 }
 
 .message-content {
@@ -215,8 +223,7 @@ html, body {
 }
 
 #load-messages-button {
-    background-color: rgb(53, 130, 214);
-    font-family: Arial, Helvetica, sans-serif;
+    background-color: var(--blue);
     padding: 12px;
     margin: 12px auto;
     cursor: pointer;
@@ -224,10 +231,11 @@ html, body {
     font-weight: bold;
     border-radius: 4px;
     display: table;
+	box-shadow: 5px 5px 10px 0px var(--shadow);
 }
 
 #load-messages-button:hover {
-    background-color: rgb(103, 205, 254);
+    background-color: var(--darkblue);
 }
 
 /* Popup */
@@ -237,30 +245,31 @@ html, body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: rgb(38, 38, 42);
+    background-color: var(--box);
+	box-shadow: 5px 5px 10px 0px var(--shadow);
     border-radius: 10px;
     padding: 24px;
     box-sizing: border-box;
-	font-family: 'Rubik', Helvetica, Arial, sans-serif;
-	color: rgb(239, 249, 255);
+	color: var(--text);
 }
 
 #popup-close {
-	color: rgb(107, 112, 125);
+	color: var(--border);
 	font-weight: 700;
 	font-size: 33px;
 	position: absolute;
-	top: -5px;
+	top: -2px;
 	right: 9px;
 	user-select: none;
+	cursor: pointer;
 }
 
 #popup-close:hover {
-	color: rgb(130, 135, 146);
+	filter: brightness(135%);
 }
 
 #popup-close:active {
-	color: rgb(178, 179, 182);
+	filter: brightness(165%);
 }
 
 .popup-header {
@@ -279,27 +288,33 @@ html, body {
 
 .popup-row-label {
 	font-size: 18px;
-	margin-bottom: 3px;
+	margin-bottom: 4px;
 }
 
 .popup-row-input[type='text'] {
 	height: 48px;
     box-sizing: border-box;
-    padding: 8px 12px;
-    background-color: rgb(29, 29, 29);
-    border: 1px solid rgb(56, 56, 61);
+    padding: 6px 12px;
+    background-color: var(--input-background);
+    border: none;
     border-radius: 10px;
-    width: 100%
+    width: 100%;
+	color: var(--text);
+	font-size: 17px;
+}
+
+.popup-row-input[type='text']:focus {
+	outline: var(--border) solid 2px;
 }
 
 /* Bottom bar */
 #input {
     box-sizing: border-box;
-	color: rgb(255, 255, 255);
+	color: var(--text);
 	font-family: "Consolas", monospace;
 	resize: none;
 	padding: 13px 12px;
-	background-color: rgb(27, 27, 30);
+	background-color: var(--input-background);
 	border-radius: 15px;
 	border-style: none;
 	margin: 0px;
@@ -307,7 +322,7 @@ html, body {
 }
 
 #input:focus {
-	outline: rgb(21, 21, 26) solid 2px;
+	outline: var(--border) solid 2px;
 }
 
 .upload-button-container {
@@ -317,21 +332,21 @@ html, body {
 }
 
 #upload-button {
-	background-color: rgb(61, 61, 72);
+	background-color: var(--lightbox);
 	grid-row: 2;
 	grid-column: 2;
 	border-radius: 10000vw;
 	border-style: solid;
 	border-width: 1px;
-	border-color: rgb(101, 101, 104);
+	border-color: var(--border);
 }
 
 #upload-button:hover {
-	background-color: rgb(81, 81, 90);
+	filter: brightness(125%);
 }
 
 #upload-button:active {
-	background-color: rgb(95, 95, 102);
+	filter: brightness(155%);
 }
 
 #upload-input {

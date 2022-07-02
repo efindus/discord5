@@ -36,12 +36,12 @@ const elements = {
 
 const svgs = {
 	plus: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="rgb(164, 164, 164)" stroke-width="0.06"></line>
-			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="rgb(164, 164, 164)" stroke-width="0.06"></line>
+			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--text)" stroke-width="0.06"></line>
+			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--text)" stroke-width="0.06"></line>
 		</svg>`,
 	cross: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" x2="0.75" stroke="rgb(164, 164, 164)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
-			<line y1="0.25" y2="0.75" stroke="rgb(164, 164, 164)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
+			<line x1="0.25" x2="0.75" stroke="var(--text)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
+			<line y1="0.25" y2="0.75" stroke="var(--text)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
 		</svg>`,
 };
 
@@ -105,20 +105,20 @@ const showPopup = (data) => {
 	}
 };
 
-showPopup({
-	title: 'Logowanie',
-	subtitle: '',
-	closeable: true,
-	body: [
-		{
-			label: 'Nazwa użytkownika',
-			input: {
-				id: 'popup-input-username',
-				type: 'text',
-			},
-		},
-	],
-});
+// showPopup({
+// 	title: 'Logowanie',
+// 	subtitle: '',
+// 	closeable: true,
+// 	body: [
+// 		{
+// 			label: 'Nazwa użytkownika',
+// 			input: {
+// 				id: 'popup-input-username',
+// 				type: 'text',
+// 			},
+// 		},
+// 	],
+// });
 
 const hidePopup = () => {
 	elements.topBar.style.display = '';
@@ -230,7 +230,9 @@ const sanitizeText = (text) => {
 
 const connect = () => {
 	socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
-	showPopup('Łączenie...');
+	showPopup({
+		title: 'Łączenie...',
+	});
 	let pinger;
 
 	socket.onopen = () => {
@@ -309,35 +311,49 @@ const connect = () => {
 	socket.onclose = () => {
 		clearInterval(pinger);
 		elements.messages.innerHTML = '';
-		showPopup('Łączenie...');
+		showPopup({
+			title: 'Łączenie...',
+		});
 
 		setTimeout(connect, 1000);
 	};
 };
 
-elements.popupInput.addEventListener('keyup', event => {
-	if(event.code === 'Enter' || event.keyCode === 13) {
-		const value = elements.popupInput.value.trim();
-
-		if(value.length < 3 || value.length > 32) {
-			showPopup('Ustaw swój pseudonim', 'Pseudonim powinien zawierać od 3 do 32 znaków.', true);
-		} else {
-			username = value;
-			socket.send(JSON.stringify({
-				type: 'set-username',
-				username,
-			}));
-
-			propagateUsername(username);
-			isClosablePopupOpen = false;
-		}
-	}
-});
-
 const changeUsername = () => {
 	isClosablePopupOpen = true;
-	showPopup('Ustaw swój pseudonim', '', true);
-	elements.popupInput.value = username;
+	showPopup({
+		title: 'Ustaw swój pseudonim',
+		body: [
+			{
+				label: '',
+				input: {
+					id: 'popup-input-username',
+					type: 'text',
+				},
+			},
+		],
+	});
+	const popupInput = document.getElementById('popup-input-username');
+	popupInput.onkeyup = (event) => {
+		if(event.code === 'Enter' || event.keyCode === 13) {
+			const value = popupInput.value.trim();
+
+			if(value.length < 3 || value.length > 32) {
+				showPopup('Ustaw swój pseudonim', 'Pseudonim powinien zawierać od 3 do 32 znaków.', true);
+			} else {
+				username = value;
+				socket.send(JSON.stringify({
+					type: 'set-username',
+					username,
+				}));
+
+				propagateUsername(username);
+				isClosablePopupOpen = false;
+			}
+		}
+	};
+
+	popupInput.value = username;
 };
 
 elements.input.addEventListener('keydown', event => {
@@ -402,8 +418,8 @@ const updateClock = () => {
 	setTimeout(updateClock, 1000 - (Date.now() % 1000));
 };
 
-// updateClock();
-// connect();
+updateClock();
+connect();
 
 elements.messageContainer.onscroll = () => {
 	if (Notification.permission === 'default') Notification.requestPermission();
