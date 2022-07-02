@@ -206,10 +206,28 @@ html, body {
 .message {
     box-sizing: border-box;
     padding: 2px 8px;
-    font-family: "Consolas", monospace;
     display: flex;
+	flex-direction: column;
     flex-wrap: wrap;
     word-break: break-word;
+}
+
+.message-meta {
+	display: flex;
+}
+
+.message-username {
+	color: var(--blue);
+	filter: brightness(140%);
+	margin-right: 6px;
+}
+
+.message-date {
+	font-size: 13px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	filter: brightness(75%);
 }
 
 .message-highlight {
@@ -219,6 +237,8 @@ html, body {
 }
 
 .message-content {
+	margin-left: 15px;
+	font-family: "Consolas", monospace;
     flex-grow: 100;
 }
 

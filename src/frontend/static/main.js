@@ -166,7 +166,7 @@ const generateMessage = (msgData) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	message.innerHTML = `<div class='message-highlight'>[${new Date(msgData.ts).toLocaleString('pl')}]</div><span class='message-highlight'>${sessions[msgData.sidHash]}</span><div class='message-content'>${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
+	message.innerHTML = `<div class="message-meta"><span class="message-username">${sessions[msgData.sidHash]}</span><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 };
 
@@ -302,7 +302,7 @@ const connect = () => {
 
 				for (const msg of messages) {
 					if (msg.sidHash === data.sidHash) {
-						document.getElementById(msg.id).childNodes[1].innerHTML = sessions[data.sidHash];
+						document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = sessions[data.sidHash];
 					}
 				}
 			}
