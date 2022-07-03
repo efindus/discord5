@@ -1,11 +1,14 @@
 /* eslint-disable no-undef */
-let username = '';
-let socket;
-const sessions = {};
-const messages = [];
-const notifications = [];
-const messagesToLoad = 50;
-let isDropdownOpen = false, isClosablePopupOpen = false;
+const state = {
+	username: '',
+	socket: null,
+	sessions: {},
+	messages: [],
+	notifications: [],
+	messagesToLoad: 50,
+	isDropdownOpen: false,
+	isClosablePopupOpen: false,
+};
 
 const elements = {
 	topBar: document.querySelector('.top-bar'),
@@ -90,10 +93,10 @@ const showPopup = (data) => {
 
 	if (data.closeable) {
 		elements.popupClose.style.display = '';
-		isClosablePopupOpen = true;
+		state.isClosablePopupOpen = true;
 	} else {
 		elements.popupClose.style.display = 'none';
-		isClosablePopupOpen = false;
+		state.isClosablePopupOpen = false;
 	}
 
 	elements.popupBody.innerHTML = '';
@@ -133,11 +136,11 @@ const hidePopup = () => {
 	elements.bottomBar.style.display = '';
 
 	elements.popup.style.display = 'none';
-	isClosablePopupOpen = false;
+	state.isClosablePopupOpen = false;
 };
 
 document.addEventListener('keyup', (ev) => {
-	if (ev.code === 'Escape' && isClosablePopupOpen) {
+	if (ev.code === 'Escape' && state.isClosablePopupOpen) {
 		hidePopup();
 	}
 });
@@ -156,21 +159,21 @@ const sha256 = async (message) => {
 
 const regenSessionID = () => {
 	localStorage.removeItem('sid');
-	socket.close();
+	state.socket.close();
 };
 
 const generateMessage = (msgData) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	message.innerHTML = `<div class="message-meta"><span class="message-username">${sessions[msgData.sidHash]}</span><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
+	message.innerHTML = `<div class="message-meta"><span class="message-username">${state.sessions[msgData.sidHash]}</span><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 };
 
 const addMessage = (msgData) => {
-	if (!sessions[msgData.sidHash]) {
-		sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
-		socket.send(JSON.stringify({
+	if (!state.sessions[msgData.sidHash]) {
+		state.sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
+		state.socket.send(JSON.stringify({
 			type: 'get-session-id-hash',
 			sidHash: msgData.sidHash,
 		}));
@@ -179,42 +182,42 @@ const addMessage = (msgData) => {
 	const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 	elements.messages.appendChild(generateMessage(msgData));
 
-	messages.push(msgData);
+	state.messages.push(msgData);
 
 	if (!document.hasFocus() && Notification.permission === 'granted') {
 		const notif = new Notification('Discord 4.0: New Message', {
-			body: `${sessions[msgData.sidHash]}: ${msgData.message.slice(0, 150)}`,
+			body: `${state.sessions[msgData.sidHash]}: ${msgData.message.slice(0, 150)}`,
 			icon: '/favicon.ico',
 		});
 
-		notif.index = notifications.length;
+		notif.index = state.notifications.length;
 		notif.onclose = () => {
-			notifications.splice(notif.index, 1);
+			state.notifications.splice(notif.index, 1);
 		};
 
-		notifications.push(notif);
+		state.notifications.push(notif);
 	}
 
 	if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 };
 
 const insertMessage = (msgData) => {
-	if (!sessions[msgData.sidHash]) {
-		sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
-		socket.send(JSON.stringify({
+	if (!state.sessions[msgData.sidHash]) {
+		state.sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
+		state.socket.send(JSON.stringify({
 			type: 'get-session-id-hash',
 			sidHash: msgData.sidHash,
 		}));
 	}
 
-	messages.splice(0, 0, msgData);
+	state.messages.splice(0, 0, msgData);
 
 	elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
 };
 
 const loadMessages = () => {
 	elements.loadMessagesButton.style.display = 'none';
-	socket.send(JSON.stringify({
+	state.socket.send(JSON.stringify({
 		type: 'get-messages',
 	}));
 };
@@ -226,13 +229,13 @@ const sanitizeText = (text) => {
 };
 
 const connect = () => {
-	socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
+	state.socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
 	showPopup({
 		title: 'Łączenie...',
 	});
 	let pinger;
 
-	socket.onopen = () => {
+	state.socket.onopen = () => {
 		if (localStorage.getItem('sid') === null || localStorage.getItem('sid').length === 0) {
 			const randArr = new Uint32Array(40);
 			crypto.getRandomValues(randArr);
@@ -245,24 +248,24 @@ const connect = () => {
 		}
 
 		pinger = setInterval(() => {
-			socket.send(JSON.stringify({
+			state.socket.send(JSON.stringify({
 				type: 'ping',
 			}));
 		}, 5000);
 
-		socket.send(JSON.stringify({
+		state.socket.send(JSON.stringify({
 			type: 'connect',
 			sid: localStorage.getItem('sid'),
 		}));
 	};
 
-	socket.onmessage = async (event) => {
+	state.socket.onmessage = async (event) => {
 		const data = JSON.parse(event.data);
 
 		if (data.type === 'connect-cb') {
 			if (data.message === 'accepted') {
 				propagateUsername(data.username);
-				username = data.username;
+				state.username = data.username;
 				loadMessages();
 				hidePopup();
 			} else if (data.message === 'sessionID-already-online') {
@@ -282,24 +285,24 @@ const connect = () => {
 			}
 
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
-			if (data.messages.length === messagesToLoad) elements.loadMessagesButton.style.display = 'table';
+			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
 		} else if (data.type === 'update-username') {
 			data.username = sanitizeText(data.username);
 			if (data.sidHash === await sha256(localStorage.getItem('sid'))) {
-				if (messages.length === 0) {
+				if (state.messages.length === 0) {
 					loadMessages();
 					propagateUsername(data.username);
-					username = data.username;
+					state.username = data.username;
 				}
 				hidePopup();
 			}
 
 			if (data.username.length !== 0) {
-				sessions[data.sidHash] = data.username;
+				state.sessions[data.sidHash] = data.username;
 
-				for (const msg of messages) {
+				for (const msg of state.messages) {
 					if (msg.sidHash === data.sidHash) {
-						document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = sessions[data.sidHash];
+						document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = state.sessions[data.sidHash];
 					}
 				}
 			}
@@ -308,7 +311,7 @@ const connect = () => {
 		}
 	};
 
-	socket.onclose = () => {
+	state.socket.onclose = () => {
 		clearInterval(pinger);
 		elements.messages.innerHTML = '';
 		showPopup({
@@ -342,18 +345,18 @@ const changeUsername = (closeable = true, subtitle = '', startingValue = '') => 
 			if(value.length < 3 || value.length > 32) {
 				changeUsername(closeable, 'Pseudonim powinien zawierać od 3 do 32 znaków.', value);
 			} else {
-				username = value;
-				socket.send(JSON.stringify({
+				state.username = value;
+				state.socket.send(JSON.stringify({
 					type: 'set-username',
-					username,
+					username: state.username,
 				}));
 
-				propagateUsername(username);
+				propagateUsername(state.username);
 			}
 		}
 	};
 
-	popupInput.value = startingValue === '' ? username : startingValue;
+	popupInput.value = startingValue === '' ? state.username : startingValue;
 	popupInput.focus();
 };
 
@@ -375,7 +378,7 @@ elements.input.addEventListener('keydown', event => {
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 			elements.input.value = '';
 
-			socket.send(JSON.stringify({
+			state.socket.send(JSON.stringify({
 				type: 'send-message',
 				message: value,
 			}));
@@ -384,13 +387,13 @@ elements.input.addEventListener('keydown', event => {
 });
 
 const toggleDropdown = () => {
-	if (isDropdownOpen) {
-		isDropdownOpen = false;
+	if (state.isDropdownOpen) {
+		state.isDropdownOpen = false;
 		elements.dropdown.style.display = 'none';
 		elements.usernameContainer.classList.remove('dropdown-open');
 		elements.dropdownClose.style.display = 'none';
 	} else {
-		isDropdownOpen = true;
+		state.isDropdownOpen = true;
 		elements.dropdown.style.display = 'flex';
 		elements.usernameContainer.classList.add('dropdown-open');
 		elements.dropdownClose.style.display = 'block';

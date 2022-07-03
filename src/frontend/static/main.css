@@ -340,6 +340,7 @@ html, body {
 	margin-bottom: 8px;
 	user-select: none;
 	cursor: pointer;
+	box-shadow: 3px 3px 6px 0px var(--shadow);
 }
 
 .popup-button:hover {
