@@ -36,26 +36,22 @@ class Server extends EventEmitter {
 
 		server.on('request', (request, response) => {
 			const start = process.hrtime.bigint();
+			const remoteAddress = request.socket.remoteAddress;
 
 			response.on('finish', () => {
 				const end = process.hrtime.bigint();
 
-				if (request.socket.bytesSent === undefined) {
-					request.socket.bytesSent = 0;
-					request.socket.bytesReceived = 0;
-				}
-
 				let url = request.url;
 
-				if (request.method.length + url.length > 30) {
+				if (request.method.length + url.length > 60) {
 					url = `${url.slice(0, 27 - request.method.length)}...`;
 				}
 
-				while (request.method.length + url.length < 30) {
+				while (request.method.length + url.length < 60) {
 					url += ' ';
 				}
 
-				console.log(`${(request.socket.remoteAddress ? bold(blue(`[${request.socket.remoteAddress?.split(':')[3]}] `)) : '') }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
+				console.log(`${(remoteAddress ? bold(blue(`[${remoteAddress?.split(':')[3]}] `)) : '') }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
 			});
 
 			let path = new URL(request.url, `https://${request.headers.host}`).pathname;
