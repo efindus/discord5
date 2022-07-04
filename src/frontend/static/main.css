@@ -140,7 +140,7 @@ html, body {
     top: 45px;
     right: -4px;
     padding: 8px;
-    border-radius: 10px;
+    border-radius: 8px;
     color: var(--text);
     background-color: var(--lighterbox);
     box-shadow: 0px 0px 16px 8px var(--shadow);
@@ -219,6 +219,7 @@ html, body {
 	color: var(--blue);
 	filter: brightness(140%);
 	margin-right: 6px;
+	font-weight: 700;
 }
 
 .message-date {
@@ -248,7 +249,7 @@ html, body {
     cursor: pointer;
     font-size: 14px;
     font-weight: bold;
-    border-radius: 4px;
+    border-radius: 8px;
     display: table;
 	box-shadow: 5px 5px 10px 0px var(--shadow);
 }
@@ -266,7 +267,7 @@ html, body {
     transform: translate(-50%, -50%);
     background-color: var(--box);
 	box-shadow: 5px 5px 10px 0px var(--shadow);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 24px;
     box-sizing: border-box;
 	color: var(--text);
@@ -359,7 +360,7 @@ html, body {
 	resize: none;
 	padding: 13px 12px;
 	background-color: var(--input-background);
-	border-radius: 15px;
+	border-radius: 8px;
 	border-style: none;
 	margin: 0px;
 	height: 50px;
@@ -379,7 +380,7 @@ html, body {
 	background-color: var(--lightbox);
 	grid-row: 2;
 	grid-column: 2;
-	border-radius: 10000vw;
+	border-radius: 50%;
 	border-style: solid;
 	border-width: 1px;
 	border-color: var(--border);
