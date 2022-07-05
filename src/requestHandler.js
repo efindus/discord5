@@ -44,33 +44,33 @@ const request = async (request, response) => {
 	if (endpoints[request.path] && !endpoint) {
 		response.writeHead(405);
 		response.end();
+		return;
 	} else if (endpoint) {
-		if (typeof endpoint === 'function') {
-			const result = await endpoint(request);
-			if (result.headers) {
-				for (const header in result.headers)
-					response.setHeader(header, result.headers[header]);
-			}
+		const result = await endpoint(request);
+		if (result.headers) {
+			for (const header in result.headers)
+				response.setHeader(header, result.headers[header]);
+		}
 
-			let buffer;
+		let buffer;
 
-			if (Buffer.isBuffer(result.body)) {
-				buffer = result.body;
-			} else if (typeof result.body === 'object') {
-				buffer = Buffer.from(JSON.stringify(result.body));
-				response.setHeader('Content-Type', 'application/json');
-			}
+		if (Buffer.isBuffer(result.body)) {
+			buffer = result.body;
+		} else if (typeof result.body === 'object') {
+			buffer = Buffer.from(JSON.stringify(result.body));
+			response.setHeader('Content-Type', 'application/json');
+		}
 
-			if (buffer)
-				response.setHeader('Content-Length', buffer.length);
+		if (buffer)
+			response.setHeader('Content-Length', buffer.length);
 
-			response.writeHead(result.status);
+		response.writeHead(result.status);
 
-			if (buffer)
-				response.write(buffer);
+		if (buffer)
+			response.write(buffer);
 
-			response.end();
-		} else return return404();
+		response.end();
+		return;
 	}
 
 	if (request.method === 'GET') {

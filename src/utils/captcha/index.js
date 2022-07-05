@@ -7,7 +7,7 @@ const solved = new Set();
 /**
  * Verifies if captcha was solved correctly.
  * @param {string} id - Unique captcha id.
- * @param {string} timestamp - Captcha creation timestamp.
+ * @param {number} timestamp - Captcha creation timestamp.
  * @param {string} solution - Solution to test.
  * @param {string} signature - Captcha signature.
  * @param {string} secret - Secret that was used to sign the captcha.
@@ -113,6 +113,8 @@ const createCaptcha = (length, secret) => {
 
 	const id = randomBytes(4).toString('hex');
 	const timestamp = Date.now();
+
+	console.log(solution);
 
 	return {
 		id: id,
