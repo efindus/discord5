@@ -19,16 +19,18 @@ const addEndpoint = (path, method, handler) => {
 };
 
 /**
- * @typedef Request
- * @property {string} method
+ * @typedef RequestData
+ * @property {"GET" | "POST" | "HEAD" | "PUT" | "DELETE" | "OPTIONS" | "PATCH"} method
  * @property {string} path
- * @property {object} cookies
- * @property {string} body
+ * @property {import("url").URLSearchParams} parameters
+ * @property {object | null} body
+ * @property {Record<string, string>} cookies
+ * @property {Record<string, string>} headers
  */
 
 /**
  * Handles an http request
- * @param {Request} request
+ * @param {RequestData} request
  * @param {import('http2').Http2ServerResponse} response
  */
 const request = async (request, response) => {

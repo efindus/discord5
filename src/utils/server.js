@@ -34,7 +34,7 @@ class Server extends EventEmitter {
 			this.emit('websocket', request, socket);
 		});
 
-		server.on('request', (request, response) => {
+		server.on('request', async (request, response) => {
 			const start = process.hrtime.bigint();
 			const remoteAddress = request.socket.remoteAddress;
 
@@ -54,23 +54,62 @@ class Server extends EventEmitter {
 				console.log(`${(remoteAddress ? bold(blue(`[${remoteAddress?.split(':')[3]}] `)) : '') }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
 			});
 
-			let path = new URL(request.url, `https://${request.headers.host}`).pathname;
+			const url = new URL(request.url, `https://${request.headers.host}`);
+			let path = url.pathname;
 			path = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
 
-			let data = '';
+			const requestData = {
+				method: request.method,
+				path: path,
+				parameters: url.searchParams,
+				body: {},
+				cookies: {},
+				headers: request.headers,
+			};
 
-			request.on('data', (buffer) => {
-				data += buffer.toString();
-			});
+			if ([ 'application/json', 'application/x-www-form-urlencoded' ].includes(request.headers['content-type'])) {
+				try {
+					await new Promise((resolve, reject) => {
+						let buffer = '';
 
-			request.on('end', () => {
-				this.emit('request', {
-					method: request.method,
-					path,
-					cookies: parse(request.headers.cookie || '', '; ', '=', { decodeURIComponent }),
-					body: data,
-				}, response);
-			});
+						request.on('data', (data) => {
+							buffer += data.toString();
+						});
+
+						request.on('error', reject);
+
+						request.on('end', () => {
+							try {
+								if (request.headers['content-type'] === 'application/json') {
+									requestData.body = JSON.parse(buffer);
+								} else {
+									requestData.body = Object.fromEntries(new URLSearchParams(buffer));
+								}
+							} catch (error) {
+								reject();
+							}
+
+							resolve();
+						});
+					});
+				} catch {
+					response.writeHead(400);
+					response.end();
+
+					return;
+				}
+			}
+
+			if (typeof request.headers.cookie === 'string') {
+				for (const cookie of request.headers.cookie.split('; ')) {
+					const index = cookie.indexOf('=');
+
+					if (index !== -1)
+						requestData.cookies[cookie.substring(0, index)] = cookie.substring(index + 1);
+				}
+			}
+
+			this.emit('request', requestData, response);
 		});
 
 		server.on('error', () => {
