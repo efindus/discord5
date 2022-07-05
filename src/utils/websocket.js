@@ -179,7 +179,7 @@ class WebSocket extends EventEmitter {
 		} else {
 			header = Buffer.alloc(10);
 			header[1] = 127;
-			header.writeBigUInt64BE(message.length, 2);
+			header.writeBigUInt64BE(BigInt(message.length), 2);
 		}
 
 		header[0] = 0b10000000 | code;
