@@ -1,6 +1,6 @@
-const { existsSync, readFileSync, mkdirSync, writeFileSync } = require('fs');
+const { existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync } = require('fs');
 
-const { request, websocket } = require('./requests');
+const { request, websocket } = require('./requestHandler');
 const { bold, red } = require('./utils/colors');
 const { Server } = require('./utils/server');
 const db = require('./utils/database');
@@ -10,6 +10,12 @@ const main = async () => {
 	await db.connect();
 	console.log('Connected to DB!');
 	await db.removeMany('sessions', { username: '' });
+
+	console.log('Loading modules...');
+	for (const module of readdirSync(`${__dirname}/modules`)) {
+		if (module.endsWith('.js')) require(`./modules/${module}`);
+	}
+	console.log('Loaded modules!');
 
 	console.log('Starting HTTPS server...');
 	const server = new Server(readFileSync('server.key'), readFileSync('server.cert'), 8420);
