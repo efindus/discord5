@@ -39,7 +39,8 @@
 		"dot-notation": "off",
 		"eqeqeq": "warn",
 		"no-empty-function": "error",
-		"no-empty": ["error",
+		"no-empty": [
+			"error",
 			{
 				"allowEmptyCatch": true
 			}
@@ -85,6 +86,9 @@
 			{
 				"checkLoops": false
 			}
-		]
+		],
+		"keyword-spacing": "error",
+		"comma-spacing": "error",
+		"key-spacing": "error"
 	}
 }

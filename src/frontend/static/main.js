@@ -339,10 +339,10 @@ const changeUsername = (closeable = true, subtitle = '', startingValue = '') => 
 	});
 	const popupInput = document.getElementById('popup-input-username');
 	popupInput.onkeyup = (event) => {
-		if(event.code === 'Enter' || event.keyCode === 13) {
+		if (event.code === 'Enter' || event.keyCode === 13) {
 			const value = popupInput.value.trim();
 
-			if(value.length < 3 || value.length > 32) {
+			if (value.length < 3 || value.length > 32) {
 				changeUsername(closeable, 'Pseudonim powinien zawierać od 3 do 32 znaków.', value);
 			} else {
 				state.username = value;
@@ -361,20 +361,20 @@ const changeUsername = (closeable = true, subtitle = '', startingValue = '') => 
 };
 
 elements.input.addEventListener('keydown', event => {
-	if((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
+	if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
 		event.preventDefault();
 
 		let value = elements.input.value.trim();
 
-		if(value === '/tableflip') {
+		if (value === '/tableflip') {
 			value = '(╯°□°）╯︵ ┻━┻';
-		} else if(value === '/unflip') {
+		} else if (value === '/unflip') {
 			value = '┬─┬ ノ( ゜-゜ノ)';
-		} else if(value === '/shrug') {
+		} else if (value === '/shrug') {
 			value = '¯\\\\_(ツ)_/¯';
 		}
 
-		if(value.length >= 1 && value.length <= 2000) {
+		if (value.length >= 1 && value.length <= 2000) {
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 			elements.input.value = '';
 

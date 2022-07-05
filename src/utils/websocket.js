@@ -25,7 +25,7 @@ class WebSocket extends EventEmitter {
 			this.close();
 			this.emit('close');
 
-			if(![ 'ETIMEDOUT', 'EPIPE', 'ECONNRESET', 'EHOSTUNREACH' ].includes(error.code))
+			if (![ 'ETIMEDOUT', 'EPIPE', 'ECONNRESET', 'EHOSTUNREACH' ].includes(error.code))
 				console.log(error);
 		});
 
@@ -49,18 +49,18 @@ class WebSocket extends EventEmitter {
 
 			try {
 				do {
-					if(inputBuffer.length <= 2) return;
+					if (inputBuffer.length <= 2) return;
 
 					let start = 2;
 					let length = inputBuffer[1] & 0b01111111;
 
-					if(length === 126) {
-						if(inputBuffer.length < 4) return;
+					if (length === 126) {
+						if (inputBuffer.length < 4) return;
 
 						length = inputBuffer.readUInt16BE(2);
 						start = 4;
-					} else if(length === 127) {
-						if(inputBuffer.length < 10) return;
+					} else if (length === 127) {
+						if (inputBuffer.length < 10) return;
 
 						length = inputBuffer.readBigUInt64BE(2);
 						start = 10;
@@ -68,30 +68,30 @@ class WebSocket extends EventEmitter {
 
 					const mask = Buffer.alloc(4);
 
-					if(!(inputBuffer[1] & 0b10000000)) {
+					if (!(inputBuffer[1] & 0b10000000)) {
 						this.close();
 						return;
 					}
 
-					if(inputBuffer.length < start + 4) return;
+					if (inputBuffer.length < start + 4) return;
 
-					for(let index = 0; index < 4; index++)
+					for (let index = 0; index < 4; index++)
 						mask[index] = inputBuffer[start + index];
 
 					start += 4;
 
-					if(inputBuffer.length < start + length) return;
+					if (inputBuffer.length < start + length) return;
 
 					const message = Buffer.alloc(length);
 
-					for(let index = 0; index < length; index++)
+					for (let index = 0; index < length; index++)
 						message[index] = inputBuffer[start + index] ^ mask[index % 4];
 
-					switch(inputBuffer[0] & 0b00001111) {
+					switch (inputBuffer[0] & 0b00001111) {
 						case 0: {
 							messageBuffer = Buffer.concat([ messageBuffer, message ]);
 
-							if(inputBuffer[0] & 0b10000000) {
+							if (inputBuffer[0] & 0b10000000) {
 								this.emit('message', messageBuffer.toString(isBinary ? 'binary' : 'utf-8'));
 
 								messageBuffer = Buffer.alloc(0);
@@ -102,7 +102,7 @@ class WebSocket extends EventEmitter {
 						}
 
 						case 1: {
-							if(inputBuffer[0] & 0b10000000) {
+							if (inputBuffer[0] & 0b10000000) {
 								this.emit('message', message.toString('utf-8'));
 
 								messageBuffer = Buffer.alloc(0);
@@ -116,7 +116,7 @@ class WebSocket extends EventEmitter {
 						}
 
 						case 2: {
-							if(inputBuffer[0] & 0b10000000) {
+							if (inputBuffer[0] & 0b10000000) {
 								this.emit('message', message.toString('binary'));
 
 								messageBuffer = Buffer.alloc(0);
@@ -147,8 +147,8 @@ class WebSocket extends EventEmitter {
 					}
 
 					inputBuffer = Uint8Array.prototype.slice.call(inputBuffer, start + length);
-				} while(inputBuffer.length > 0);
-			} catch(error) {
+				} while (inputBuffer.length > 0);
+			} catch (error) {
 				console.log(error);
 			}
 		});
@@ -169,10 +169,10 @@ class WebSocket extends EventEmitter {
 		message = Buffer.from(message);
 		let header;
 
-		if(message.length <= 125) {
+		if (message.length <= 125) {
 			header = Buffer.alloc(2);
 			header[1] = message.length;
-		} else if(message.length < 65536) {
+		} else if (message.length < 65536) {
 			header = Buffer.alloc(4);
 			header[1] = 126;
 			header.writeUInt16BE(message.length, 2);

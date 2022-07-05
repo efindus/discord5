@@ -45,26 +45,26 @@ const request = async (request, response) => {
 	} else if (endpoint) {
 		if (typeof endpoint === 'function') {
 			const result = await endpoint(request);
-			if(result.headers) {
-				for(const header in result.headers)
+			if (result.headers) {
+				for (const header in result.headers)
 					response.setHeader(header, result.headers[header]);
 			}
 
 			let buffer;
 
-			if(Buffer.isBuffer(result.body)) {
+			if (Buffer.isBuffer(result.body)) {
 				buffer = result.body;
-			} else if(typeof result.body === 'object') {
+			} else if (typeof result.body === 'object') {
 				buffer = Buffer.from(JSON.stringify(result.body));
 				response.setHeader('Content-Type', 'application/json');
 			}
 
-			if(buffer)
+			if (buffer)
 				response.setHeader('Content-Length', buffer.length);
 
 			response.writeHead(result.status);
 
-			if(buffer)
+			if (buffer)
 				response.write(buffer);
 
 			response.end();
@@ -113,7 +113,7 @@ global.updateClients = () => {
 };
 
 const websocket = async (request, socket) => {
-	if(request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
+	if (request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
 		socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
 		socket.end();
 		return;
