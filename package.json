@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node .",
     "seed": "node ./src/scripts/seed",
-    "migrate": "node ./src/scripts/migrate"
+    "migrate": "node ./src/scripts/migrate",
+    "backup": "node ./src/scripts/backup"
   },
   "author": "efindus",
   "license": "UNLICENSED",
