@@ -10,6 +10,7 @@ class WebSocket extends EventEmitter {
 	 * @type {string}
 	 */
 	#id;
+	#closed = false;
 
 	/**
 	 * @param {import('net').Socket} socket Socket.
@@ -154,10 +155,13 @@ class WebSocket extends EventEmitter {
 		});
 
 		socket.on('end', () => {
+			this.#closed = true;
 			this.emit('close');
 		});
 
-		socket.on('timeout', socket.end);
+		socket.on('timeout', () => {
+			this.close();
+		});
 	}
 
 	/**
@@ -166,6 +170,7 @@ class WebSocket extends EventEmitter {
 	 * @param {number} code Message code.
 	 */
 	send = (message, code = 1) => {
+		if (this.#closed) return;
 		message = Buffer.from(message);
 		let header;
 
@@ -197,6 +202,7 @@ class WebSocket extends EventEmitter {
 	 * Close the socket
 	 */
 	close = () => {
+		this.#closed = true;
 		this.#socket.end();
 	};
 
