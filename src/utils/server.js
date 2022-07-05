@@ -64,7 +64,12 @@ class Server extends EventEmitter {
 			});
 
 			request.on('end', () => {
-				this.emit('request', request.method, path, parse(request.headers.cookie || '', '; ', '=', { decodeURIComponent }), data, response);
+				this.emit('request', {
+					method: request.method,
+					path,
+					cookies: parse(request.headers.cookie || '', '; ', '=', { decodeURIComponent }),
+					body: data,
+				}, response);
 			});
 		});
 

@@ -1,45 +1,97 @@
 const { randomBytes, createHash } = require('crypto');
 const { createReadStream, existsSync, lstatSync } = require('fs');
+const { lstat } = require('fs/promises');
 
 const { bold, green, blue } = require('./utils/colors.js');
 const { WebSocket } = require('./utils/websocket.js');
 const db = require('./utils/database');
 
-const contentTypes = {
-	'html': 'text/html; charset=utf-8',
-	'css': 'text/css; charset=utf-8',
-	'js': 'text/javascript; charset=utf-8',
-	'ico': 'image/vnd.microsoft.icon; charset=utf-8',
-	'ttf': 'fonts/ttf; charset=utf-8',
-};
-
 const basePath = './src/frontend';
+const attachmentsBasePath = './data';
 
 // createHash('sha256').update('').digest('hex')
+const endpoints = {};
+
+const addEndpoint = (path, method, handler) => {
+	if (!endpoints[path]) endpoints[path] = {};
+
+	endpoints[path][method] = handler;
+};
+
+/**
+ * @typedef Request
+ * @property {string} method
+ * @property {string} path
+ * @property {object} cookies
+ * @property {string} body
+ */
 
 /**
  * Handles an http request
- * @param {string} method
- * @param {string} path
- * @param {object} cookies
- * @param {string} data
+ * @param {Request} request
  * @param {import('http2').Http2ServerResponse} response
  */
-const request = (method, path, cookies, data, response) => {
-	if(method === 'GET' && path === '/') {
-		response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-		createReadStream(`${basePath}/index.html`).pipe(response);
-		return;
-	}
-
-	if(path.includes('..') || !existsSync(`${basePath}/${path}`) || !lstatSync(`${basePath}/${path}`).isFile()) {
+const request = async (request, response) => {
+	const return404 = () => {
 		response.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
 		createReadStream(`${basePath}/404.html`).pipe(response);
 		return;
+	};
+
+	const endpoint = endpoints[request.path]?.[request.method];
+	if (endpoints[request.path] && !endpoint) {
+		response.writeHead(405);
+		response.end();
+	} else if (endpoint) {
+		if (typeof endpoint === 'function') {
+			const result = await endpoint(request);
+			if(result.headers) {
+				for(const header in result.headers)
+					response.setHeader(header, result.headers[header]);
+			}
+
+			let buffer;
+
+			if(Buffer.isBuffer(result.body)) {
+				buffer = result.body;
+			} else if(typeof result.body === 'object') {
+				buffer = Buffer.from(JSON.stringify(result.body));
+				response.setHeader('Content-Type', 'application/json');
+			}
+
+			if(buffer)
+				response.setHeader('Content-Length', buffer.length);
+
+			response.writeHead(result.status);
+
+			if(buffer)
+				response.write(buffer);
+
+			response.end();
+		} else return return404();
 	}
 
-	response.writeHead(200, { 'Content-Type': contentTypes[path.slice(path.lastIndexOf('.') + 1)] || 'text/plain; charset=utf-8' });
-	createReadStream(`${basePath}/${path}`).pipe(response);
+	if (request.method === 'GET') {
+		if (request.path.includes('..')) return return404();
+
+		let filePath = `${basePath}/index.html`;
+		if (request.path.startsWith('/attachments')) {
+			filePath = `${attachmentsBasePath}${request.path}`;
+		} else if (request.path.startsWith('/static') || request.path === '/favicon.ico') {
+			filePath = `${basePath}${request.path}`;
+		} else if (request.path !== '/') return return404();
+
+		try {
+			const res = await lstat(filePath);
+			if (res.isFile()) {
+				response.writeHead(200);
+				createReadStream(filePath).pipe(response);
+				return;
+			}
+		} catch {}
+	}
+
+	return404();
 };
 
 const webSockets = {};
@@ -209,4 +261,4 @@ const websocket = async (request, socket) => {
 	});
 };
 
-module.exports = { request, websocket };
+module.exports = { request, websocket, addEndpoint };
