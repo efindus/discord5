@@ -10,7 +10,7 @@ const main = async () => {
 		ipBans: [],
 	};
 
-	const sessions = await db.findMany('sessions', {}, Infinity);
+	const sessions = await db.findMany('sessions');
 	for (const session of sessions) {
 		dbBackup.sessions[session.sid] = {
 			username: session.username,
@@ -19,7 +19,7 @@ const main = async () => {
 		};
 	}
 
-	const messages = await db.findMany('messages', {}, Infinity, 0, { ts: 1 });
+	const messages = await db.findMany('messages', {}, { ts: 1 });
 	for (const message of messages) {
 		dbBackup.messages.push({
 			messageID: message.id,
@@ -29,7 +29,7 @@ const main = async () => {
 		});
 	}
 
-	const ipBans = await db.findMany('ipBans', {}, Infinity);
+	const ipBans = await db.findMany('ipBans');
 	for (const ipBan of ipBans) {
 		dbBackup.ipBans.push(ipBan.ip);
 	}

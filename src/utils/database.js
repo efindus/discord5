@@ -19,12 +19,19 @@ const collectionLength = (collection) => {
 	return client.db(DATABASE_NAME).collection(collection).countDocuments();
 };
 
-const findOne = (collection, filter = {}) => {
-	return client.db(DATABASE_NAME).collection(collection).findOne(filter);
+const findOne = (collection, filter = {}, withDocumentID = false) => {
+	return client.db(DATABASE_NAME).collection(collection).findOne(filter, {
+		projection: withDocumentID ? {} : { _id: 0 },
+	});
 };
 
-const findMany = (collection, filter = {}, limit = 100, skip = 0, sort = {}) => {
-	return client.db(DATABASE_NAME).collection(collection).find(filter).sort(sort).limit(limit).skip(skip).toArray();
+const findMany = (collection, filter = {}, sort = {}, limit = null, skip = 0, withDocumentID = false) => {
+	return client.db(DATABASE_NAME).collection(collection).find(filter, {
+		sort: sort,
+		limit: limit,
+		skip: skip,
+		projection: withDocumentID ? {} : { _id: 0 },
+	}).toArray();
 };
 
 const updateOne = async (collection, filter, changes) => {

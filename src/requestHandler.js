@@ -208,7 +208,7 @@ const websocket = async (request, socket) => {
 			} else if (data.type === 'get-messages') {
 				let messagesToSend = [];
 				if (webSocket.data.lastMessage !== -1) {
-					messagesToSend = await db.findMany('messages', {}, messagesToLoad, webSocket.data.lastMessage, { ts: -1 });
+					messagesToSend = await db.findMany('messages', {}, { ts: -1 }, messagesToLoad, webSocket.data.lastMessage);
 					if (messagesToSend.length < messagesToLoad) webSocket.data.lastMessage = -1;
 					else webSocket.data.lastMessage += messagesToLoad;
 				}
