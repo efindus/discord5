@@ -23,29 +23,16 @@
     --purple: #b48ead;
     --blue: #5e81ac;
     --online: #41b37f;
-}
-
-:root .light
-{
-    --background: #eceff4;
-    --box: #f8f9fb;
-    --shadow: rgba(184, 194, 215, 0.35);
-    --text: #4c566a;
-    --scrollbar: #d8dee9;
-}
-
-:root .dark
-{
-    --background:#292e39;
+	--background:#292e39;
 	--input-background: #22252d;
 	--topbar: #161716;
     --box: #2e3440;
-	--lightbox: rgb(62, 62, 77);
-	--lighterbox: #4b535e;
-    --shadow: rgb(15, 17, 21, 0.35);
+	--lightbox: #4b535e;
+    --shadow: rgba(15, 17, 21, 0.35);
     --hover: rgba(76, 86, 106, 0.5);
+	--upload-button: #3c3c48;
+	--upload-svg: #a4a4a4;
     --text: #d8dee9;
-    --scrollbar: #3b4252;
 }
 
 html, body {
@@ -142,7 +129,7 @@ html, body {
     padding: 8px;
     border-radius: 8px;
     color: var(--text);
-    background-color: var(--lighterbox);
+    background-color: var(--lightbox);
     box-shadow: 0px 0px 16px 8px var(--shadow);
     font-weight: normal;
     font-size: 17px;
@@ -167,7 +154,7 @@ html, body {
     align-items: center;
     width: 100%;
     cursor: pointer;
-    background-color: var(--lighterbox);
+    background-color: var(--lightbox);
 	border-radius: 8px;
 }
 
@@ -228,12 +215,6 @@ html, body {
 	justify-content: center;
 	align-items: center;
 	filter: brightness(75%);
-}
-
-.message-highlight {
-    margin-right: 6px;
-    color: var(--blue);
-	filter: brightness(140%);
 }
 
 .message-content {
@@ -377,7 +358,7 @@ html, body {
 }
 
 #upload-button {
-	background-color: var(--lightbox);
+	background-color: var(--upload-button);
 	grid-row: 2;
 	grid-column: 2;
 	border-radius: 50%;

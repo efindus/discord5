@@ -42,12 +42,12 @@ const elements = {
 
 const svgs = {
 	plus: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--text)" stroke-width="0.06"></line>
-			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--text)" stroke-width="0.06"></line>
+			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--upload-svg)" stroke-width="0.06"></line>
+			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--upload-svg)" stroke-width="0.06"></line>
 		</svg>`,
 	cross: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" x2="0.75" stroke="var(--text)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
-			<line y1="0.25" y2="0.75" stroke="var(--text)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
+			<line x1="0.25" x2="0.75" stroke="var(--upload-svg)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
+			<line y1="0.25" y2="0.75" stroke="var(--upload-svg)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
 		</svg>`,
 };
 
