@@ -37,6 +37,7 @@ const elements = {
 	uploadButton: document.getElementById('upload-button'),
 
 	clock: document.getElementById('clock'),
+	spinner: document.getElementById('spinner'),
 };
 
 const svgs = {
@@ -240,9 +241,8 @@ const sanitizeText = (text) => {
 
 const connect = () => {
 	state.socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
-	showPopup({
-		title: 'Łączenie...',
-	});
+	elements.spinner.style.display = '';
+	hidePopup();
 	let pinger;
 
 	state.socket.onopen = () => {
@@ -277,7 +277,7 @@ const connect = () => {
 				propagateUsername(data.username);
 				state.username = data.username;
 				loadMessages();
-				hidePopup();
+				elements.spinner.style.display = 'none';
 			} else if (data.message === 'sessionID-already-online') {
 				showPopup({
 					title: 'Ta sesja jest obecnie aktywna...',
@@ -324,9 +324,7 @@ const connect = () => {
 	state.socket.onclose = () => {
 		clearInterval(pinger);
 		elements.messages.innerHTML = '';
-		showPopup({
-			title: 'Łączenie...',
-		});
+		elements.spinner.style.display = '';
 
 		setTimeout(connect, 1000);
 	};
