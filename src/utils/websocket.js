@@ -23,9 +23,6 @@ class WebSocket extends EventEmitter {
 		this.#id = randomBytes(8).toString('base64');
 
 		socket.on('error', (error) => {
-			this.close();
-			this.emit('close');
-
 			if (![ 'ETIMEDOUT', 'EPIPE', 'ECONNRESET', 'EHOSTUNREACH' ].includes(error.code))
 				console.log(error);
 		});
@@ -154,7 +151,7 @@ class WebSocket extends EventEmitter {
 			}
 		});
 
-		socket.on('end', () => {
+		socket.on('close', () => {
 			this.#closed = true;
 			this.emit('close');
 		});
@@ -203,7 +200,7 @@ class WebSocket extends EventEmitter {
 	 */
 	close = () => {
 		this.#closed = true;
-		this.#socket.end();
+		this.#socket.destroy();
 	};
 
 	/**
