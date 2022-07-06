@@ -155,7 +155,7 @@ html, body {
     width: 100%;
     cursor: pointer;
     background-color: var(--lightbox);
-	border-radius: 8px;
+	border-radius: 4px;
 }
 
 .dropdown-entry:hover {
