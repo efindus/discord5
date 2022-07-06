@@ -83,13 +83,7 @@ const showPopup = (data) => {
 	elements.popup.style.display = '';
 	elements.popupTitle.innerHTML = data.title;
 
-	if (data.subtitle?.length > 0) {
-		elements.popupSubtitle.style.display = '';
-		elements.popupSubtitle.innerHTML = data.subtitle;
-		elements.popupSubtitle.style.color = data.subtitleColor ?? '';
-	} else {
-		elements.popupSubtitle.style.display = 'none';
-	}
+	setPopupSubtitle(data);
 
 	if (data.closeable) {
 		elements.popupClose.style.display = '';
@@ -127,6 +121,22 @@ const showPopup = (data) => {
 			elements.popupFooter.appendChild(buttonElement);
 		}
 		elements.popupFooter.lastChild.style.marginBottom = '0px';
+	}
+};
+
+/**
+ * Set the subtitle
+ * @param {object} data
+ * @param {string} data.subtitle Popup subtitle
+ * @param {string} data.subtitleColor Popup subtitle color
+ */
+const setPopupSubtitle = (data) => {
+	if (data.subtitle?.length > 0) {
+		elements.popupSubtitle.style.display = '';
+		elements.popupSubtitle.innerHTML = data.subtitle;
+		elements.popupSubtitle.style.color = data.subtitleColor ?? '';
+	} else {
+		elements.popupSubtitle.style.display = 'none';
 	}
 };
 
@@ -343,7 +353,10 @@ const changeUsername = (closeable = true, subtitle = '', startingValue = '') => 
 			const value = popupInput.value.trim();
 
 			if (value.length < 3 || value.length > 32) {
-				changeUsername(closeable, 'Pseudonim powinien zawierać od 3 do 32 znaków.', value);
+				setPopupSubtitle({
+					subtitle: 'Pseudonim powinien zawierać od 3 do 32 znaków.',
+					subtitleColor: 'var(--orange)',
+				});
 			} else {
 				state.username = value;
 				state.socket.send(JSON.stringify({
