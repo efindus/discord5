@@ -399,6 +399,14 @@ elements.input.addEventListener('keydown', event => {
 	}
 });
 
+document.onfocus = () => {
+	for (const notif of notifications) {
+		notif.close();
+	}
+
+	notifications = [];
+};
+
 const toggleDropdown = () => {
 	if (state.isDropdownOpen) {
 		state.isDropdownOpen = false;
