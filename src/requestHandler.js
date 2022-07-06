@@ -135,16 +135,15 @@ const websocket = async (request, socket) => {
 		lastMessage: 0,
 	};
 
-	const webSocketId = randomBytes(8).toString('base64');
-	webSockets[webSocketId] = webSocket;
-	console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket connected:'))} ${bold(blue(webSocketId))}`);
+	webSockets[webSocket.id] = webSocket;
+	console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket connected:'))} ${bold(blue(webSocket.id))}`);
 
 	webSocket.on('message', async (message) => {
 		const data = JSON.parse(message);
 
 		if (!webSocket.data.session && data.type === 'connect') {
 			if (data.sid && typeof data.sid === 'string' && data.sid.length > 0 && data.sid.length < 2048) {
-				console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocketId}):`))} ${bold(green(`Socket provided sessionID: ${data.sid.slice(0, 100)}`))}`);
+				console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green(`Socket provided sessionID: ${data.sid.slice(0, 100)}`))}`);
 
 				if (sessions[data.sid]?.connected === true) {
 					webSocket.send(JSON.stringify({
@@ -258,8 +257,8 @@ const websocket = async (request, socket) => {
 	webSocket.on('close', () => {
 		if (sessions[webSocket.data.session?.sid]) delete sessions[webSocket.data.session?.sid];
 
-		console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket disconnected:'))} ${bold(blue(webSocketId))}`);
-		delete webSockets[webSocketId];
+		console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket disconnected:'))} ${bold(blue(webSocket.id))}`);
+		delete webSockets[webSocket.id];
 	});
 };
 
