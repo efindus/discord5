@@ -1,0 +1,6 @@
+serverData singelton with captcha secret being generated on startup
+move requestHandler into utils (+rename to idk what)
+add attachments
+add admins (and user bans)
+add replies
+add mentions <https://stackoverflow.com/questions/4705848/rendering-html-inside-textarea>
