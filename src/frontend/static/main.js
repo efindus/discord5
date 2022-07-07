@@ -1,13 +1,16 @@
 /* eslint-disable no-undef */
 const state = {
-	username: '',
+	user: {},
 	socket: null,
-	sessions: {},
+	users: {},
 	messages: [],
 	notifications: [],
 	messagesToLoad: 50,
 	isDropdownOpen: false,
 	isClosablePopupOpen: false,
+	reconnect: false,
+	protocolVersion: '1',
+	timeOffset: 0,
 };
 
 const elements = {
@@ -27,6 +30,7 @@ const elements = {
 	usernameDisplay: document.getElementById('username-display'),
 	dropdown: document.querySelector('.dropdown'),
 	dropdownClose: document.getElementById('dropdown-close'),
+	userData: document.getElementById('user-data'),
 
 	messageContainer: document.getElementById('message-container'),
 	messages: document.getElementById('messages'),
@@ -57,6 +61,7 @@ const svgs = {
  * @property {object} input
  * @property {string} input.id ID of the input
  * @property {string} input.type Type of the input
+ * @property {number?} input.limit Max length of inputed text
  */
 
 /**
@@ -101,7 +106,11 @@ const showPopup = (data) => {
 		for (const row of data.body) {
 			const rowElement = document.createElement('div');
 			rowElement.classList.add('popup-row');
-			rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}">`;
+			if (row.input) {
+				rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}" ${row.input.limit ? ` maxlength="${row.input.limit}"` : ''}>`;
+			} else {
+				rowElement.innerHTML = row.html;
+			}
 			elements.popupBody.appendChild(rowElement);
 		}
 		elements.popupBody.lastChild.style.marginBottom = '0px';
@@ -150,14 +159,23 @@ const hidePopup = () => {
 	state.isClosablePopupOpen = false;
 };
 
+const showSpinner = () => {
+	elements.spinner.style.display = '';
+};
+
+const hideSpinner = () => {
+	elements.spinner.style.display = 'none';
+};
+
 document.addEventListener('keyup', (ev) => {
 	if (ev.code === 'Escape' && state.isClosablePopupOpen) {
 		hidePopup();
 	}
 });
 
-const propagateUsername = (username) => {
-	elements.usernameDisplay.innerText = username;
+const propagateUserData = () => {
+	elements.usernameDisplay.innerText = state.user.username;
+	elements.userData.innerHTML = `ID: ${state.user.uid}<br>Pseudonim: ${state.user.nickname}`;
 };
 
 const sha256 = async (message) => {
@@ -177,16 +195,16 @@ const generateMessage = (msgData) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	message.innerHTML = `<div class="message-meta"><span class="message-username">${state.sessions[msgData.sidHash]}</span><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
+	message.innerHTML = `<div class="message-meta"><span class="message-username">${state.users[msgData.uid]}</span><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 };
 
 const addMessage = (msgData) => {
-	if (!state.sessions[msgData.sidHash]) {
-		state.sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
+	if (!state.users[msgData.uid]) {
+		state.users[msgData.uid] = msgData.uid.slice(0, 10);
 		state.socket.send(JSON.stringify({
-			type: 'get-session-id-hash',
-			sidHash: msgData.sidHash,
+			type: 'getNickname',
+			uid: msgData.uid,
 		}));
 	}
 
@@ -196,8 +214,8 @@ const addMessage = (msgData) => {
 	state.messages.push(msgData);
 
 	if (!document.hasFocus() && Notification.permission === 'granted') {
-		const notif = new Notification('Discord 4.0: New Message', {
-			body: `${state.sessions[msgData.sidHash]}: ${msgData.message.slice(0, 150)}`,
+		const notif = new Notification('Discord5: New Message', {
+			body: `${state.users[msgData.uid]}: ${msgData.message.slice(0, 150)}`,
 			icon: '/favicon.ico',
 		});
 
@@ -213,11 +231,11 @@ const addMessage = (msgData) => {
 };
 
 const insertMessage = (msgData) => {
-	if (!state.sessions[msgData.sidHash]) {
-		state.sessions[msgData.sidHash] = msgData.sidHash.slice(0, 10);
+	if (!state.users[msgData.uid]) {
+		state.users[msgData.uid] = msgData.uid.slice(0, 10);
 		state.socket.send(JSON.stringify({
-			type: 'get-session-id-hash',
-			sidHash: msgData.sidHash,
+			type: 'getNickname',
+			uid: msgData.uid,
 		}));
 	}
 
@@ -229,7 +247,7 @@ const insertMessage = (msgData) => {
 const loadMessages = () => {
 	elements.loadMessagesButton.style.display = 'none';
 	state.socket.send(JSON.stringify({
-		type: 'get-messages',
+		type: 'getMessages',
 	}));
 };
 
@@ -241,54 +259,44 @@ const sanitizeText = (text) => {
 
 const connect = () => {
 	state.socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
-	elements.spinner.style.display = '';
+	state.reconnect = true;
+	showSpinner();
 	hidePopup();
 	let pinger;
 
 	state.socket.onopen = () => {
-		if (localStorage.getItem('sid') === null || localStorage.getItem('sid').length === 0) {
-			const randArr = new Uint32Array(40);
-			crypto.getRandomValues(randArr);
-
-			let randString = '';
-			for (const rand of randArr) randString += `${rand}`;
-
-			randString = btoa(randString);
-			localStorage.setItem('sid', randString);
-		}
-
 		pinger = setInterval(() => {
 			state.socket.send(JSON.stringify({
 				type: 'ping',
 			}));
-		}, 5000);
-
-		state.socket.send(JSON.stringify({
-			type: 'connect',
-			sid: localStorage.getItem('sid'),
-		}));
+		}, 20_000);
 	};
 
 	state.socket.onmessage = async (event) => {
 		const data = JSON.parse(event.data);
 
-		if (data.type === 'connect-cb') {
+		if (data.type === 'connectionReady') {
+			state.socket.send(JSON.stringify({
+				type: 'authorize',
+				token: localStorage.getItem('token'),
+			}));
+		} else if (data.type === 'authorizeCB') {
 			if (data.message === 'accepted') {
-				propagateUsername(data.username);
-				state.username = data.username;
+				if (state.protocolVersion !== data.protocolVersion) window.location.reload();
+
+				state.user = data.user;
+				state.messagesToLoad = data.messagesToLoad;
+				state.timeOffset = Date.now() - data.serverTime;
+
+				propagateUserData();
 				loadMessages();
-				elements.spinner.style.display = 'none';
-			} else if (data.message === 'sessionID-already-online') {
-				showPopup({
-					title: 'Ta sesja jest obecnie aktywna...',
-					subtitle: 'Jeżeli chcesz nowe ID sesji wpisz regenSessionID() w konsoli lub wyczyść dane strony',
-				});
-			} else if (data.message === 'request-username') {
-				changeUsername(false);
+				hideSpinner();
+			} else if (data.message === 'invalidLogin') {
+				logOut();
 			}
-		} else if (data.type === 'new-message') {
+		} else if (data.type === 'newMessage') {
 			addMessage(data);
-		} else if (data.type === 'load-messages') {
+		} else if (data.type === 'loadMessages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
 			for (const message of data.messages) {
 				insertMessage(message);
@@ -296,23 +304,59 @@ const connect = () => {
 
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
 			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
-		} else if (data.type === 'update-username') {
-			data.username = sanitizeText(data.username);
-			if (data.sidHash === await sha256(localStorage.getItem('sid'))) {
-				if (state.messages.length === 0) {
-					loadMessages();
-					propagateUsername(data.username);
-					state.username = data.username;
+		} else if (data.type === 'changePasswordCB') {
+			if (data.message === 'success') {
+				state.reconnect = false;
+				hideSpinner();
+				setPopupSubtitle({
+					subtitle: 'Hasło zostało zmienione pomyślnie',
+					subtitleColor: 'var(--green)',
+				});
+				setTimeout(() => {
+					localStorage.removeItem('token');
+					main();
+				}, 1000);
+			} else {
+				hideSpinner();
+				setPopupSubtitle({
+					subtitle: 'Niepoprawne stare hasło',
+					subtitleColor: 'var(--orange)',
+				});
+			}
+		} else if (data.type === 'updateNickname') {
+			if (data.uid === state.user.uid) {
+				console.log(data);
+				if (data.nickname) {
+					state.user.nickname = data.nickname;
+					propagateUserData();
+					hidePopup();
+				} else {
+					let error = '';
+					switch (data.message) {
+						case 'usernameInvalidFormat':
+						case 'usernameInvalidLength':
+							error = 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
+							break;
+						case 'usernameAlreadyInUse':
+							error = 'Ten pseudonim jest już zajęty';
+							break;
+						default:
+							break;
+					}
+
+					setPopupSubtitle({
+						subtitle: error,
+						subtitleColor: 'var(--orange)',
+					});
 				}
-				hidePopup();
 			}
 
-			if (data.username.length !== 0) {
-				state.sessions[data.sidHash] = data.username;
+			if (data.nickname.length !== 0) {
+				state.users[data.uid] = data.nickname;
 
 				for (const msg of state.messages) {
-					if (msg.sidHash === data.sidHash) {
-						document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = state.sessions[data.sidHash];
+					if (msg.uid === data.uid) {
+						document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = state.users[data.uid];
 					}
 				}
 			}
@@ -324,13 +368,20 @@ const connect = () => {
 	state.socket.onclose = () => {
 		clearInterval(pinger);
 		elements.messages.innerHTML = '';
-		elements.spinner.style.display = '';
 
-		setTimeout(connect, 1000);
+		if (state.reconnect) {
+			showSpinner();
+			setTimeout(connect, 1000);
+		}
 	};
 };
 
-const changeUsername = (closeable = true, subtitle = '', startingValue = '') => {
+const disconnect = () => {
+	state.reconnect = false;
+	state.socket.close();
+};
+
+const changeNickname = (closeable = true, subtitle = '', startingValue = '') => {
 	showPopup({
 		title: 'Ustaw swój pseudonim',
 		subtitle: subtitle,
@@ -341,34 +392,103 @@ const changeUsername = (closeable = true, subtitle = '', startingValue = '') => 
 				input: {
 					id: 'popup-input-username',
 					type: 'text',
+					limit: 32,
 				},
 			},
 		],
 	});
+
 	const popupInput = document.getElementById('popup-input-username');
 	popupInput.onkeyup = (event) => {
 		if (event.code === 'Enter' || event.keyCode === 13) {
 			const value = popupInput.value.trim();
 
-			if (value.length < 3 || value.length > 32) {
+			if (value.length < 3 || value.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(value)) {
 				setPopupSubtitle({
-					subtitle: 'Pseudonim powinien zawierać od 3 do 32 znaków.',
+					subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
 					subtitleColor: 'var(--orange)',
 				});
 			} else {
-				state.username = value;
-				state.socket.send(JSON.stringify({
-					type: 'set-username',
-					username: state.username,
-				}));
-
-				propagateUsername(state.username);
+				if (value !== state.user.nickname) {
+					state.socket.send(JSON.stringify({
+						type: 'setNickname',
+						nickname: value,
+					}));
+				} else {
+					hidePopup();
+				}
 			}
 		}
 	};
 
-	popupInput.value = startingValue === '' ? state.username : startingValue;
+	popupInput.value = startingValue === '' ? state.user.nickname : startingValue;
 	popupInput.focus();
+};
+
+const changePassword = () => {
+	showPopup({
+		title: 'Zmień hasło',
+		closeable: true,
+		body: [
+			{
+				label: 'Stare hasło',
+				input: {
+					id: 'popup-input-oldPassword',
+					type: 'password',
+				},
+			},
+			{
+				label: 'Nowe hasło',
+				input: {
+					id: 'popup-input-password',
+					type: 'password',
+				},
+			},
+			{
+				label: 'Powtórz nowe hasło',
+				input: {
+					id: 'popup-input-password2',
+					type: 'password',
+				},
+			},
+		],
+		footer: [
+			{
+				id: 'popup-button-changePassword',
+				label: 'Zmień hasło',
+			},
+		],
+	});
+
+	document.getElementById('popup-button-changePassword').onclick = async () => {
+		const newPassword = document.getElementById('popup-input-password').value;
+		if (newPassword !== document.getElementById('popup-input-password2').value) {
+			setPopupSubtitle({
+				subtitle: 'Podane nowe hasła nie są identyczne',
+				color: 'var(--orange)',
+			});
+			return;
+		}
+
+		showSpinner();
+		state.socket.send(JSON.stringify({
+			type: 'changePassword',
+			oldPassword: await sha256(document.getElementById('popup-input-oldPassword').value),
+			password: await sha256(document.getElementById('popup-input-password').value),
+		}));
+	};
+};
+
+const logOutEverywhere = () => {
+	state.socket.send(JSON.stringify({
+		type: 'logOutEverywhere',
+	}));
+};
+
+const logOut = () => {
+	localStorage.removeItem('token');
+	disconnect();
+	main();
 };
 
 elements.input.addEventListener('keydown', event => {
@@ -390,7 +510,7 @@ elements.input.addEventListener('keydown', event => {
 			elements.input.value = '';
 
 			state.socket.send(JSON.stringify({
-				type: 'send-message',
+				type: 'sendMessage',
 				message: value,
 			}));
 		}
@@ -398,11 +518,11 @@ elements.input.addEventListener('keydown', event => {
 });
 
 document.onfocus = () => {
-	for (const notif of notifications) {
+	for (const notif of state.notifications) {
 		notif.close();
 	}
 
-	notifications = [];
+	state.notifications = [];
 };
 
 const toggleDropdown = () => {
@@ -436,49 +556,241 @@ elements.usernameContainer.addEventListener('click', toggleDropdown);
 elements.dropdownClose.addEventListener('click', toggleDropdown);
 
 const updateClock = () => {
-	const NOW = new Date();
+	const NOW = new Date(Date.now() - state.timeOffset);
 	elements.clock.innerHTML = `${`${NOW.getHours()}`.padStart(2, '0')}:${`${NOW.getMinutes()}`.padStart(2, '0')}:${`${NOW.getSeconds()}`.padStart(2, '0')}`;
-	setTimeout(updateClock, 1000 - (Date.now() % 1000));
+	setTimeout(updateClock, 1000 - ((Date.now() - state.timeOffset) % 1000) + 10);
+};
+
+const loginHandler = () => {
+	hideSpinner();
+	showPopup({
+		title: 'Zaloguj się',
+		body: [
+			{
+				label: 'Nazwa użytkownika',
+				input: {
+					id: 'popup-input-username',
+					type: 'text',
+					limit: 32,
+				},
+			},
+			{
+				label: 'Hasło',
+				input: {
+					id: 'popup-input-password',
+					type: 'password',
+				},
+			},
+		],
+		footer: [
+			{
+				id: 'popup-button-login',
+				label: 'Zaloguj się',
+			},
+			{
+				id: 'popup-button-register',
+				label: 'Zarejestruj się',
+				color: 'var(--orange)',
+			},
+		],
+	});
+
+	document.getElementById('popup-button-login').onclick = async () => {
+		showSpinner();
+		const response = await fetch('/api/login', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				username: document.getElementById('popup-input-username').value,
+				password: await sha256(document.getElementById('popup-input-password').value),
+			}),
+		});
+
+		const data = await response.json();
+		if (data.message === 'invalidLogin') {
+			setPopupSubtitle({
+				subtitle: 'Niepoprawny login lub hasło',
+				subtitleColor: 'var(--orange)',
+			});
+			hideSpinner();
+			return;
+		} else if (data.message === 'success') {
+			localStorage.setItem('token', data.token);
+			connect();
+		}
+	};
+
+	document.getElementById('popup-button-register').onclick = () => {
+		registerHandler();
+	};
+};
+
+const registerHandler = () => {
+	hideSpinner();
+	let registrationInProgress = false;
+	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border); margin-bottom: 20px;">Nie jestem robotem</div>';
+	showPopup({
+		title: 'Zarejestruj się',
+		body: [
+			{
+				label: 'Nazwa użytkownika',
+				input: {
+					id: 'popup-input-username',
+					type: 'text',
+					limit: 32,
+				},
+			},
+			{
+				label: 'Hasło',
+				input: {
+					id: 'popup-input-password',
+					type: 'password',
+				},
+			},
+			{
+				label: 'Powtórz hasło',
+				input: {
+					id: 'popup-input-password2',
+					type: 'password',
+				},
+			},
+			{
+				html: popupCaptchaHTML,
+			},
+		],
+		footer: [
+			{
+				id: 'popup-button-register',
+				label: 'Zarejestruj się',
+			},
+			{
+				id: 'popup-button-login',
+				label: 'Zaloguj się',
+				color: 'var(--orange)',
+			},
+		],
+	});
+
+	const captchaRow = document.getElementById('popup-captcha').parentElement;
+	let captchaData = {};
+	const resetCaptcha = () => {
+		captchaRow.innerHTML = popupCaptchaHTML;
+
+		document.getElementById('popup-captcha').onclick = async () => {
+			const response = await fetch('/api/captcha', {
+				method: 'POST',
+			});
+
+			captchaData = await response.json();
+			captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
+		};
+	};
+	resetCaptcha();
+
+	document.getElementById('popup-button-register').onclick = async () => {
+		if (registrationInProgress) return;
+		else registrationInProgress = true;
+
+		const captchaInput = document.getElementById('popup-input-captcha');
+		if (!captchaInput){
+			setPopupSubtitle({
+				subtitle: 'Musisz potwierdzić że nie jesteś robotem',
+				subtitleColor: 'var(--orange)',
+			});
+			registrationInProgress = false;
+			return;
+		}
+
+		const password = document.getElementById('popup-input-password').value;
+		if (password !== document.getElementById('popup-input-password2').value) {
+			setPopupSubtitle({
+				subtitle: 'Wpisane hasła nie są identyczne',
+				subtitleColor: 'var(--orange)',
+			});
+			registrationInProgress = false;
+			return;
+		}
+
+		showSpinner();
+		const response = await fetch('/api/register', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				username: document.getElementById('popup-input-username').value,
+				password: await sha256(password),
+				captcha: {
+					id: captchaData.id,
+					timestamp: captchaData.timestamp,
+					signature: captchaData.signature,
+					solution: captchaInput.value,
+				},
+			}),
+		});
+
+		const data = await response.json();
+		let error = '';
+		switch (data.message) {
+			case 'success':
+				break;
+			case 'usernameInvalidFormat':
+			case 'usernameInvalidLength':
+				error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
+				break;
+			case 'usernameAlreadyInUse':
+				error = 'Ta nazwa użytkownika jest już zajęta';
+				break;
+			case 'invalidSolution':
+				error = 'Wpisany tekst nie jest poprawnym rozwiązaniem CAPTCHy';
+				break;
+			case 'captchaExpired':
+				error = 'CAPTCHA wygasła';
+				resetCaptcha();
+				break;
+			default:
+				error = 'Wystąpił nieznany błąd';
+		}
+
+		if (error === '') {
+			hideSpinner();
+			setPopupSubtitle({
+				subtitle: 'Zarejestrowano pomyślnie!',
+				subtitleColor: 'var(--green)',
+			});
+			setTimeout(() => {
+				loginHandler();
+			}, 1000);
+		} else {
+			hideSpinner();
+			setPopupSubtitle({
+				subtitle: error,
+				subtitleColor: 'var(--orange)',
+			});
+			registrationInProgress = false;
+		}
+	};
+
+	document.getElementById('popup-button-login').onclick = () => {
+		loginHandler();
+	};
+};
+
+const main = async () => {
+	const token = localStorage.getItem('token');
+	if (!token) {
+		loginHandler();
+		return;
+	}
+
+	connect();
 };
 
 updateClock();
-connect();
+main();
 
 elements.messageContainer.onscroll = () => {
 	if (Notification.permission === 'default') Notification.requestPermission();
 };
-
-/*
-showPopup({
-	title: 'Zaloguj się',
-	subtitle: '',
-	closeable: true,
-	body: [
-		{
-			label: 'Nazwa użytkownika',
-			input: {
-				id: 'popup-input-username',
-				type: 'text',
-			},
-		},
-		{
-			label: 'Hasło',
-			input: {
-				id: 'popup-input-password',
-				type: 'password',
-			},
-		},
-	],
-	footer: [
-		{
-			id: 'popup-button-login',
-			label: 'Zaloguj się',
-		},
-		{
-			id: 'popup-button-register',
-			label: 'Zarejestruj się',
-			color: 'var(--orange)',
-		},
-	],
-});
-*/

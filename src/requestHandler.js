@@ -5,12 +5,26 @@ const { lstat } = require('fs/promises');
 const { bold, green, blue } = require('./utils/colors.js');
 const { WebSocket } = require('./utils/websocket.js');
 const db = require('./utils/database');
+const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./utils/user');
 
 const basePath = './src/frontend';
 const attachmentsBasePath = './data';
+const PROTOCOL_VERSION = '1';
+const SERVER_USER_UID = '691657194299387Server';
 
 // createHash('sha256').update('').digest('hex')
 const endpoints = {};
+const webSockets = {};
+const messagesToLoad = 50;
+global.webSockets = webSockets;
+
+global.updateClients = () => {
+	for (const [ x, ws ] of Object.entries(webSockets)) {
+		ws.send(JSON.stringify({
+			type: 'reload',
+		}));
+	}
+};
 
 const addEndpoint = (path, method, handler) => {
 	if (!endpoints[path]) endpoints[path] = {};
@@ -96,24 +110,6 @@ const request = async (request, response) => {
 	return404();
 };
 
-const webSockets = {};
-const sessions = {
-	'[Server]': {
-		connected: true,
-		sidHash: createHash('sha256').update('[Server]').digest('hex'),
-	},
-};
-const messagesToLoad = 50;
-global.webSockets = webSockets;
-
-global.updateClients = () => {
-	for (const [ x, ws ] of Object.entries(webSockets)) {
-		ws.send(JSON.stringify({
-			type: 'reload',
-		}));
-	}
-};
-
 const websocket = async (request, socket) => {
 	if (request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
 		socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -123,15 +119,16 @@ const websocket = async (request, socket) => {
 
 	const webSocket = new WebSocket(socket, request.headers['sec-websocket-key'] || '');
 
-	db.findOne('ipBans', { ip: webSocket.getIp() }).then(res => {
-		if (res) {
+	{
+		const ipBan = await db.findOne('ipBans', { ip: webSocket.getIp() });
+		if (ipBan) {
 			webSocket.close();
 			return;
 		}
-	});
+	}
 
 	webSocket.data = {
-		session: null,
+		user: null,
 		lastMessage: 0,
 	};
 
@@ -141,70 +138,74 @@ const websocket = async (request, socket) => {
 	webSocket.on('message', async (message) => {
 		const data = JSON.parse(message);
 
-		if (!webSocket.data.session && data.type === 'connect') {
-			if (data.sid && typeof data.sid === 'string' && data.sid.length > 0 && data.sid.length < 2048) {
-				console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green(`Socket provided sessionID: ${data.sid.slice(0, 100)}`))}`);
+		if (!webSocket.data.user) {
+			if (data.type === 'authorize') {
+				if (typeof data.token === 'string') {
+					const user = await getUser(data.token);
 
-				if (sessions[data.sid]?.connected === true) {
-					webSocket.send(JSON.stringify({
-						type: 'connect-cb',
-						message: 'sessionID-already-online',
-					}));
-				} else {
-					webSocket.data.session = await db.findOne('sessions', { sid: data.sid });
-					if (!webSocket.data.session) {
-						webSocket.data.session = {
-							sid: data.sid,
-							username: '',
-							sidHash: createHash('sha256').update(data.sid).digest('hex'),
-						};
+					if (user) {
+						// TODO: handle user bans
+						webSocket.data.user = user;
+						console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green(`Socket logged in: ${webSocket.data.user.username}`))}`);
 
-						await db.insertOne('sessions', webSocket.data.session);
-					}
-
-					if (webSocket.data.session.username.length < 3 || webSocket.data.session.username.length > 32) {
 						webSocket.send(JSON.stringify({
-							type: 'connect-cb',
-							message: 'request-username',
+							type: 'authorizeCB',
+							message: 'accepted',
+							user: {
+								uid: user.uid,
+								username: user.username,
+								nickname: user.nickname,
+							},
+							serverTime: Date.now(),
+							messagesToLoad: messagesToLoad,
+							protocolVersion: PROTOCOL_VERSION,
 						}));
 					} else {
 						webSocket.send(JSON.stringify({
-							type: 'connect-cb',
-							message: 'accepted',
-							username: webSocket.data.session.username,
+							type: 'authorizeCB',
+							message: 'invalidLogin',
 						}));
 					}
-
-					sessions[data.sid] = {
-						connected: true,
-					};
 				}
+			} else if (data.type !== 'ping') {
+				webSocket.close();
 			}
-		} else if (data.type === 'set-username') {
-			if (data.username && typeof data.username === 'string' && data.username.length > 2 && data.username.length <= 32) {
-				webSocket.data.session.username = data.username;
-				await db.updateOne('sessions', { sid: webSocket.data.session.sid }, { username: data.username });
-
-				for (const [ x, ws ] of Object.entries(webSockets)) {
-					ws.send(JSON.stringify({
-						type: 'update-username',
-						sidHash: webSocket.data.session.sidHash,
-						username: webSocket.data.session.username,
-					}));
-				}
-			}
-		} else if (webSocket.data.session && webSocket.data.session.username.length > 2 && webSocket.data.session.username.length <= 32) {
-			if (data.type === 'get-session-id-hash') {
-				if (data.sidHash && typeof data.sidHash === 'string') {
-					const session = await db.findOne('sessions', { sidHash: data.sidHash });
+		} else {
+			if (data.type === 'getNickname') {
+				if (typeof data.uid === 'string') {
+					const user = await db.findOne('users', { uid: data.uid });
 
 					webSocket.send(JSON.stringify({
-						type: 'update-username',
-						sidHash: data.sidHash,
-						username: session?.username ?? '',
+						type: 'updateNickname',
+						uid: data.uid,
+						nickname: user?.nickname ?? '',
 					}));
 				}
-			} else if (data.type === 'get-messages') {
+			} else if (data.type === 'setNickname') {
+				if (typeof data.nickname === 'string') {
+					const result = await validateNickname(data.nickname);
+					if (!result) {
+						webSocket.data.user.nickname = data.nickname;
+						await db.updateOne('users', { uid: webSocket.data.user.uid }, { nickname: data.nickname });
+
+						for (const [ _, ws ] of Object.entries(webSockets)) {
+							if (ws.data.user) {
+								ws.send(JSON.stringify({
+									type: 'updateNickname',
+									uid: webSocket.data.user.uid,
+									nickname: webSocket.data.user.nickname,
+								}));
+							}
+						}
+					} else {
+						webSocket.send(JSON.stringify({
+							type: 'updateNickname',
+							uid: webSocket.data.user.uid,
+							message: result,
+						}));
+					}
+				}
+			} else if (data.type === 'getMessages') {
 				let messagesToSend = [];
 				if (webSocket.data.lastMessage !== -1) {
 					messagesToSend = await db.findMany('messages', {}, { ts: -1 }, messagesToLoad, webSocket.data.lastMessage);
@@ -213,53 +214,73 @@ const websocket = async (request, socket) => {
 				}
 
 				webSocket.send(JSON.stringify({
-					type: 'load-messages',
+					type: 'loadMessages',
 					messages: messagesToSend,
 				}));
-			} else if (data.type === 'send-message') {
-				if (data.message && typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000) {
+			} else if (data.type === 'sendMessage') {
+				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000) {
 					const ts = Date.now();
 					const message = {
 						id: `${ts}-${randomBytes(8).toString('hex')}`,
 						ts,
 						message: data.message,
-						sidHash: webSocket.data.session.sidHash,
+						uid: webSocket.data.user.uid,
 					};
 
 					if (message.message === '/ile') {
 						message.message = `Aktualna liczba wiadomości: ${await db.collectionLength('messages')}.`;
-						message.sidHash = sessions['[Server]'].sidHash;
+						message.uid = SERVER_USER_UID;
 					}
 
 					await db.insertOne('messages', message);
 
-					for (const [ x, ws ] of Object.entries(webSockets)) {
-						if (ws.data.session?.username?.length > 0) {
+					for (const [ _, ws ] of Object.entries(webSockets)) {
+						if (ws.data.user) {
 							ws.send(JSON.stringify({
-								type: 'new-message',
+								type: 'newMessage',
 								...message,
 							}));
 						}
 					}
 				}
-			} else if (data.type === 'ping') {
-				return;
-			} else {
+			} else if (data.type === 'changePassword') {
+				if (typeof data.oldPassword === 'string' && typeof data.password === 'string') {
+					if (verifyLogin(webSocket.data.user, data.oldPassword)) {
+						await setPassword(webSocket.data.user.uid, data.password);
+						await regenerateJWTSecret(webSocket.data.user.uid);
+						webSocket.send(JSON.stringify({
+							type: 'changePasswordCB',
+							message: 'success',
+						}));
+						webSocket.close();
+					} else {
+						webSocket.send(JSON.stringify({
+							type: 'changePasswordCB',
+							message: 'invalidLogin',
+						}));
+					}
+				}
+			} else if (data.type === 'logOutEverywhere') {
+				await regenerateJWTSecret(webSocket.data.user.uid);
+				webSocket.close();
+			} else if (data.type !== 'ping') {
 				webSocket.close();
 			}
-		} else if (data.type === 'ping') {
-			return;
-		} else {
-			webSocket.close();
 		}
 	});
 
 	webSocket.on('close', () => {
-		if (sessions[webSocket.data.session?.sid]) delete sessions[webSocket.data.session?.sid];
-
 		console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket disconnected:'))} ${bold(blue(webSocket.id))}`);
 		delete webSockets[webSocket.id];
 	});
+
+	webSocket.send(JSON.stringify({
+		type: 'connectionReady',
+	}));
+
+	setTimeout(() => {
+		if (!webSocket.data.user) webSocket.close();
+	}, 10_000);
 };
 
 module.exports = { request, websocket, addEndpoint };
