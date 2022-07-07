@@ -325,7 +325,6 @@ const connect = () => {
 			}
 		} else if (data.type === 'updateNickname') {
 			if (data.uid === state.user.uid) {
-				console.log(data);
 				if (data.nickname) {
 					state.user.nickname = data.nickname;
 					propagateUserData();

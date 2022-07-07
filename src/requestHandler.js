@@ -1,6 +1,7 @@
-const { randomBytes, createHash } = require('crypto');
-const { createReadStream, existsSync, lstatSync } = require('fs');
+const { randomBytes } = require('crypto');
+const { createReadStream } = require('fs');
 const { lstat } = require('fs/promises');
+const mime = require('mime');
 
 const { bold, green, blue } = require('./utils/colors.js');
 const { WebSocket } = require('./utils/websocket.js');
@@ -12,7 +13,6 @@ const attachmentsBasePath = './data';
 const PROTOCOL_VERSION = '1';
 const SERVER_USER_UID = '691657194299387Server';
 
-// createHash('sha256').update('').digest('hex')
 const endpoints = {};
 const webSockets = {};
 const messagesToLoad = 50;
@@ -100,7 +100,9 @@ const request = async (request, response) => {
 		try {
 			const res = await lstat(filePath);
 			if (res.isFile()) {
-				response.writeHead(200);
+				response.writeHead(200, {
+					'Content-Type': mime.getType(filePath),
+				});
 				createReadStream(filePath).pipe(response);
 				return;
 			}
