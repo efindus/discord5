@@ -205,46 +205,55 @@ const generateMessageMetaUsername = (uid) => {
 	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
 };
 
-const generateMessage = (msgData, isShadow = false) => {
+const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
 	if (isShadow) message.classList.add('message-shadow');
-	message.innerHTML = `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
+	message.innerHTML = `${isContinuation ? '' : `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div>`}<div class="message-content ${isContinuation ? 'tooltip' : ''}">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}${isContinuation ? `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>` : '' }</div>`;
 	return message;
 };
 
-const insertMessage = (msgData, isNew = false, isShadow = false, afterElement = null) => {
-	if (!state.users[msgData.uid]) {
-		state.users[msgData.uid] = {
-			username: msgData.uid.slice(0, 10),
-			nickname: msgData.uid.slice(0, 10),
+const insertMessage = (data) => {
+	if (!state.users[data.msgData.uid]) {
+		state.users[data.msgData.uid] = {
+			username: data.msgData.uid.slice(0, 10),
+			nickname: data.msgData.uid.slice(0, 10),
 		};
 		state.socket.send(JSON.stringify({
 			type: 'getUser',
-			uid: msgData.uid,
+			uid: data.msgData.uid,
 		}));
 	}
 
-	if (!isNew) {
-		state.messages.splice(0, 0, msgData);
-		elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
+	if (!data.isNew) {
+		if (!data.continuation && state.messages.length > 0 && state.messages[0].uid === data.msgData.uid) {
+			document.getElementById(state.messages[0].id).remove();
+			insertMessage({
+				msgData: state.messages[0],
+				isNew: false,
+				continuation: true,
+			});
+		}
+
+		elements.messages.insertBefore(generateMessage(data.msgData, data.continuation), elements.messages.firstChild);
+		if (!data.continuation) state.messages.splice(0, 0, data.msgData);
 	} else {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 
-		if (!isShadow) {
-			state.messages.push(msgData);
-		}
-
-		if (!afterElement || !afterElement.nextSibling) {
-			elements.messages.appendChild(generateMessage(msgData, isShadow));
+		if (!data.afterElement || !data.afterElement.nextSibling) {
+			elements.messages.appendChild(generateMessage(data.msgData, state.messages[state.messages.length - 1]?.uid === data.msgData.uid, data.isShadow));
 		} else {
-			elements.messages.insertBefore(generateMessage(msgData), afterElement.nextSibling);
+			elements.messages.insertBefore(generateMessage(data.msgData), data.afterElement.nextSibling);
 		}
 
-		if (!isShadow && !document.hasFocus() && Notification.permission === 'granted') {
+		if (!data.isShadow) {
+			state.messages.push(data.msgData);
+		}
+
+		if (!data.isShadow && !document.hasFocus() && Notification.permission === 'granted') {
 			const notif = new Notification('Discord5: New Message', {
-				body: `${state.users[msgData.uid].nickname}: ${msgData.message.slice(0, 150)}`,
+				body: `${state.users[data.msgData.uid].nickname}: ${data.msgData.message.slice(0, 150)}`,
 				icon: '/favicon.ico',
 			});
 
@@ -256,8 +265,8 @@ const insertMessage = (msgData, isNew = false, isShadow = false, afterElement = 
 			state.notifications.push(notif);
 		}
 
-		if (isShadow) setTimeout(() => {
-			document.getElementById(msgData.nonce).remove();
+		if (data.isShadow) setTimeout(() => {
+			document.getElementById(data.msgData.nonce).remove();
 		}, 10_000);
 
 		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
@@ -274,7 +283,7 @@ const loadMessages = () => {
 const updateMessages = (uid) => {
 	for (const msg of state.messages) {
 		if (msg.uid === uid) {
-			document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = generateMessageMetaUsername(uid);
+			if (document.getElementById(msg.id).childNodes[0].childNodes[0]) document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = generateMessageMetaUsername(uid);
 		}
 	}
 };
@@ -325,14 +334,24 @@ const connect = () => {
 		} else if (data.type === 'newMessage') {
 			if (data.nonce) {
 				document.getElementById(data.nonce).remove();
-				insertMessage(data, true, false, document.getElementById(state.messages[state.messages.length - 1].id));
+				insertMessage({
+					msgData: data,
+					isNew: true,
+					isShadow: false,
+					afterElement: document.getElementById(state.messages[state.messages.length - 1].id),
+				});
 			} else {
-				insertMessage(data, true);
+				insertMessage({
+					msgData: data,
+					isNew: true,
+				});
 			}
 		} else if (data.type === 'loadMessages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
 			for (const message of data.messages) {
-				insertMessage(message);
+				insertMessage({
+					msgData: message,
+				});
 			}
 
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
@@ -437,11 +456,15 @@ elements.input.onkeydown = (event) => {
 			elements.input.value = '';
 			const nonce = `${Math.random()}`;
 			insertMessage({
-				id: nonce,
-				ts: Date.now() - state.timeOffset,
-				uid: state.user.uid,
-				message: value,
-			}, true, true);
+				msgData: {
+					id: nonce,
+					ts: Date.now() - state.timeOffset,
+					uid: state.user.uid,
+					message: value,
+				},
+				isNew: true,
+				isShadow: true,
+			});
 
 			state.socket.send(JSON.stringify({
 				type: 'sendMessage',

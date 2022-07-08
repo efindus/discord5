@@ -1,4 +1,3 @@
-join messages of the same user
 day separators
 users online
 add attachments
