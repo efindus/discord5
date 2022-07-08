@@ -221,7 +221,9 @@ const websocket = async (request, socket) => {
 					messages: messagesToSend,
 				}));
 			} else if (data.type === 'sendMessage') {
-				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000) {
+				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000 &&
+					typeof data.nonce === 'string' && data.nonce.length < 30
+				) {
 					const ts = Date.now();
 					const message = {
 						id: `${ts}-${randomBytes(8).toString('hex')}`,
@@ -239,10 +241,18 @@ const websocket = async (request, socket) => {
 
 					for (const [ _, ws ] of Object.entries(webSockets)) {
 						if (ws.data.user) {
-							ws.send(JSON.stringify({
-								type: 'newMessage',
-								...message,
-							}));
+							if (ws === webSocket) {
+								ws.send(JSON.stringify({
+									type: 'newMessage',
+									nonce: data.nonce,
+									...message,
+								}));
+							} else {
+								ws.send(JSON.stringify({
+									type: 'newMessage',
+									...message,
+								}));
+							}
 						}
 					}
 				}

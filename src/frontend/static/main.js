@@ -47,12 +47,12 @@ const elements = {
 
 const svgs = {
 	plus: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--upload-svg)" stroke-width="0.06"></line>
-			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--upload-svg)" stroke-width="0.06"></line>
+			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--light-grey)" stroke-width="0.06"></line>
+			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06"></line>
 		</svg>`,
 	cross: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" x2="0.75" stroke="var(--upload-svg)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
-			<line y1="0.25" y2="0.75" stroke="var(--upload-svg)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
+			<line x1="0.25" x2="0.75" stroke="var(--light-grey)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
+			<line y1="0.25" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
 		</svg>`,
 };
 
@@ -205,15 +205,16 @@ const generateMessageMetaUsername = (uid) => {
 	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
 };
 
-const generateMessage = (msgData) => {
+const generateMessage = (msgData, isShadow = false) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
+	if (isShadow) message.classList.add('message-shadow');
 	message.innerHTML = `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 };
 
-const insertMessage = (msgData, isNew = false) => {
+const insertMessage = (msgData, isNew = false, isShadow = false, afterElement = null) => {
 	if (!state.users[msgData.uid]) {
 		state.users[msgData.uid] = {
 			username: msgData.uid.slice(0, 10),
@@ -230,12 +231,20 @@ const insertMessage = (msgData, isNew = false) => {
 		elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
 	} else {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
-		state.messages.push(msgData);
-		elements.messages.appendChild(generateMessage(msgData));
 
-		if (!document.hasFocus() && Notification.permission === 'granted') {
+		if (!isShadow) {
+			state.messages.push(msgData);
+		}
+
+		if (!afterElement || !afterElement.nextSibling) {
+			elements.messages.appendChild(generateMessage(msgData, isShadow));
+		} else {
+			elements.messages.insertBefore(generateMessage(msgData), afterElement.nextSibling);
+		}
+
+		if (!isShadow && !document.hasFocus() && Notification.permission === 'granted') {
 			const notif = new Notification('Discord5: New Message', {
-				body: `${state.users[msgData.uid]}: ${msgData.message.slice(0, 150)}`,
+				body: `${state.users[msgData.uid].nickname}: ${msgData.message.slice(0, 150)}`,
 				icon: '/favicon.ico',
 			});
 
@@ -246,6 +255,10 @@ const insertMessage = (msgData, isNew = false) => {
 
 			state.notifications.push(notif);
 		}
+
+		if (isShadow) setTimeout(() => {
+			document.getElementById(msgData.nonce).remove();
+		}, 10_000);
 
 		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 	}
@@ -310,7 +323,12 @@ const connect = () => {
 				logOutHandler();
 			}
 		} else if (data.type === 'newMessage') {
-			insertMessage(data, true);
+			if (data.nonce) {
+				document.getElementById(data.nonce).remove();
+				insertMessage(data, true, false, document.getElementById(state.messages[state.messages.length - 1].id));
+			} else {
+				insertMessage(data, true);
+			}
 		} else if (data.type === 'loadMessages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
 			for (const message of data.messages) {
@@ -417,10 +435,18 @@ elements.input.onkeydown = (event) => {
 		if (value.length > 0 && value.length <= 2000) {
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 			elements.input.value = '';
+			const nonce = `${Math.random()}`;
+			insertMessage({
+				id: nonce,
+				ts: Date.now() - state.timeOffset,
+				uid: state.user.uid,
+				message: value,
+			}, true, true);
 
 			state.socket.send(JSON.stringify({
 				type: 'sendMessage',
 				message: value,
+				nonce: nonce,
 			}));
 		}
 	}

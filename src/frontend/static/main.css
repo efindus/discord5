@@ -31,7 +31,7 @@
     --shadow: rgba(15, 17, 21, 0.35);
     --hover: rgba(76, 86, 106, 0.5);
 	--upload-button: #3c3c48;
-	--upload-svg: #a4a4a4;
+	--light-grey: #a4a4a4;
     --text: #d8dee9;
 }
 
@@ -202,6 +202,10 @@ html, body {
 	flex-direction: column;
     flex-wrap: wrap;
     word-break: break-word;
+}
+
+.message-shadow {
+	color: var(--light-grey);
 }
 
 .message-meta {
@@ -436,6 +440,7 @@ html, body {
 }
 
 .tooltip .tooltiptext {
+	visibility: hidden;
 	opacity: 0;
 	width: max-content;
 	background-color: var(--lightbox);
@@ -449,7 +454,7 @@ html, body {
 	left: 110%;
 	font-weight: 500;
 	box-shadow: 5px 5px 10px 0px var(--shadow);
-	transition: ease-in opacity 120ms;
+	transition: ease-in-out opacity 150ms;
 }
 
 .tooltip .tooltiptext::after {
@@ -465,6 +470,7 @@ html, body {
 
 .tooltip:hover .tooltiptext {
 	opacity: 1;
+	visibility: visible;
 }
 
 /* Shaking */
