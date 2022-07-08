@@ -206,6 +206,7 @@ html, body {
 
 .message-meta {
 	display: flex;
+	cursor: default;
 }
 
 .message-username {
@@ -248,16 +249,19 @@ html, body {
 /* Popup */
 #popup {
     width: 450px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     background-color: var(--box);
 	box-shadow: 5px 5px 10px 0px var(--shadow);
     border-radius: 8px;
     padding: 24px;
     box-sizing: border-box;
 	color: var(--text);
+}
+
+#popup-container {
+	position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 #popup-close {
@@ -385,7 +389,7 @@ html, body {
 	display: none;
 }
 
-/* Loader */
+/* Spinner */
 @keyframes spin {
     0% {
         transform: rotate(0deg);
@@ -422,4 +426,57 @@ html, body {
     border-radius: 50%;
     border-top-color: transparent;
     animation: spin linear 1s infinite;
+}
+
+/* Tooltips */
+.tooltip {
+	position: relative;
+	display: inline-block;
+	z-index: 1;
+}
+
+.tooltip .tooltiptext {
+	opacity: 0;
+	width: max-content;
+	background-color: var(--lightbox);
+	color: var(--text);
+	text-align: center;
+	border-radius: 6px;
+	padding: 5px 8px;
+	position: absolute;
+	z-index: 1;
+	top: -5px;
+	left: 110%;
+	font-weight: 500;
+	box-shadow: 5px 5px 10px 0px var(--shadow);
+	transition: ease-in opacity 120ms;
+}
+
+.tooltip .tooltiptext::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 100%;
+	margin-top: -5px;
+	border-width: 5px;
+	border-style: solid;
+	border-color: transparent var(--lightbox) transparent transparent;
+}
+
+.tooltip:hover .tooltiptext {
+	opacity: 1;
+}
+
+/* Shaking */
+@keyframes horizontal-shaking {
+	0% { transform: translateX(0) }
+	25% { transform: translateX(5px) }
+	50% { transform: translateX(-5px) }
+	75% { transform: translateX(5px) }
+	100% { transform: translateX(0) }
+}
+
+.shaking {
+	animation: horizontal-shaking 500ms ease;
+	animation-iteration-count: 1;
 }

@@ -1,6 +1,8 @@
 const { MongoClient } = require('mongodb');
 
-const DATABASE_NAME = 'discord5';
+const { config } = require('../config');
+
+const DATABASE_NAME = config.dbName;
 const client = new MongoClient('mongodb://127.0.0.1:27017');
 
 const connect = () => {

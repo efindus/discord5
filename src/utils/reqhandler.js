@@ -3,10 +3,10 @@ const { createReadStream } = require('fs');
 const { lstat } = require('fs/promises');
 const mime = require('mime');
 
-const { bold, green, blue } = require('./utils/colors.js');
-const { WebSocket } = require('./utils/websocket.js');
-const db = require('./utils/database');
-const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./utils/user');
+const { bold, green, blue } = require('./colors.js');
+const { WebSocket } = require('./websocket.js');
+const db = require('./database');
+const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./user');
 
 const basePath = './src/frontend';
 const attachmentsBasePath = './data';
@@ -173,13 +173,14 @@ const websocket = async (request, socket) => {
 				webSocket.close();
 			}
 		} else {
-			if (data.type === 'getNickname') {
+			if (data.type === 'getUser') {
 				if (typeof data.uid === 'string') {
 					const user = await db.findOne('users', { uid: data.uid });
 
 					webSocket.send(JSON.stringify({
-						type: 'updateNickname',
+						type: 'updateUser',
 						uid: data.uid,
+						username: user?.username ?? '',
 						nickname: user?.nickname ?? '',
 					}));
 				}

@@ -23,10 +23,10 @@
 				</div>
 				<div class="dropdown">
 					<div id="user-data">ID: 694202137<br>Nickname: Server</div>
-					<div class="dropdown-entry" onclick="changeNickname()">Zmień pseudonim</div>
-					<div class="dropdown-entry" onclick="changePassword()">Zmień hasło</div>
-					<div class="dropdown-entry" onclick="logOutEverywhere()">Wyloguj się wszędzie</div>
-					<div class="dropdown-entry" onclick="logOut()">Wyloguj się</div>
+					<div class="dropdown-entry" onclick="changeNicknameHandler()">Zmień pseudonim</div>
+					<div class="dropdown-entry" onclick="changePasswordHandler()">Zmień hasło</div>
+					<div class="dropdown-entry" onclick="logOutEverywhereHandler()">Wyloguj się wszędzie</div>
+					<div class="dropdown-entry" onclick="logOutHandler()">Wyloguj się</div>
 				</div>
 			</div>
 			<div id="dropdown-close"></div>
@@ -52,14 +52,16 @@
 			<textarea id="input" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>
 		</div>
 
-		<div id="popup">
-			<div id="popup-close" onclick="hidePopup()">×</div>
-			<div id="popup-header">
-				<div id="popup-title">Ustaw swój pseudonim</div>
-				<div id="popup-subtitle">Pseudonim powinien zawierać od 3 do 32 znaków.</div>
+		<div id="popup-container">
+			<div id="popup">
+				<div id="popup-close" onclick="hidePopup()">×</div>
+				<div id="popup-header">
+					<div id="popup-title">Ustaw swój pseudonim</div>
+					<div id="popup-subtitle">Pseudonim powinien zawierać od 3 do 32 znaków.</div>
+				</div>
+				<div id="popup-body"></div>
+				<div id="popup-footer"></div>
 			</div>
-			<div id="popup-body"></div>
-			<div id="popup-footer"></div>
 		</div>
 
 		<script src="static/highlight.js"></script>

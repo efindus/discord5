@@ -1,4 +1,5 @@
 const { randomBytes, createHmac } = require('crypto');
+
 const font = require('./captcha.json');
 const letters = Object.keys(font);
 
@@ -109,8 +110,6 @@ const createCaptcha = (length, secret) => {
 
 	const id = randomBytes(4).toString('hex');
 	const timestamp = Date.now();
-
-	console.log(solution);
 
 	return {
 		id: id,

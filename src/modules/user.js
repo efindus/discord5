@@ -1,13 +1,12 @@
 const { createHash, randomBytes } = require('crypto');
 const { sign } = require('jsonwebtoken');
 
-const { addEndpoint } = require('../requestHandler');
+const { addEndpoint } = require('../utils/reqhandler');
 const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 const db = require('../utils/database');
+const { config } = require('../config');
 const { validateUsername } = require('../utils/user');
-const CAPTCHA_SECRET = '86faeffd4b1348e4d92caf9404afbcf87544fcf04783fb8162b2fdfe9ee8cc0e083c29ad053a8c73b64cb54a9ba0cc38549d1f0d90905386350abbfc91bf8409';
-
-
+const CAPTCHA_SECRET = config.captchaSecret;
 
 const captchaHandler = async (_handler) => {
 	const captcha = createCaptcha(8, CAPTCHA_SECRET);

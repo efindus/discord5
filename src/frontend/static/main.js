@@ -18,6 +18,7 @@ const elements = {
 	siteBody: document.querySelector('.site-body'),
 	bottomBar: document.querySelector('.bottom-bar'),
 
+	popupContainer: document.getElementById('popup-container'),
 	popup: document.getElementById('popup'),
 	popupClose: document.getElementById('popup-close'),
 	popupHeader: document.getElementById('popup-header'),
@@ -86,7 +87,7 @@ const showPopup = (data) => {
 	elements.siteBody.style.display = 'none';
 	elements.bottomBar.style.display = 'none';
 
-	elements.popup.style.display = '';
+	elements.popupContainer.style.display = '';
 	elements.popupTitle.innerHTML = data.title;
 
 	setPopupSubtitle(data);
@@ -155,8 +156,14 @@ const hidePopup = () => {
 	elements.siteBody.style.display = '';
 	elements.bottomBar.style.display = '';
 
-	elements.popup.style.display = 'none';
+	elements.popupContainer.style.display = 'none';
 	state.isClosablePopupOpen = false;
+};
+
+document.onkeydown = (event) => {
+	if (event.code === 'Escape' && state.isClosablePopupOpen) {
+		hidePopup();
+	}
 };
 
 const showSpinner = () => {
@@ -167,15 +174,23 @@ const hideSpinner = () => {
 	elements.spinner.style.display = 'none';
 };
 
-document.addEventListener('keyup', (ev) => {
-	if (ev.code === 'Escape' && state.isClosablePopupOpen) {
-		hidePopup();
-	}
-});
-
 const propagateUserData = () => {
 	elements.usernameDisplay.innerText = state.user.username;
 	elements.userData.innerHTML = `ID: ${state.user.uid}<br>Pseudonim: ${state.user.nickname}`;
+};
+
+const toggleDropdown = () => {
+	if (state.isDropdownOpen) {
+		state.isDropdownOpen = false;
+		elements.dropdown.style.display = 'none';
+		elements.usernameContainer.classList.remove('dropdown-open');
+		elements.dropdownClose.style.display = 'none';
+	} else {
+		state.isDropdownOpen = true;
+		elements.dropdown.style.display = 'flex';
+		elements.usernameContainer.classList.add('dropdown-open');
+		elements.dropdownClose.style.display = 'block';
+	}
 };
 
 const sha256 = async (message) => {
@@ -186,62 +201,47 @@ const sha256 = async (message) => {
 	return hashHex;
 };
 
-const regenSessionID = () => {
-	localStorage.removeItem('sid');
-	state.socket.close();
-};
-
 const generateMessage = (msgData) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	message.innerHTML = `<div class="message-meta"><span class="message-username">${state.users[msgData.uid]}</span><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
+	message.innerHTML = `<div class="message-meta"><div class="message-username tooltip">${state.users[msgData.uid]}<span class="tooltiptext">${state.users[msgData.uid]}</span></div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 };
 
-const addMessage = (msgData) => {
+const insertMessage = (msgData, isNew = false) => {
 	if (!state.users[msgData.uid]) {
 		state.users[msgData.uid] = msgData.uid.slice(0, 10);
 		state.socket.send(JSON.stringify({
-			type: 'getNickname',
+			type: 'getUser',
 			uid: msgData.uid,
 		}));
 	}
 
-	const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
-	elements.messages.appendChild(generateMessage(msgData));
+	if (!isNew) {
+		state.messages.splice(0, 0, msgData);
+		elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
+	} else {
+		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
+		state.messages.push(msgData);
+		elements.messages.appendChild(generateMessage(msgData));
 
-	state.messages.push(msgData);
+		if (!document.hasFocus() && Notification.permission === 'granted') {
+			const notif = new Notification('Discord5: New Message', {
+				body: `${state.users[msgData.uid]}: ${msgData.message.slice(0, 150)}`,
+				icon: '/favicon.ico',
+			});
 
-	if (!document.hasFocus() && Notification.permission === 'granted') {
-		const notif = new Notification('Discord5: New Message', {
-			body: `${state.users[msgData.uid]}: ${msgData.message.slice(0, 150)}`,
-			icon: '/favicon.ico',
-		});
+			notif.index = state.notifications.length;
+			notif.onclose = () => {
+				state.notifications.splice(notif.index, 1);
+			};
 
-		notif.index = state.notifications.length;
-		notif.onclose = () => {
-			state.notifications.splice(notif.index, 1);
-		};
+			state.notifications.push(notif);
+		}
 
-		state.notifications.push(notif);
+		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 	}
-
-	if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
-};
-
-const insertMessage = (msgData) => {
-	if (!state.users[msgData.uid]) {
-		state.users[msgData.uid] = msgData.uid.slice(0, 10);
-		state.socket.send(JSON.stringify({
-			type: 'getNickname',
-			uid: msgData.uid,
-		}));
-	}
-
-	state.messages.splice(0, 0, msgData);
-
-	elements.messages.insertBefore(generateMessage(msgData), elements.messages.firstChild);
 };
 
 const loadMessages = () => {
@@ -249,6 +249,14 @@ const loadMessages = () => {
 	state.socket.send(JSON.stringify({
 		type: 'getMessages',
 	}));
+};
+
+const updateMessages = (uid) => {
+	for (const msg of state.messages) {
+		if (msg.uid === uid) {
+			document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
+		}
+	}
 };
 
 const sanitizeText = (text) => {
@@ -292,10 +300,10 @@ const connect = () => {
 				loadMessages();
 				hideSpinner();
 			} else if (data.message === 'invalidLogin') {
-				logOut();
+				logOutHandler();
 			}
 		} else if (data.type === 'newMessage') {
-			addMessage(data);
+			insertMessage(data, true);
 		} else if (data.type === 'loadMessages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
 			for (const message of data.messages) {
@@ -322,6 +330,7 @@ const connect = () => {
 					subtitle: 'Niepoprawne stare hasło',
 					subtitleColor: 'var(--orange)',
 				});
+				elements.popup.classList.add('shaking');
 			}
 		} else if (data.type === 'updateNickname') {
 			if (data.uid === state.user.uid) {
@@ -329,15 +338,13 @@ const connect = () => {
 					state.user.nickname = data.nickname;
 					propagateUserData();
 					hidePopup();
+					hideSpinner();
 				} else {
 					let error = '';
 					switch (data.message) {
 						case 'usernameInvalidFormat':
 						case 'usernameInvalidLength':
 							error = 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
-							break;
-						case 'usernameAlreadyInUse':
-							error = 'Ten pseudonim jest już zajęty';
 							break;
 						default:
 							break;
@@ -347,17 +354,23 @@ const connect = () => {
 						subtitle: error,
 						subtitleColor: 'var(--orange)',
 					});
+					elements.popup.classList.add('shaking');
 				}
 			}
 
 			if (data.nickname.length !== 0) {
-				state.users[data.uid] = data.nickname;
+				state.users[data.uid].nickname = data.nickname;
 
-				for (const msg of state.messages) {
-					if (msg.uid === data.uid) {
-						document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = state.users[data.uid];
-					}
-				}
+				updateMessages(data.uid);
+			}
+		} else if (data.type === 'updateUser') {
+			if (data.username.length !== 0) {
+				state.users[data.uid] = {
+					username: data.username,
+					nickname: data.nickname,
+				};
+
+				updateMessages(data.uid);
 			}
 		} else if (data.type === 'reload') {
 			window.location.reload();
@@ -380,7 +393,84 @@ const disconnect = () => {
 	state.socket.close();
 };
 
-const changeNickname = (closeable = true, subtitle = '', startingValue = '') => {
+elements.input.onkeydown = (event) => {
+	if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
+		event.preventDefault();
+
+		let value = elements.input.value.trim();
+
+		if (value === '/tableflip') {
+			value = '(╯°□°）╯︵ ┻━┻';
+		} else if (value === '/unflip') {
+			value = '┬─┬ ノ( ゜-゜ノ)';
+		} else if (value === '/shrug') {
+			value = '¯\\\\_(ツ)_/¯';
+		}
+
+		if (value.length > 0 && value.length <= 2000) {
+			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
+			elements.input.value = '';
+
+			state.socket.send(JSON.stringify({
+				type: 'sendMessage',
+				message: value,
+			}));
+		}
+	}
+};
+
+document.onfocus = () => {
+	for (const notif of state.notifications) {
+		notif.close();
+	}
+
+	state.notifications = [];
+};
+
+elements.messageContainer.onscroll = () => {
+	if (Notification.permission === 'default') Notification.requestPermission();
+};
+
+elements.popup.onanimationend = () => {
+	elements.popup.classList.remove('shaking');
+};
+
+elements.uploadInput.onchange = () => {
+	if (elements.uploadInput.value !== '') {
+		elements.uploadButton.innerHTML = svgs.cross;
+	}
+};
+
+elements.uploadButton.onclick = (event) => {
+	if (elements.uploadInput.value !== '') {
+		event.preventDefault();
+		elements.uploadButton.innerHTML = svgs.plus;
+		elements.uploadInput.value = '';
+	}
+};
+
+elements.usernameContainer.onclick = toggleDropdown;
+elements.dropdownClose.onclick = toggleDropdown;
+
+const updateClock = () => {
+	const NOW = new Date(Date.now() - state.timeOffset);
+	elements.clock.innerHTML = `${`${NOW.getHours()}`.padStart(2, '0')}:${`${NOW.getMinutes()}`.padStart(2, '0')}:${`${NOW.getSeconds()}`.padStart(2, '0')}`;
+	setTimeout(updateClock, 1000 - ((Date.now() - state.timeOffset) % 1000) + 10);
+};
+
+const logOutEverywhereHandler = () => {
+	state.socket.send(JSON.stringify({
+		type: 'logOutEverywhere',
+	}));
+};
+
+const logOutHandler = () => {
+	localStorage.removeItem('token');
+	disconnect();
+	main();
+};
+
+const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = '') => {
 	showPopup({
 		title: 'Ustaw swój pseudonim',
 		subtitle: subtitle,
@@ -395,36 +485,49 @@ const changeNickname = (closeable = true, subtitle = '', startingValue = '') => 
 				},
 			},
 		],
+		footer: [
+			{
+				id: 'popup-button-changeNickname',
+				label: 'Zmień pseudonim',
+			},
+		],
 	});
 
-	const popupInput = document.getElementById('popup-input-username');
-	popupInput.onkeyup = (event) => {
-		if (event.code === 'Enter' || event.keyCode === 13) {
-			const value = popupInput.value.trim();
+	const nicknameInput = document.getElementById('popup-input-username');
+	const changeNicknameFormHandler = () => {
+		const value = nicknameInput.value.trim();
 
-			if (value.length < 3 || value.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(value)) {
-				setPopupSubtitle({
-					subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
-					subtitleColor: 'var(--orange)',
-				});
+		if (value.length < 3 || value.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(value)) {
+			setPopupSubtitle({
+				subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
+				subtitleColor: 'var(--orange)',
+			});
+			elements.popup.classList.add('shaking');
+		} else {
+			if (value !== state.user.nickname) {
+				showSpinner();
+				state.socket.send(JSON.stringify({
+					type: 'setNickname',
+					nickname: value,
+				}));
 			} else {
-				if (value !== state.user.nickname) {
-					state.socket.send(JSON.stringify({
-						type: 'setNickname',
-						nickname: value,
-					}));
-				} else {
-					hidePopup();
-				}
+				hidePopup();
 			}
 		}
 	};
 
-	popupInput.value = startingValue === '' ? state.user.nickname : startingValue;
-	popupInput.focus();
+	document.getElementById('popup-button-changeNickname').onclick = changeNicknameFormHandler;
+	nicknameInput.onkeydown = (event) => {
+		if (event.code === 'Enter' || event.keyCode === 13) {
+			changeNicknameFormHandler();
+		}
+	};
+
+	nicknameInput.value = startingValue === '' ? state.user.nickname : startingValue;
+	nicknameInput.focus();
 };
 
-const changePassword = () => {
+const changePasswordHandler = () => {
 	showPopup({
 		title: 'Zmień hasło',
 		closeable: true,
@@ -459,105 +562,34 @@ const changePassword = () => {
 		],
 	});
 
-	document.getElementById('popup-button-changePassword').onclick = async () => {
+	const oldPasswordInput = document.getElementById('popup-input-oldPassword');
+	const changePasswordFormHandler = async () => {
 		const newPassword = document.getElementById('popup-input-password').value;
 		if (newPassword !== document.getElementById('popup-input-password2').value) {
 			setPopupSubtitle({
 				subtitle: 'Podane nowe hasła nie są identyczne',
 				color: 'var(--orange)',
 			});
+			elements.popup.classList.add('shaking');
 			return;
 		}
 
 		showSpinner();
 		state.socket.send(JSON.stringify({
 			type: 'changePassword',
-			oldPassword: await sha256(document.getElementById('popup-input-oldPassword').value),
+			oldPassword: await sha256(oldPasswordInput.value),
 			password: await sha256(document.getElementById('popup-input-password').value),
 		}));
 	};
-};
 
-const logOutEverywhere = () => {
-	state.socket.send(JSON.stringify({
-		type: 'logOutEverywhere',
-	}));
-};
-
-const logOut = () => {
-	localStorage.removeItem('token');
-	disconnect();
-	main();
-};
-
-elements.input.addEventListener('keydown', event => {
-	if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
-		event.preventDefault();
-
-		let value = elements.input.value.trim();
-
-		if (value === '/tableflip') {
-			value = '(╯°□°）╯︵ ┻━┻';
-		} else if (value === '/unflip') {
-			value = '┬─┬ ノ( ゜-゜ノ)';
-		} else if (value === '/shrug') {
-			value = '¯\\\\_(ツ)_/¯';
+	document.getElementById('popup-button-changePassword').onclick = changePasswordFormHandler;
+	document.getElementById('popup-input-password2').onkeydown = (event) => {
+		if (event.code === 'Enter' || event.keyCode === 13) {
+			changePasswordFormHandler();
 		}
+	};
 
-		if (value.length >= 1 && value.length <= 2000) {
-			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
-			elements.input.value = '';
-
-			state.socket.send(JSON.stringify({
-				type: 'sendMessage',
-				message: value,
-			}));
-		}
-	}
-});
-
-document.onfocus = () => {
-	for (const notif of state.notifications) {
-		notif.close();
-	}
-
-	state.notifications = [];
-};
-
-const toggleDropdown = () => {
-	if (state.isDropdownOpen) {
-		state.isDropdownOpen = false;
-		elements.dropdown.style.display = 'none';
-		elements.usernameContainer.classList.remove('dropdown-open');
-		elements.dropdownClose.style.display = 'none';
-	} else {
-		state.isDropdownOpen = true;
-		elements.dropdown.style.display = 'flex';
-		elements.usernameContainer.classList.add('dropdown-open');
-		elements.dropdownClose.style.display = 'block';
-	}
-};
-
-elements.uploadInput.addEventListener('change', () => {
-	if (elements.uploadInput.value !== '') {
-		elements.uploadButton.innerHTML = svgs.cross;
-	}
-});
-elements.uploadButton.addEventListener('click', (evt) => {
-	if (elements.uploadInput.value !== '') {
-		evt.preventDefault();
-		elements.uploadButton.innerHTML = svgs.plus;
-		elements.uploadInput.value = '';
-	}
-});
-
-elements.usernameContainer.addEventListener('click', toggleDropdown);
-elements.dropdownClose.addEventListener('click', toggleDropdown);
-
-const updateClock = () => {
-	const NOW = new Date(Date.now() - state.timeOffset);
-	elements.clock.innerHTML = `${`${NOW.getHours()}`.padStart(2, '0')}:${`${NOW.getMinutes()}`.padStart(2, '0')}:${`${NOW.getSeconds()}`.padStart(2, '0')}`;
-	setTimeout(updateClock, 1000 - ((Date.now() - state.timeOffset) % 1000) + 10);
+	oldPasswordInput.focus();
 };
 
 const loginHandler = () => {
@@ -594,7 +626,9 @@ const loginHandler = () => {
 		],
 	});
 
-	document.getElementById('popup-button-login').onclick = async () => {
+	const usernameInput = document.getElementById('popup-input-username');
+
+	const loginFormHandler = async () => {
 		showSpinner();
 		const response = await fetch('/api/login', {
 			method: 'POST',
@@ -602,7 +636,7 @@ const loginHandler = () => {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				username: document.getElementById('popup-input-username').value,
+				username: usernameInput.value,
 				password: await sha256(document.getElementById('popup-input-password').value),
 			}),
 		});
@@ -613,6 +647,7 @@ const loginHandler = () => {
 				subtitle: 'Niepoprawny login lub hasło',
 				subtitleColor: 'var(--orange)',
 			});
+			elements.popup.classList.add('shaking');
 			hideSpinner();
 			return;
 		} else if (data.message === 'success') {
@@ -621,9 +656,18 @@ const loginHandler = () => {
 		}
 	};
 
+	document.getElementById('popup-button-login').onclick = loginFormHandler;
+	document.getElementById('popup-input-password').onkeydown = (event) => {
+		if (event.code === 'Enter' || event.keyCode === 13) {
+			loginFormHandler();
+		}
+	};
+
 	document.getElementById('popup-button-register').onclick = () => {
 		registerHandler();
 	};
+
+	usernameInput.focus();
 };
 
 const registerHandler = () => {
@@ -672,6 +716,7 @@ const registerHandler = () => {
 		],
 	});
 
+	const usernameInput = document.getElementById('popup-input-username');
 	const captchaRow = document.getElementById('popup-captcha').parentElement;
 	let captchaData = {};
 	const resetCaptcha = () => {
@@ -684,11 +729,16 @@ const registerHandler = () => {
 
 			captchaData = await response.json();
 			captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
+			document.getElementById('popup-input-captcha').onkeydown = (event) => {
+				if (event.code === 'Enter' || event.keyCode === 13) {
+					registerFormHandler();
+				}
+			};
 		};
 	};
 	resetCaptcha();
 
-	document.getElementById('popup-button-register').onclick = async () => {
+	const registerFormHandler = async () => {
 		if (registrationInProgress) return;
 		else registrationInProgress = true;
 
@@ -698,6 +748,7 @@ const registerHandler = () => {
 				subtitle: 'Musisz potwierdzić że nie jesteś robotem',
 				subtitleColor: 'var(--orange)',
 			});
+			elements.popup.classList.add('shaking');
 			registrationInProgress = false;
 			return;
 		}
@@ -708,6 +759,7 @@ const registerHandler = () => {
 				subtitle: 'Wpisane hasła nie są identyczne',
 				subtitleColor: 'var(--orange)',
 			});
+			elements.popup.classList.add('shaking');
 			registrationInProgress = false;
 			return;
 		}
@@ -719,7 +771,7 @@ const registerHandler = () => {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				username: document.getElementById('popup-input-username').value,
+				username: usernameInput.value,
 				password: await sha256(password),
 				captcha: {
 					id: captchaData.id,
@@ -768,13 +820,18 @@ const registerHandler = () => {
 				subtitle: error,
 				subtitleColor: 'var(--orange)',
 			});
+			elements.popup.classList.add('shaking');
 			registrationInProgress = false;
 		}
 	};
 
+	document.getElementById('popup-button-register').onclick = registerFormHandler;
+
 	document.getElementById('popup-button-login').onclick = () => {
 		loginHandler();
 	};
+
+	usernameInput.focus();
 };
 
 const main = async () => {
@@ -789,7 +846,3 @@ const main = async () => {
 
 updateClock();
 main();
-
-elements.messageContainer.onscroll = () => {
-	if (Notification.permission === 'default') Notification.requestPermission();
-};

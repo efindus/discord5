@@ -36,9 +36,6 @@ const validateNickname = async (nickname) => {
 	const res = await validateUsername(nickname, false);
 	if (res) return res;
 
-	if (await db.findOne('users', { nickname }))
-		return 'usernameAlreadyInUse';
-
 	return null;
 };
 
