@@ -447,15 +447,16 @@ html, body {
 	visibility: hidden;
 	opacity: 0;
 	width: max-content;
-	background-color: var(--lightbox);
+	background-color: var(--box);
 	color: var(--text);
 	text-align: center;
-	border-radius: 6px;
+	border-radius: 8px;
 	padding: 5px 8px;
 	position: absolute;
 	z-index: 1;
-	top: -5px;
-	left: 110%;
+	bottom: 150%;
+	left: 50%;
+	transform: translateX(-45%);
 	font-weight: 500;
 	box-shadow: 5px 5px 10px 0px var(--shadow);
 	transition: ease-in-out opacity 150ms;
@@ -464,12 +465,12 @@ html, body {
 .tooltip .tooltiptext::after {
 	content: "";
 	position: absolute;
-	top: 50%;
-	right: 100%;
-	margin-top: -5px;
+	top: 100%;
+	left: 50%;
+	margin-left: -5px;
 	border-width: 5px;
 	border-style: solid;
-	border-color: transparent var(--lightbox) transparent transparent;
+	border-color: var(--box) transparent transparent transparent;
 }
 
 .tooltip:hover .tooltiptext {
