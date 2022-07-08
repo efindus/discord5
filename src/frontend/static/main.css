@@ -468,6 +468,10 @@ html, body {
 	transition-delay: 1200ms;
 }
 
+.message-username .tooltiptext {
+	transition-delay: 600ms;
+}
+
 .tooltip .tooltiptext::after {
 	content: "";
 	position: absolute;
