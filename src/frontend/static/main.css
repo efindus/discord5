@@ -204,6 +204,10 @@ html, body {
     word-break: break-word;
 }
 
+.message:hover {
+	background-color: var(--box);
+}
+
 .message-shadow {
 	color: var(--light-grey);
 }
