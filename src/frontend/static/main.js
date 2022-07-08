@@ -201,17 +201,24 @@ const sha256 = async (message) => {
 	return hashHex;
 };
 
+const generateMessageMetaUsername = (uid) => {
+	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
+};
+
 const generateMessage = (msgData) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	message.innerHTML = `<div class="message-meta"><div class="message-username tooltip">${state.users[msgData.uid]}<span class="tooltiptext">${state.users[msgData.uid]}</span></div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
+	message.innerHTML = `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div><div class="message-content">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}</div>`;
 	return message;
 };
 
 const insertMessage = (msgData, isNew = false) => {
 	if (!state.users[msgData.uid]) {
-		state.users[msgData.uid] = msgData.uid.slice(0, 10);
+		state.users[msgData.uid] = {
+			username: msgData.uid.slice(0, 10),
+			nickname: msgData.uid.slice(0, 10),
+		};
 		state.socket.send(JSON.stringify({
 			type: 'getUser',
 			uid: msgData.uid,
@@ -254,7 +261,7 @@ const loadMessages = () => {
 const updateMessages = (uid) => {
 	for (const msg of state.messages) {
 		if (msg.uid === uid) {
-			document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
+			document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = generateMessageMetaUsername(uid);
 		}
 	}
 };
