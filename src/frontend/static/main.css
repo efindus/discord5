@@ -32,6 +32,7 @@
     --hover: rgba(76, 86, 106, 0.5);
 	--upload-button: #3c3c48;
 	--light-grey: #a4a4a4;
+	--grey-accent: #82828a;
     --text: #d8dee9;
 }
 
@@ -500,4 +501,24 @@ html, body {
 .shaking {
 	animation: horizontal-shaking 500ms ease;
 	animation-iteration-count: 1;
+}
+
+/* Day separators */
+.day-separator {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	height: 0px;
+	border-top: thin var(--border) solid;
+	margin: 12px 8px;
+	cursor: default;
+	user-select: none;
+}
+
+.day-separator-text {
+	background-color: var(--background);
+	padding: 0px 5px;
+	font-size: 14px;
+	color: var(--grey-accent);
 }

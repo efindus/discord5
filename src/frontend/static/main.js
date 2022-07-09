@@ -214,6 +214,14 @@ const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
 	return message;
 };
 
+const generateDaySeparator = (timestamp) => {
+	const DATE = new Date(timestamp);
+	const separator = document.createElement('div');
+	separator.classList.add('day-separator');
+	separator.innerHTML = `<span class="day-separator-text">${DATE.toLocaleDateString('pl')}</span>`;
+	return separator;
+};
+
 const insertMessage = (data) => {
 	if (!state.users[data.msgData.uid]) {
 		state.users[data.msgData.uid] = {
@@ -227,13 +235,19 @@ const insertMessage = (data) => {
 	}
 
 	if (!data.isNew) {
-		if (!data.continuation && state.messages.length > 0 && state.messages[0].uid === data.msgData.uid) {
-			document.getElementById(state.messages[0].id).remove();
-			insertMessage({
-				msgData: state.messages[0],
-				isNew: false,
-				continuation: true,
-			});
+		const lastMessage = state.messages[0];
+		if (lastMessage) {
+			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
+			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+				elements.messages.insertBefore(generateDaySeparator(lastMessage.ts), elements.messages.firstChild);
+			} else if (!data.continuation && lastMessage.uid === data.msgData.uid) {
+				document.getElementById(state.messages[0].id).remove();
+				insertMessage({
+					msgData: state.messages[0],
+					isNew: false,
+					continuation: true,
+				});
+			}
 		}
 
 		elements.messages.insertBefore(generateMessage(data.msgData, data.continuation), elements.messages.firstChild);
@@ -242,7 +256,14 @@ const insertMessage = (data) => {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 
 		if (!data.afterElement || !data.afterElement.nextSibling) {
-			elements.messages.appendChild(generateMessage(data.msgData, state.messages[state.messages.length - 1]?.uid === data.msgData.uid, data.isShadow));
+			const lastMessage = state.messages[state.messages.length - 1];
+			if (lastMessage) {
+				const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
+				if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+					elements.messages.appendChild(generateDaySeparator(data.msgData.ts));
+				}
+			}
+			elements.messages.appendChild(generateMessage(data.msgData, lastMessage?.uid === data.msgData.uid, data.isShadow));
 		} else {
 			elements.messages.insertBefore(generateMessage(data.msgData), data.afterElement.nextSibling);
 		}
