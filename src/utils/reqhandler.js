@@ -222,7 +222,7 @@ const websocket = async (request, socket) => {
 				}));
 			} else if (data.type === 'sendMessage') {
 				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000 &&
-					typeof data.nonce === 'string' && data.nonce.length < 30
+					typeof data.nonce === 'string' && data.nonce.length > 0 && data.nonce.length < 35
 				) {
 					const ts = Date.now();
 					const message = {

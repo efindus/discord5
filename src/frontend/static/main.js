@@ -266,7 +266,7 @@ const insertMessage = (data) => {
 		}
 
 		if (data.isShadow) setTimeout(() => {
-			document.getElementById(data.msgData.nonce).remove();
+			document.getElementById(data.msgData.nonce)?.remove();
 		}, 10_000);
 
 		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
@@ -454,7 +454,7 @@ elements.input.onkeydown = (event) => {
 		if (value.length > 0 && value.length <= 2000) {
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 			elements.input.value = '';
-			const nonce = `${Math.random()}`;
+			const nonce = `${Date.now()}${Math.random()}`;
 			insertMessage({
 				msgData: {
 					id: nonce,
