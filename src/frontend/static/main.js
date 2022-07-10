@@ -210,7 +210,7 @@ const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
 	message.id = msgData.id;
 	message.classList.add('message');
 	if (isShadow) message.classList.add('message-shadow');
-	message.innerHTML = `${isContinuation ? '' : `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div><div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div>`}<div class="message-content ${isContinuation ? 'tooltip' : ''}">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}${isContinuation ? `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>` : '' }</div>`;
+	message.innerHTML = `${isContinuation ? '' : `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div>${msgData.originalAuthor ? `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateMessageMetaUsername(msgData.originalAuthor)}</div>` : ''}<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div>`}<div class="message-content ${isContinuation ? 'tooltip' : ''}">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}${isContinuation ? `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>` : '' }</div>`;
 	return message;
 };
 
@@ -223,16 +223,8 @@ const generateDaySeparator = (timestamp) => {
 };
 
 const insertMessage = (data) => {
-	if (!state.users[data.msgData.uid]) {
-		state.users[data.msgData.uid] = {
-			username: data.msgData.uid.slice(0, 10),
-			nickname: data.msgData.uid.slice(0, 10),
-		};
-		state.socket.send(JSON.stringify({
-			type: 'getUser',
-			uid: data.msgData.uid,
-		}));
-	}
+	getMissingUserData(data.msgData.uid);
+	if (data.msgData.originalAuthor) getMissingUserData(data.msgData.originalAuthor);
 
 	if (!data.isNew) {
 		const lastMessage = state.messages[0];
@@ -240,7 +232,7 @@ const insertMessage = (data) => {
 			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
 				elements.messages.insertBefore(generateDaySeparator(lastMessage.ts), elements.messages.firstChild);
-			} else if (!data.continuation && lastMessage.uid === data.msgData.uid) {
+			} else if (!data.continuation && lastMessage.uid === data.msgData.uid && lastMessage.originalAuthor === data.msgData.originalAuthor) {
 				document.getElementById(state.messages[0].id).remove();
 				insertMessage({
 					msgData: state.messages[0],
@@ -293,6 +285,20 @@ const insertMessage = (data) => {
 	}
 };
 
+const getMissingUserData = (uid) => {
+	if (!state.users[uid]) {
+		state.users[uid] = {
+			username: uid.slice(0, 10),
+			nickname: uid.slice(0, 10),
+		};
+
+		state.socket.send(JSON.stringify({
+			type: 'getUser',
+			uid: uid,
+		}));
+	}
+};
+
 const loadMessages = () => {
 	elements.loadMessagesButton.style.display = 'none';
 	state.socket.send(JSON.stringify({
@@ -303,7 +309,13 @@ const loadMessages = () => {
 const updateMessages = (uid) => {
 	for (const msg of state.messages) {
 		if (msg.uid === uid) {
-			if (document.getElementById(msg.id).childNodes[0].childNodes[0]) document.getElementById(msg.id).childNodes[0].childNodes[0].innerHTML = generateMessageMetaUsername(uid);
+			const element = document.getElementById(msg.id).childNodes[0].childNodes[0];
+			if (element) element.innerHTML = generateMessageMetaUsername(uid);
+		}
+
+		if (msg.originalAuthor === uid) {
+			const element = document.getElementById(msg.id).childNodes[0].childNodes[2];
+			if (element) element.innerHTML = generateMessageMetaUsername(uid);
 		}
 	}
 };

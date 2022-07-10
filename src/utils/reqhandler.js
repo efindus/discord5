@@ -234,6 +234,7 @@ const websocket = async (request, socket) => {
 
 					if (message.message === '/ile') {
 						message.message = `Aktualna liczba wiadomości: ${await db.collectionLength('messages')}.`;
+						message.originalAuthor = message.uid;
 						message.uid = SERVER_USER_UID;
 					}
 
