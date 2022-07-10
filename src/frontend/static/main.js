@@ -257,15 +257,14 @@ const insertMessage = (data) => {
 
 		if (!data.afterElement || !data.afterElement.nextSibling) {
 			const lastMessage = state.messages[state.messages.length - 1];
-			if (lastMessage) {
+			if (lastMessage && !data.isShadow) {
 				const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 				if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
 					elements.messages.appendChild(generateDaySeparator(data.msgData.ts));
 				}
 			}
+
 			elements.messages.appendChild(generateMessage(data.msgData, lastMessage?.uid === data.msgData.uid, data.isShadow));
-		} else {
-			elements.messages.insertBefore(generateMessage(data.msgData), data.afterElement.nextSibling);
 		}
 
 		if (!data.isShadow) {
@@ -355,18 +354,12 @@ const connect = () => {
 		} else if (data.type === 'newMessage') {
 			if (data.nonce) {
 				document.getElementById(data.nonce).remove();
-				insertMessage({
-					msgData: data,
-					isNew: true,
-					isShadow: false,
-					afterElement: document.getElementById(state.messages[state.messages.length - 1].id),
-				});
-			} else {
-				insertMessage({
-					msgData: data,
-					isNew: true,
-				});
 			}
+
+			insertMessage({
+				msgData: data,
+				isNew: true,
+			});
 		} else if (data.type === 'loadMessages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
 			for (const message of data.messages) {
