@@ -804,6 +804,10 @@ const registerHandler = () => {
 					registerFormHandler();
 				}
 			};
+
+			setTimeout(() => {
+				if (captchaRow) resetCaptcha();
+			}, 60_000);
 		};
 	};
 	resetCaptcha();
