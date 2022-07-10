@@ -1,6 +1,6 @@
 const { randomBytes } = require('crypto');
 const { createReadStream } = require('fs');
-const { lstat } = require('fs/promises');
+const { lstat, writeFile } = require('fs/promises');
 const mime = require('mime');
 
 const { bold, green, blue } = require('./colors.js');
@@ -100,8 +100,10 @@ const request = async (request, response) => {
 		try {
 			const res = await lstat(filePath);
 			if (res.isFile()) {
+				let contentType = mime.getType(filePath);
+				if (contentType === 'text/html' && request.path !== '/') contentType = 'text/plain';
 				response.writeHead(200, {
-					'Content-Type': mime.getType(filePath),
+					'Content-Type': contentType,
 				});
 				createReadStream(filePath).pipe(response);
 				return;
@@ -232,10 +234,19 @@ const websocket = async (request, socket) => {
 						uid: webSocket.data.user.uid,
 					};
 
+					if (typeof data.attachment === 'object' &&
+						typeof data.attachment.fileName === 'string' && data.attachment.fileName.length < 250 && data.attachment.fileName.indexOf('/') === -1 &&
+						typeof data.attachment.data === 'string' && data.attachment.data.length <= 14900000
+					) {
+						message.attachment = `${message.id}-${data.attachment.fileName}`;
+						await writeFile(`${attachmentsBasePath}/attachments/${message.attachment}`, Buffer.from(data.attachment.data, 'base64'));
+					}
+
 					if (message.message === '/ile') {
 						message.message = `Aktualna liczba wiadomości: ${await db.collectionLength('messages')}.`;
 						message.originalAuthor = message.uid;
 						message.uid = SERVER_USER_UID;
+						message.attachment = null;
 					}
 
 					await db.insertOne('messages', message);

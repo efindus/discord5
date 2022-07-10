@@ -11,6 +11,7 @@ const state = {
 	reconnect: false,
 	protocolVersion: '1',
 	timeOffset: 0,
+	currentAttachment: null,
 };
 
 const elements = {
@@ -205,12 +206,16 @@ const generateMessageMetaUsername = (uid) => {
 	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
 };
 
+const generateAttachmentATag = (attachment) => {
+	return `<a class="message-attachment-name" href="/attachments/${attachment}" target="_blank">${attachment}</a>`;
+};
+
 const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
 	if (isShadow) message.classList.add('message-shadow');
-	message.innerHTML = `${isContinuation ? '' : `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div>${msgData.originalAuthor ? `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateMessageMetaUsername(msgData.originalAuthor)}</div>` : ''}<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div>`}<div class="message-content ${isContinuation ? 'tooltip' : ''}">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}${isContinuation ? `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>` : '' }</div>`;
+	message.innerHTML = `${isContinuation ? '' : `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div>${msgData.originalAuthor ? `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateMessageMetaUsername(msgData.originalAuthor)}</div>` : ''}<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div>`}<div class="message-content ${isContinuation ? 'tooltip' : ''}">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}${isContinuation ? `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>` : '' }</div>${msgData.attachment ? `<div class="message-attachment">${isImage ? `<img src="/attachments/${msgData.attachment}" onerror="this.parentElement.innerHTML = generateAttachmentATag('${msgData.attachment}')" style="max-height:400px;margin-bottom:4px;"><div>${generateAttachmentATag(msgData.attachment)}</div>` : `${generateAttachmentATag(msgData.attachment)}`}</div>` : ''}`;
 	return message;
 };
 
@@ -299,11 +304,30 @@ const getMissingUserData = (uid) => {
 	}
 };
 
+const isImage = (file) => {
+	if (file && (file.endsWith('.png') ||
+		file.endsWith('.jpg') ||
+		file.endsWith('.jpeg') ||
+		file.endsWith('.gif') ||
+		file.endsWith('.webp')
+	)) {
+		return true;
+	}
+
+	return false;
+};
+
 const loadMessages = () => {
 	elements.loadMessagesButton.style.display = 'none';
 	state.socket.send(JSON.stringify({
 		type: 'getMessages',
 	}));
+};
+
+const resetUpload = () => {
+	elements.uploadButton.innerHTML = svgs.plus;
+	elements.uploadInput.value = '';
+	state.currentAttachment = null;
 };
 
 const updateMessages = (uid) => {
@@ -454,6 +478,7 @@ const connect = () => {
 	state.socket.onclose = () => {
 		clearInterval(pinger);
 		elements.messages.innerHTML = '';
+		state.messages = [];
 
 		if (state.reconnect) {
 			showSpinner();
@@ -496,10 +521,23 @@ elements.input.onkeydown = (event) => {
 				isShadow: true,
 			});
 
+			let attachment = {};
+			if (state.currentAttachment) {
+				attachment = {
+					attachment: {
+						fileName: elements.uploadInput.files[0].name,
+						data: state.currentAttachment,
+					},
+				};
+
+				resetUpload();
+			}
+
 			state.socket.send(JSON.stringify({
 				type: 'sendMessage',
 				message: value,
 				nonce: nonce,
+				...attachment,
 			}));
 		}
 	}
@@ -522,16 +560,24 @@ elements.popup.onanimationend = () => {
 };
 
 elements.uploadInput.onchange = () => {
-	if (elements.uploadInput.value !== '') {
+	if (elements.uploadInput.value !== '' && elements.uploadInput.files[0].size <= 11160000) {
 		elements.uploadButton.innerHTML = svgs.cross;
+
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			state.currentAttachment = fromArrayBufferToBase64(event.target.result);
+		};
+
+		reader.readAsArrayBuffer(elements.uploadInput.files[0]);
+	} else {
+		elements.uploadInput.value = '';
 	}
 };
 
 elements.uploadButton.onclick = (event) => {
 	if (elements.uploadInput.value !== '') {
 		event.preventDefault();
-		elements.uploadButton.innerHTML = svgs.plus;
-		elements.uploadInput.value = '';
+		resetUpload();
 	}
 };
 
@@ -932,6 +978,51 @@ const main = async () => {
 	}
 
 	connect();
+};
+
+
+const fromArrayBufferToBase64 = (arrayBuffer) => {
+	let base64    = '';
+	const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+	const bytes = new Uint8Array(arrayBuffer);
+	const byteLength    = bytes.byteLength;
+	const byteRemainder = byteLength % 3;
+	const mainLength    = byteLength - byteRemainder;
+
+	let a, b, c, d;
+	let chunk;
+
+	for (let i = 0; i < mainLength; i = i + 3) {
+		chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+
+		a = (chunk & 16515072) >> 18;
+		b = (chunk & 258048)   >> 12;
+		c = (chunk & 4032)     >>  6;
+		d = chunk & 63;
+
+		base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
+	}
+
+	if (byteRemainder === 1) {
+		chunk = bytes[mainLength];
+
+		a = (chunk & 252) >> 2;
+		b = (chunk & 3)   << 4;
+
+		base64 += encodings[a] + encodings[b] + '==';
+	} else if (byteRemainder === 2) {
+		chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
+
+		a = (chunk & 64512) >> 10;
+		b = (chunk & 1008)  >>  4;
+
+		c = (chunk & 15)    <<  2;
+
+		base64 += encodings[a] + encodings[b] + encodings[c] + '=';
+	}
+
+	return base64;
 };
 
 updateClock();

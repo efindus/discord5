@@ -239,6 +239,25 @@ html, body {
     flex-grow: 100;
 }
 
+.message-attachment {
+	background-color: var(--box);
+	width: max-content;
+	padding: 4px 10px;
+	border-radius: 8px;
+	filter: brightness(130%);
+	margin-top: 5px;
+	margin-left: 15px;
+	border-width: 2px;
+	border-style: solid;
+	border-color: var(--darkborder);
+	font-size: 14px;
+}
+
+.message-attachment-name {
+	color: var(--text);
+	filter: brightness(70%);
+}
+
 #load-messages-button {
     background-color: var(--blue);
     padding: 12px;

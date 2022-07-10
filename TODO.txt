@@ -1,7 +1,7 @@
-day separators
 users online
-add attachments
 attachment upload progress bar
 add admins (admin panel) (and user bans)
 add replies
 add mentions <https://stackoverflow.com/questions/4705848/rendering-html-inside-textarea>
+
+maybe: insert messages based on ts and not server order

@@ -61,6 +61,13 @@ class WebSocket extends EventEmitter {
 						if (inputBuffer.length < 10) return;
 
 						length = inputBuffer.readBigUInt64BE(2);
+						if (length > 15000000) {
+							this.close();
+							return;
+						} else {
+							length = +length.toString();
+						}
+
 						start = 10;
 					}
 
