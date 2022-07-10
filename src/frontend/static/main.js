@@ -308,14 +308,18 @@ const loadMessages = () => {
 
 const updateMessages = (uid) => {
 	for (const msg of state.messages) {
-		if (msg.uid === uid) {
-			const element = document.getElementById(msg.id).childNodes[0].childNodes[0];
-			if (element) element.innerHTML = generateMessageMetaUsername(uid);
-		}
+		const msgMeta = document.getElementById(msg.id).querySelector('.message-meta');
 
-		if (msg.originalAuthor === uid) {
-			const element = document.getElementById(msg.id).childNodes[0].childNodes[2];
-			if (element) element.innerHTML = generateMessageMetaUsername(uid);
+		if (msgMeta) {
+			if (msg.uid === uid) {
+				const element = msgMeta.childNodes[0];
+				if (element) element.innerHTML = generateMessageMetaUsername(uid);
+			}
+
+			if (msg.originalAuthor === uid) {
+				const element = msgMeta.childNodes[2];
+				if (element) element.innerHTML = generateMessageMetaUsername(uid);
+			}
 		}
 	}
 };
