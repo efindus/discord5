@@ -44,6 +44,10 @@ class WebSocket extends EventEmitter {
 
 		socket.on('data', data => {
 			inputBuffer = Buffer.concat([ inputBuffer, data ]);
+			if (inputBuffer.length > 15_000_000) {
+				this.close();
+				return;
+			}
 
 			try {
 				do {
@@ -215,7 +219,7 @@ class WebSocket extends EventEmitter {
 	 * @returns {string} IP address
 	 */
 	getIp = () => {
-		return this.#socket.remoteAddress?.split(':')[3];
+		return this.#socket.remoteAddress?.split(':')[3] ?? '127.0.0.1';
 	};
 }
 

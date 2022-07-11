@@ -1,7 +1,6 @@
 const EventEmitter = require('events');
 const { URL } = require('url');
 const { createServer } = require('http');
-const { parse } = require('querystring');
 const { createSecureServer } = require('http2');
 const { green, blue, bold } = require('./colors.js');
 
@@ -51,7 +50,7 @@ class Server extends EventEmitter {
 					url += ' ';
 				}
 
-				console.log(`${(remoteAddress ? bold(blue(`[${remoteAddress?.split(':')[3]}] `)) : '') }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
+				console.log(`${(remoteAddress ? bold(blue(`[${remoteAddress?.split(':')[3] ?? '127.0.0.1'}] `)) : '') }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
 			});
 
 			const url = new URL(request.url, `https://${request.headers.host}`);

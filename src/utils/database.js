@@ -52,4 +52,8 @@ const removeMany = (collection, filter) => {
 	return client.db(DATABASE_NAME).collection(collection).deleteMany(filter);
 };
 
-module.exports = { connect, insertOne, insertMany, collectionLength, findOne, findMany, updateOne, updateMany, removeOne, removeMany };
+const createIndex = (collection, index) => {
+	return client.db(DATABASE_NAME).collection(collection).createIndex(index);
+};
+
+module.exports = { connect, insertOne, insertMany, collectionLength, findOne, findMany, updateOne, updateMany, removeOne, removeMany, createIndex };

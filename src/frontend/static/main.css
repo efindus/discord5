@@ -240,17 +240,21 @@ html, body {
 }
 
 .message-attachment {
-	background-color: var(--box);
+	background-color: #3c4453;
 	width: max-content;
 	padding: 4px 10px;
 	border-radius: 8px;
-	filter: brightness(130%);
 	margin-top: 5px;
 	margin-left: 15px;
 	border-width: 2px;
 	border-style: solid;
-	border-color: var(--darkborder);
+	border-color: var(--border);
 	font-size: 14px;
+}
+
+.message-attachment > img {
+	max-height:400px;
+	margin-bottom:4px;
 }
 
 .message-attachment-name {
@@ -460,7 +464,6 @@ html, body {
 .tooltip {
 	position: relative;
 	display: inline-block;
-	z-index: 1;
 }
 
 .tooltip .tooltiptext {

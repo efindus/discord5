@@ -206,24 +206,72 @@ const generateMessageMetaUsername = (uid) => {
 	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
 };
 
-const generateAttachmentATag = (attachment) => {
-	return `<a class="message-attachment-name" href="/attachments/${attachment}" target="_blank">${attachment}</a>`;
+const generateMessageMeta = (msgData, isContinuation) => {
+	if (isContinuation) return '';
+
+	const messageAuthor = `<div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div>`;
+	const messageDate = `<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div>`;
+	let messageFor = '';
+	if (msgData.originalAuthor) {
+		messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateMessageMetaUsername(msgData.originalAuthor)}</div>`;
+	}
+
+	return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
+};
+
+const generateMessageContent = (msgData, isContinuation) => {
+	const messageContent = markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>');
+	let dateTooltip = '';
+	if (isContinuation) dateTooltip = `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>`;
+
+	return `<div class="message-content ${isContinuation ? 'tooltip' : ''}">${messageContent}${dateTooltip}</div>`;
+};
+
+const generateMessageAttachment = (msgData) => {
+	if (!msgData.attachment) return '';
+
+	const generateAttachmentLink = (attachment) => {
+		return `<a class="message-attachment-name" href="/attachments/${attachment}" target="_blank">${attachment}</a>`;
+	};
+
+	const isImage = (file) => {
+		if (file && (file.endsWith('.png') ||
+			file.endsWith('.jpg') ||
+			file.endsWith('.jpeg') ||
+			file.endsWith('.gif') ||
+			file.endsWith('.webp')
+		)) {
+			return true;
+		}
+
+		return false;
+	};
+
+	let messageAttachment = generateAttachmentLink(msgData.attachment);
+	if (isImage(msgData.attachment)) {
+		messageAttachment = `<img src="/attachments/${msgData.attachment}" onerror="this.remove()"><div>${messageAttachment}</div>`;
+	}
+
+	return `<div class="message-attachment">${messageAttachment}</div>`;
 };
 
 const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
-	if (isShadow) message.classList.add('message-shadow');
-	message.innerHTML = `${isContinuation ? '' : `<div class="message-meta"><div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div>${msgData.originalAuthor ? `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateMessageMetaUsername(msgData.originalAuthor)}</div>` : ''}<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div></div>`}<div class="message-content ${isContinuation ? 'tooltip' : ''}">${markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>')}${isContinuation ? `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>` : '' }</div>${msgData.attachment ? `<div class="message-attachment">${isImage ? `<img src="/attachments/${msgData.attachment}" onerror="this.parentElement.innerHTML = generateAttachmentATag('${msgData.attachment}')" style="max-height:400px;margin-bottom:4px;"><div>${generateAttachmentATag(msgData.attachment)}</div>` : `${generateAttachmentATag(msgData.attachment)}`}</div>` : ''}`;
+	if (isShadow) {
+		message.classList.add('message-shadow');
+		isContinuation = false;
+	}
+
+	message.innerHTML = `${generateMessageMeta(msgData, isContinuation)}${generateMessageContent(msgData, isContinuation)}${generateMessageAttachment(msgData)}`;
 	return message;
 };
 
 const generateDaySeparator = (timestamp) => {
-	const DATE = new Date(timestamp);
 	const separator = document.createElement('div');
 	separator.classList.add('day-separator');
-	separator.innerHTML = `<span class="day-separator-text">${DATE.toLocaleDateString('pl')}</span>`;
+	separator.innerHTML = `<span class="day-separator-text">${(new Date(timestamp)).toLocaleDateString('pl')}</span>`;
 	return separator;
 };
 
@@ -302,19 +350,6 @@ const getMissingUserData = (uid) => {
 			uid: uid,
 		}));
 	}
-};
-
-const isImage = (file) => {
-	if (file && (file.endsWith('.png') ||
-		file.endsWith('.jpg') ||
-		file.endsWith('.jpeg') ||
-		file.endsWith('.gif') ||
-		file.endsWith('.webp')
-	)) {
-		return true;
-	}
-
-	return false;
 };
 
 const loadMessages = () => {
