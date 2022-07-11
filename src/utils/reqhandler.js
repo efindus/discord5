@@ -123,14 +123,6 @@ const websocket = async (request, socket) => {
 
 	const webSocket = new WebSocket(socket, request.headers['sec-websocket-key'] || '');
 
-	{
-		const ipBan = await db.findOne('ipBans', { ip: webSocket.getIp() });
-		if (ipBan) {
-			webSocket.close();
-			return;
-		}
-	}
-
 	webSocket.data = {
 		user: null,
 		lastMessage: 0,

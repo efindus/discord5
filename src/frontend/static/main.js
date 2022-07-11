@@ -27,6 +27,7 @@ const elements = {
 	popupSubtitle: document.getElementById('popup-subtitle'),
 	popupBody: document.getElementById('popup-body'),
 	popupFooter: document.getElementById('popup-footer'),
+	popupSpinner: document.getElementById('popup-spinner'),
 
 	usernameContainer: document.getElementById('username-container'),
 	usernameDisplay: document.getElementById('username-display'),
@@ -92,6 +93,7 @@ const showPopup = (data) => {
 	elements.popupTitle.innerHTML = data.title;
 
 	setPopupSubtitle(data);
+	hidePopupSpinner();
 
 	if (data.closeable) {
 		elements.popupClose.style.display = '';
@@ -173,6 +175,16 @@ const showSpinner = () => {
 
 const hideSpinner = () => {
 	elements.spinner.style.display = 'none';
+};
+
+const showPopupSpinner = () => {
+	elements.popupFooter.style.display = 'none';
+	elements.popupSpinner.style.display = '';
+};
+
+const hidePopupSpinner = () => {
+	elements.popupFooter.style.display = '';
+	elements.popupSpinner.style.display = 'none';
 };
 
 const propagateUserData = () => {
@@ -448,7 +460,6 @@ const connect = () => {
 		} else if (data.type === 'changePasswordCB') {
 			if (data.message === 'success') {
 				state.reconnect = false;
-				hideSpinner();
 				setPopupSubtitle({
 					subtitle: 'Hasło zostało zmienione pomyślnie',
 					subtitleColor: 'var(--green)',
@@ -458,7 +469,7 @@ const connect = () => {
 					main();
 				}, 1000);
 			} else {
-				hideSpinner();
+				hidePopupSpinner();
 				setPopupSubtitle({
 					subtitle: 'Niepoprawne stare hasło',
 					subtitleColor: 'var(--orange)',
@@ -672,7 +683,7 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 			elements.popup.classList.add('shaking');
 		} else {
 			if (value !== state.user.nickname) {
-				showSpinner();
+				showPopupSpinner();
 				state.socket.send(JSON.stringify({
 					type: 'setNickname',
 					nickname: value,
@@ -741,7 +752,7 @@ const changePasswordHandler = () => {
 			return;
 		}
 
-		showSpinner();
+		showPopupSpinner();
 		state.socket.send(JSON.stringify({
 			type: 'changePassword',
 			oldPassword: await sha256(oldPasswordInput.value),
@@ -796,7 +807,7 @@ const loginHandler = () => {
 	const usernameInput = document.getElementById('popup-input-username');
 
 	const loginFormHandler = async () => {
-		showSpinner();
+		showPopupSpinner();
 		const response = await fetch('/api/login', {
 			method: 'POST',
 			headers: {
@@ -815,7 +826,7 @@ const loginHandler = () => {
 				subtitleColor: 'var(--orange)',
 			});
 			elements.popup.classList.add('shaking');
-			hideSpinner();
+			hidePopupSpinner();
 			return;
 		} else if (data.message === 'success') {
 			localStorage.setItem('token', data.token);
@@ -935,7 +946,7 @@ const registerHandler = () => {
 			return;
 		}
 
-		showSpinner();
+		showPopupSpinner();
 		const response = await fetch('/api/register', {
 			method: 'POST',
 			headers: {
@@ -977,7 +988,6 @@ const registerHandler = () => {
 		}
 
 		if (error === '') {
-			hideSpinner();
 			setPopupSubtitle({
 				subtitle: 'Zarejestrowano pomyślnie!',
 				subtitleColor: 'var(--green)',
@@ -986,7 +996,7 @@ const registerHandler = () => {
 				loginHandler();
 			}, 1000);
 		} else {
-			hideSpinner();
+			hidePopupSpinner();
 			setPopupSubtitle({
 				subtitle: error,
 				subtitleColor: 'var(--orange)',

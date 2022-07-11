@@ -2,7 +2,24 @@ const EventEmitter = require('events');
 const { URL } = require('url');
 const { createServer } = require('http');
 const { createSecureServer } = require('http2');
+
 const { green, blue, bold } = require('./colors.js');
+const { ipv6tov4 } = require('./ip');
+const { findMany } = require('./database');
+
+let ipBans = {};
+const fetchIPBans = async () => {
+	const bans = await findMany('ipBans');
+	ipBans = {};
+
+	for (const ban of bans) {
+		ipBans[ban.ip] = true;
+	}
+};
+fetchIPBans();
+setInterval(() => {
+	fetchIPBans();
+}, 30_000);
 
 class Server extends EventEmitter {
 	/**
@@ -30,12 +47,17 @@ class Server extends EventEmitter {
 		});
 
 		server.on('upgrade', (request, socket) => {
+			if (ipBans[ipv6tov4(request.socket.remoteAddress)]) {
+				socket.destroy();
+				return;
+			}
+
 			this.emit('websocket', request, socket);
 		});
 
 		server.on('request', async (request, response) => {
 			const start = process.hrtime.bigint();
-			const remoteAddress = request.socket.remoteAddress;
+			const remoteAddress = ipv6tov4(request.socket.remoteAddress);
 
 			response.on('finish', () => {
 				const end = process.hrtime.bigint();
@@ -50,8 +72,14 @@ class Server extends EventEmitter {
 					url += ' ';
 				}
 
-				console.log(`${(remoteAddress ? bold(blue(`[${remoteAddress?.split(':')[3] ?? '127.0.0.1'}] `)) : '') }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
+				console.log(`${bold(blue(`[${remoteAddress}] `)) }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
 			});
+
+			if (ipBans[remoteAddress]) {
+				response.writeHead(502);
+				response.end();
+				return;
+			}
 
 			const url = new URL(request.url, `https://${request.headers.host}`);
 			let path = url.pathname;

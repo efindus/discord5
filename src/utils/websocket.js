@@ -1,6 +1,8 @@
 const EventEmitter = require('events');
 const { createHash, randomBytes } = require('crypto');
 
+const { ipv6tov4 } = require('./ip');
+
 class WebSocket extends EventEmitter {
 	/**
 	 * @type {import('net').Socket}
@@ -219,7 +221,7 @@ class WebSocket extends EventEmitter {
 	 * @returns {string} IP address
 	 */
 	getIp = () => {
-		return this.#socket.remoteAddress?.split(':')[3] ?? '127.0.0.1';
+		return ipv6tov4(this.#socket.remoteAddress);
 	};
 }
 

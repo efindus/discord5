@@ -443,14 +443,15 @@ html, body {
 }
 
 .loader-content {
-    top: 50%;
-    left: 50%;
-    position: absolute;
-    transform: translate(-50%, -50%);
+    width: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100%;
 }
 
 .loader-content::before {
-    content: "";
+    content: '';
     width: 2em;
     height: 2em;
     display: block;
