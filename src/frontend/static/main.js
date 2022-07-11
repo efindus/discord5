@@ -15,9 +15,7 @@ const state = {
 };
 
 const elements = {
-	topBar: document.querySelector('.top-bar'),
-	siteBody: document.querySelector('.site-body'),
-	bottomBar: document.querySelector('.bottom-bar'),
+	container: document.querySelector('.container'),
 
 	popupContainer: document.getElementById('popup-container'),
 	popup: document.getElementById('popup'),
@@ -85,9 +83,7 @@ const svgs = {
  * @param {Record<number, FooterButton>} data.footer Popup footer
  */
 const showPopup = (data) => {
-	elements.topBar.style.display = 'none';
-	elements.siteBody.style.display = 'none';
-	elements.bottomBar.style.display = 'none';
+	elements.container.style.display = 'none';
 
 	elements.popupContainer.style.display = '';
 	elements.popupTitle.innerHTML = data.title;
@@ -155,9 +151,7 @@ const setPopupSubtitle = (data) => {
 };
 
 const hidePopup = () => {
-	elements.topBar.style.display = '';
-	elements.siteBody.style.display = '';
-	elements.bottomBar.style.display = '';
+	elements.container.style.display = '';
 
 	elements.popupContainer.style.display = 'none';
 	state.isClosablePopupOpen = false;

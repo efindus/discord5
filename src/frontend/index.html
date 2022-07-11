@@ -15,41 +15,43 @@
 			<div class="loader-content"></div>
 		</div>
 
-		<div class="top-bar">
-			<div id="clock">21:37:69</div>
-			<div id="username-container">
-				<div id="dropdown-trigger">
-					<span id="username-display"></span><i class="dropdown-arrow"></i>
+		<div class="container">
+			<div class="top-bar">
+				<div id="clock">21:37:69</div>
+				<div id="username-container">
+					<div id="dropdown-trigger">
+						<span id="username-display"></span><i class="dropdown-arrow"></i>
+					</div>
+					<div class="dropdown">
+						<div id="user-data">ID: 694202137<br>Nickname: Server</div>
+						<div class="dropdown-entry" onclick="changeNicknameHandler()">Zmień pseudonim</div>
+						<div class="dropdown-entry" onclick="changePasswordHandler()">Zmień hasło</div>
+						<div class="dropdown-entry" onclick="logOutEverywhereHandler()">Wyloguj się wszędzie</div>
+						<div class="dropdown-entry" onclick="logOutHandler()">Wyloguj się</div>
+					</div>
 				</div>
-				<div class="dropdown">
-					<div id="user-data">ID: 694202137<br>Nickname: Server</div>
-					<div class="dropdown-entry" onclick="changeNicknameHandler()">Zmień pseudonim</div>
-					<div class="dropdown-entry" onclick="changePasswordHandler()">Zmień hasło</div>
-					<div class="dropdown-entry" onclick="logOutEverywhereHandler()">Wyloguj się wszędzie</div>
-					<div class="dropdown-entry" onclick="logOutHandler()">Wyloguj się</div>
+				<div id="dropdown-close"></div>
+			</div>
+
+			<div class="site-body">
+				<div id="message-container">
+					<div id="load-messages-button" onclick="loadMessages()">Wczytaj więcej wiadomości</div>
+					<div id="messages"></div>
 				</div>
 			</div>
-			<div id="dropdown-close"></div>
-		</div>
 
-		<div class="site-body">
-			<div id="message-container">
-				<div id="load-messages-button" onclick="loadMessages()">Wczytaj więcej wiadomości</div>
-				<div id="messages"></div>
+			<div class="bottom-bar">
+				<div class="upload-button-container">
+					<label id="upload-button" for="upload-input">
+						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
+							<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--light-grey)" stroke-width="0.06" />
+							<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06" />
+						</svg>
+					</label>
+					<input id="upload-input" type="file">
+				</div>
+				<textarea id="input" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>
 			</div>
-		</div>
-
-		<div class="bottom-bar">
-			<div class="upload-button-container">
-				<label id="upload-button" for="upload-input">
-					<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-						<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--light-grey)" stroke-width="0.06" />
-						<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06" />
-					</svg>
-				</label>
-				<input id="upload-input" type="file">
-			</div>
-			<textarea id="input" maxlength="2000" autocomplete="off" spellcheck="false"></textarea>
 		</div>
 
 		<div id="popup-container">

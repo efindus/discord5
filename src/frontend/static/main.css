@@ -48,45 +48,45 @@ html, body {
 }
 
 /* Sections */
-.top-bar {
+.container {
+	height: 100%;
 	width: 100%;
-	height: 35px;
-	z-index: 1;
-	position: absolute;
-	top: 0px;
-	left: 0px;
-	background-color: var(--topbar);
+	display: grid;
+	grid-template-columns: auto 60px;
+	grid-template-rows: 35px auto 59px;
+}
+
+.top-bar {
+	grid-column-start: 1;
+	grid-column-end: 3;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	color: var(--text);
+	background-color: var(--topbar);
 	font-family: "Consolas", monospace;
 	user-select: none;
 }
 
 .site-body {
-	height: calc(100vh - (35px + 59px));
-	width: 100%;
-	position: absolute;
-	top: 0px;
-	left: 0px;
-	padding-top: 35px;
-	padding-bottom: 59px;
+	grid-column: 1;
+	grid-row-start: 2;
+	grid-row-end: 3;
+	overflow: hidden;
 }
 
 .bottom-bar {
-	background-color: var(--box);
-	position: absolute;
-	bottom: 0px;
-	width: calc(100vw - 6px);
-	height: 50px;
-	border-top-style: solid;
-	border-color: var(--darkborder);
+	grid-row: 3;
+	grid-column-start: 1;
+	grid-column-end: 3;
 	display: grid;
 	grid-template-columns: max(50px, 8vw) auto;
 	grid-template-rows: auto;
 	column-gap: 5px;
 	padding: 3px;
+	border-top-style: solid;
+	border-color: var(--darkborder);
+	background-color: var(--box);
 }
 
 /* Top bar */
@@ -280,6 +280,7 @@ html, body {
 
 /* Popup */
 #popup {
+	position: relative;
     width: 450px;
     background-color: var(--box);
 	box-shadow: 5px 5px 10px 0px var(--shadow);
@@ -290,10 +291,11 @@ html, body {
 }
 
 #popup-container {
-	position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+	height: 100%;
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 
 #popup-close {
@@ -433,21 +435,17 @@ html, body {
 }
 
 .loader {
-	background-color: var(--background);
-	z-index: 2;
-    width: 100%;
+	width: 100%;
     height: 100%;
-    position: absolute;
-    left: 0;
-    top: 0;
+    background-color: var(--background);
 }
 
 .loader-content {
-    width: 100%;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	height: 100%;
+    width: 100%;
 }
 
 .loader-content::before {
