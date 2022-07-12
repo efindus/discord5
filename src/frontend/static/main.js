@@ -337,7 +337,13 @@ const insertMessage = (data) => {
 		}
 
 		if (data.isShadow) setTimeout(() => {
-			document.getElementById(data.msgData.nonce)?.remove();
+			const msgElement = document.getElementById(data.msgData.id);
+			if (msgElement) {
+				msgElement.style.color = 'var(--red)';
+				setTimeout(() => {
+					document.getElementById(data.msgData.id)?.remove();
+				}, 2_000);
+			}
 		}, 10_000);
 
 		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
