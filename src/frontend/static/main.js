@@ -317,20 +317,52 @@ const insertMessage = (data) => {
 	} else {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 
-		if (!data.afterElement || !data.afterElement.nextSibling) {
-			const lastMessage = state.messages[state.messages.length - 1];
-			if (lastMessage && !data.isShadow) {
-				const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
-				if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
-					elements.messages.appendChild(generateDaySeparator(data.msgData.ts));
-				}
+		if (data.afterElement) {
+			const beforeElement = data.afterElement.nextSibling;
+			const messageElement = generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData));
+
+			if (beforeElement) {
+				elements.messages.insertBefore(messageElement, beforeElement);
+			} else {
+				elements.messages.appendChild(messageElement);
+			}
+		} else {
+			let correctIndex = 0;
+			for (let i = state.messages.length - 1; i >= 0; i--) {
+				if (state.messages[i].ts > data.msgData.ts) correctIndex++;
 			}
 
-			elements.messages.appendChild(generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow));
-		}
+			const lastMessage = state.messages[state.messages.length - (correctIndex + 1)];
+			const nextMessage = state.messages[state.messages.length - correctIndex];
+			const messageElement = generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow);
 
-		if (!data.isShadow) {
-			state.messages.push(data.msgData);
+			if (correctIndex === 0) {
+				const lastMessageElement = document.getElementById(lastMessage.id);
+				if (lastMessageElement.nextSibling) {
+					elements.messages.insertBefore(messageElement, lastMessageElement.nextSibling);
+				} else {
+					elements.messages.appendChild(messageElement);
+				}
+
+				if (lastMessage && !data.isShadow) {
+					const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
+					if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+						elements.messages.insertBefore(generateDaySeparator(data.msgData.ts), document.getElementById(data.msgData.id));
+					}
+				}
+			} else {
+				elements.messages.insertBefore(messageElement, document.getElementById(nextMessage.id));
+
+				document.getElementById(nextMessage.id).remove();
+				insertMessage({
+					msgData: nextMessage,
+					isNew: true,
+					lastMessage: data.msgData,
+					afterElement: document.getElementById(data.msgData.id),
+				});
+			}
+
+			if (!data.isShadow) state.messages.splice(state.messages.length - correctIndex, 0, data.msgData);
 		}
 
 		if (!data.isShadow && !document.hasFocus() && Notification.permission === 'granted') {
