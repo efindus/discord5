@@ -35,8 +35,8 @@ const registerHandler = async (request) => {
 		};
 	}
 
-	let result = await validateUsername(data.username);
-	if (result) {
+	let result = verifyCaptcha(data.captcha.id, data.captcha.timestamp, data.captcha.solution, data.captcha.signature, CAPTCHA_SECRET);
+	if (typeof result === 'string') {
 		return {
 			status: 400,
 			body: {
@@ -45,8 +45,8 @@ const registerHandler = async (request) => {
 		};
 	}
 
-	result = verifyCaptcha(data.captcha.id, data.captcha.timestamp, data.captcha.solution, data.captcha.signature, CAPTCHA_SECRET);
-	if (typeof result === 'string') {
+	result = await validateUsername(data.username);
+	if (result) {
 		return {
 			status: 400,
 			body: {

@@ -1018,6 +1018,7 @@ const registerHandler = () => {
 				break;
 			case 'usernameAlreadyInUse':
 				error = 'Ta nazwa użytkownika jest już zajęta';
+				resetCaptcha();
 				break;
 			case 'invalidSolution':
 				error = 'Wpisany tekst nie jest poprawnym rozwiązaniem CAPTCHy';

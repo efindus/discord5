@@ -76,7 +76,7 @@ class Server extends EventEmitter {
 			});
 
 			if (ipBans[remoteAddress]) {
-				response.writeHead(502);
+				response.writeHead(503);
 				response.end();
 				return;
 			}
