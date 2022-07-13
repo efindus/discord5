@@ -114,6 +114,25 @@ const request = async (request, response) => {
 	return404();
 };
 
+const updateOnlineUsers = () => {
+	const onlineUsers = {};
+	for (const [ _, ws ] of Object.entries(webSockets)) {
+		if (ws.data.user) {
+			onlineUsers[ws.data.user.uid] = true;
+		}
+	}
+
+	const uidArray = Object.entries(onlineUsers).map((val) => val[0]).sort();
+	for (const [ _, ws ] of Object.entries(webSockets)) {
+		if (ws.data.user) {
+			ws.send(JSON.stringify({
+				type: 'clientsOnline',
+				clients: uidArray,
+			}));
+		}
+	}
+};
+
 const websocket = async (request, socket) => {
 	if (request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
 		socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -156,6 +175,8 @@ const websocket = async (request, socket) => {
 							messagesToLoad: messagesToLoad,
 							protocolVersion: PROTOCOL_VERSION,
 						}));
+
+						updateOnlineUsers();
 					} else {
 						webSocket.send(JSON.stringify({
 							type: 'authorizeCB',
@@ -279,7 +300,11 @@ const websocket = async (request, socket) => {
 				}
 			} else if (data.type === 'logOutEverywhere') {
 				await regenerateJWTSecret(webSocket.data.user.uid);
-				webSocket.close();
+				for (const [ _, ws ] of Object.entries(webSockets)) {
+					if (ws.data.user?.uid === webSocket.data.user.uid) {
+						ws.close();
+					}
+				}
 			} else if (data.type !== 'ping') {
 				webSocket.close();
 			}
@@ -289,6 +314,7 @@ const websocket = async (request, socket) => {
 	webSocket.on('close', () => {
 		console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket disconnected:'))} ${bold(blue(webSocket.id))}`);
 		delete webSockets[webSocket.id];
+		updateOnlineUsers();
 	});
 
 	webSocket.send(JSON.stringify({

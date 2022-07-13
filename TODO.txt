@@ -3,8 +3,9 @@ username allowlist
 hostname resolution
 temporary IP bans (cleared on startup or after set time)
 attachment upload/download quota
+add username tooltip to online users
+improve WS disconnect logs (show username)
 
-users online
 attachment upload progress bar
 add admins (admin panel) (and user bans)
 add replies

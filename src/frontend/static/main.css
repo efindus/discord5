@@ -52,7 +52,7 @@ html, body {
 	height: 100%;
 	width: 100%;
 	display: grid;
-	grid-template-columns: auto 60px;
+	grid-template-columns: auto 200px;
 	grid-template-rows: 35px auto 59px;
 }
 
@@ -68,7 +68,7 @@ html, body {
 	user-select: none;
 }
 
-.site-body {
+.chat-body {
 	grid-column: 1;
 	grid-row-start: 2;
 	grid-row-end: 3;
@@ -87,6 +87,17 @@ html, body {
 	border-top-style: solid;
 	border-color: var(--darkborder);
 	background-color: var(--box);
+}
+
+.online-sidebar {
+	display: flex;
+	flex-direction: column;
+	padding: 10px;
+	background-color: var(--box);
+	color: var(--text);
+	grid-column: 2;
+	grid-row: 2;
+	overflow-y: scroll;
 }
 
 /* Top bar */
@@ -187,7 +198,7 @@ html, body {
     height: 100vh;
 }
 
-/* Site body */
+/* Chat body */
 #message-container {
     color: var(--text);
 	word-wrap: break-word;
@@ -276,6 +287,21 @@ html, body {
 
 #load-messages-button:hover {
     filter: saturate(170%);
+}
+
+/* Online sidebar */
+.online-entry {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 8px 5px;
+	border-radius: 5px;
+	word-break: break-all;
+	cursor: default;
+}
+
+.online-entry:hover {
+	background-color: var(--hover);
 }
 
 /* Popup */

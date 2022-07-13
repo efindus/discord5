@@ -16,6 +16,7 @@ const state = {
 
 const elements = {
 	container: document.querySelector('.container'),
+	onlineSidebar: document.querySelector('.online-sidebar'),
 
 	popupContainer: document.getElementById('popup-container'),
 	popup: document.getElementById('popup'),
@@ -558,9 +559,17 @@ const connect = () => {
 				};
 
 				updateMessages(data.uid);
+				const sidebarEntry = document.getElementById(`online-${data.uid}`);
+				if (sidebarEntry) sidebarEntry.innerHTML = state.users[data.uid].nickname;
 			}
 		} else if (data.type === 'reload') {
 			window.location.reload();
+		} else if (data.type === 'clientsOnline') {
+			elements.onlineSidebar.innerHTML = '';
+			for (const client of data.clients) {
+				getMissingUserData(client);
+				elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}">${state.users[client].nickname}</div>`;
+			}
 		}
 	};
 
