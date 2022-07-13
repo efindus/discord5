@@ -1,7 +1,11 @@
+ratelimits
+username allowlist
+hostname resolution
+temporary IP bans (cleared on startup or after set time)
+attachment upload/download quota
+
 users online
 attachment upload progress bar
 add admins (admin panel) (and user bans)
 add replies
 add mentions <https://stackoverflow.com/questions/4705848/rendering-html-inside-textarea>
-
-maybe: insert messages based on ts and not server order
