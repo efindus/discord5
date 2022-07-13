@@ -281,6 +281,17 @@ const generateDaySeparator = (timestamp) => {
 	return separator;
 };
 
+const messageJoinCheck = (lastMessage, newMessage) => {
+	let isJoined = (lastMessage?.uid === newMessage.uid);
+	if (isJoined && lastMessage) {
+		if (lastMessage.originalAuthor !== newMessage.originalAuthor) isJoined = false;
+		if (lastMessage.attachment) isJoined = false;
+		if (newMessage.ts - (20 * 60_000) > lastMessage.ts) isJoined = false;
+	}
+
+	return isJoined;
+};
+
 const insertMessage = (data) => {
 	getMissingUserData(data.msgData.uid);
 	if (data.msgData.originalAuthor) getMissingUserData(data.msgData.originalAuthor);
@@ -291,7 +302,7 @@ const insertMessage = (data) => {
 			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
 				elements.messages.insertBefore(generateDaySeparator(lastMessage.ts), elements.messages.firstChild);
-			} else if (!data.continuation && lastMessage.uid === data.msgData.uid && lastMessage.originalAuthor === data.msgData.originalAuthor) {
+			} else if (!data.continuation && messageJoinCheck(lastMessage, data.msgData)) {
 				document.getElementById(state.messages[0].id).remove();
 				insertMessage({
 					msgData: state.messages[0],
@@ -315,7 +326,7 @@ const insertMessage = (data) => {
 				}
 			}
 
-			elements.messages.appendChild(generateMessage(data.msgData, lastMessage?.uid === data.msgData.uid, data.isShadow));
+			elements.messages.appendChild(generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow));
 		}
 
 		if (!data.isShadow) {
