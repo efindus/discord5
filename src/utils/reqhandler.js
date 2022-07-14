@@ -148,7 +148,7 @@ const websocket = async (request, socket) => {
 	};
 
 	webSockets[webSocket.id] = webSocket;
-	console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket connected:'))} ${bold(blue(webSocket.id))}`);
+	console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket connected'))}`);
 
 	webSocket.on('message', async (message) => {
 		const data = JSON.parse(message);
@@ -161,7 +161,7 @@ const websocket = async (request, socket) => {
 					if (user) {
 						// TODO: handle user bans
 						webSocket.data.user = user;
-						console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green(`Socket logged in: ${webSocket.data.user.username}`))}`);
+						console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket logged in:'))} ${bold(blue(webSocket.data.user.username))}`);
 
 						webSocket.send(JSON.stringify({
 							type: 'authorizeCB',
@@ -312,7 +312,7 @@ const websocket = async (request, socket) => {
 	});
 
 	webSocket.on('close', () => {
-		console.log(`${bold(blue(`[${webSocket.getIp()}]`))} ${bold(green('Socket disconnected:'))} ${bold(blue(webSocket.id))}`);
+		console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket disconnected:'))} ${webSocket.data.user ? bold(blue(webSocket.data.user.username)) : ''}`);
 		delete webSockets[webSocket.id];
 		updateOnlineUsers();
 	});
