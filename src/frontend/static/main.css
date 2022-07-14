@@ -508,16 +508,15 @@ html, body {
 	font-size: 16px;
 	font-family: 'Rubik', Helvetica, Arial, sans-serif;
 	box-shadow: 5px 5px 10px 0px var(--shadow);
-	transition: ease-in-out opacity 150ms;
+	transition: ease-in opacity 150ms;
 }
 
 .message-content .tooltiptext {
 	filter: brightness(140%);
-	transition-delay: 1200ms;
 }
 
-.message-username .tooltiptext {
-	transition-delay: 600ms;
+.message-username:hover {
+	text-decoration: underline;
 }
 
 .tooltip .tooltiptext::after {
@@ -531,7 +530,7 @@ html, body {
 	border-color: var(--box) transparent transparent transparent;
 }
 
-.tooltip:hover .tooltiptext {
+.tooltip:active .tooltiptext {
 	opacity: 1;
 	visibility: visible;
 }
