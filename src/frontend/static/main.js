@@ -209,18 +209,18 @@ const sha256 = async (message) => {
 	return hashHex;
 };
 
-const generateMessageMetaUsername = (uid) => {
+const generateUsernameTooltip = (uid) => {
 	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
 };
 
 const generateMessageMeta = (msgData, isContinuation) => {
 	if (isContinuation) return '';
 
-	const messageAuthor = `<div class="message-username tooltip">${generateMessageMetaUsername(msgData.uid)}</div>`;
+	const messageAuthor = `<div class="message-username tooltip">${generateUsernameTooltip(msgData.uid)}</div>`;
 	const messageDate = `<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div>`;
 	let messageFor = '';
 	if (msgData.originalAuthor) {
-		messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateMessageMetaUsername(msgData.originalAuthor)}</div>`;
+		messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateUsernameTooltip(msgData.originalAuthor)}</div>`;
 	}
 
 	return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
@@ -421,22 +421,25 @@ const resetUpload = () => {
 	state.currentAttachment = null;
 };
 
-const updateMessages = (uid) => {
+const updateNickname = (uid) => {
 	for (const msg of state.messages) {
 		const msgMeta = document.getElementById(msg.id).querySelector('.message-meta');
 
 		if (msgMeta) {
 			if (msg.uid === uid) {
 				const element = msgMeta.childNodes[0];
-				if (element) element.innerHTML = generateMessageMetaUsername(uid);
+				if (element) element.innerHTML = generateUsernameTooltip(uid);
 			}
 
 			if (msg.originalAuthor === uid) {
 				const element = msgMeta.childNodes[2];
-				if (element) element.innerHTML = generateMessageMetaUsername(uid);
+				if (element) element.innerHTML = generateUsernameTooltip(uid);
 			}
 		}
 	}
+
+	const sidebarEntry = document.getElementById(`online-${uid}`);
+	if (sidebarEntry) sidebarEntry.innerHTML = generateUsernameTooltip(uid);
 };
 
 const sanitizeText = (text) => {
@@ -478,7 +481,6 @@ const connect = () => {
 
 				propagateUserData();
 				loadMessages();
-				hideSpinner();
 			} else if (data.message === 'invalidLogin') {
 				logOutHandler();
 			}
@@ -501,6 +503,7 @@ const connect = () => {
 
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
 			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
+			if (state.messages.length <= state.messagesToLoad) hideSpinner();
 		} else if (data.type === 'changePasswordCB') {
 			if (data.message === 'success') {
 				state.reconnect = false;
@@ -549,7 +552,7 @@ const connect = () => {
 			if (data.nickname.length !== 0) {
 				state.users[data.uid].nickname = data.nickname;
 
-				updateMessages(data.uid);
+				updateNickname(data.uid);
 			}
 		} else if (data.type === 'updateUser') {
 			if (data.username.length !== 0) {
@@ -558,9 +561,7 @@ const connect = () => {
 					nickname: data.nickname,
 				};
 
-				updateMessages(data.uid);
-				const sidebarEntry = document.getElementById(`online-${data.uid}`);
-				if (sidebarEntry) sidebarEntry.innerHTML = state.users[data.uid].nickname;
+				updateNickname(data.uid);
 			}
 		} else if (data.type === 'reload') {
 			window.location.reload();
@@ -568,7 +569,7 @@ const connect = () => {
 			elements.onlineSidebar.innerHTML = '';
 			for (const client of data.clients) {
 				getMissingUserData(client);
-				elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}">${state.users[client].nickname}</div>`;
+				elements.onlineSidebar.innerHTML += `<div class="online-entry tooltip-left" id="online-${client}">${generateUsernameTooltip(client)}</div>`;
 			}
 		}
 	};
