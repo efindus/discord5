@@ -452,19 +452,30 @@ html, body {
 
 /* Spinner */
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
+    0% { transform: rotate(0deg); }
 
-    100% {
-        transform: rotate(360deg);
-    }
+    25% { transform: rotate(360deg); }
+
+	38% { transform: rotate(640deg); }
+
+	42% { border-left-color: var(--blue); border-right-color: var(--blue); }
+	45% { transform: rotate(900deg); border-left-color: transparent; border-right-color: transparent; }
+	70% { transform: rotate(1440deg); border-left-color: var(--blue); border-right-color: var(--blue); }
+
+	85% { transform: rotate(1680deg); }
+
+	100% { transform: rotate(1800deg); }
 }
 
 .loader {
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	z-index: 69;
 	width: 100%;
     height: 100%;
     background-color: var(--background);
+	transition-property: visibility, opacity;
 }
 
 .loader-content {
@@ -483,7 +494,7 @@ html, body {
     border: 0.25em solid var(--blue);
     border-radius: 50%;
     border-top-color: transparent;
-    animation: spin linear 1s infinite;
+    animation: spin linear 2.5s infinite;
 }
 
 /* Tooltips */

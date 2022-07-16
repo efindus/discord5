@@ -165,11 +165,17 @@ document.onkeydown = (event) => {
 };
 
 const showSpinner = () => {
-	elements.spinner.style.display = '';
+	elements.spinner.style.visibility = 'visible';
+	elements.spinner.style.opacity = '1';
+	elements.spinner.style.transitionDelay = '0s, 0s';
+	elements.spinner.style.transitionDuration = '0s, .0s';
 };
 
 const hideSpinner = () => {
-	elements.spinner.style.display = 'none';
+	elements.spinner.style.visibility = 'hidden';
+	elements.spinner.style.opacity = '0';
+	elements.spinner.style.transitionDelay = '.5s, 0s';
+	elements.spinner.style.transitionDuration = '0s, .5s';
 };
 
 const showPopupSpinner = () => {
