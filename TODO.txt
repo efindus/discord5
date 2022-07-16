@@ -1,11 +1,32 @@
+P1:
 ratelimits
+ipbans after consistently hitting the rate limit
 username allowlist
-hostname resolution
-temporary IP bans (cleared on startup or after set time)
-attachment upload/download quota
-add username tooltip to online users
 
+P2 QoL:
+fix tooltips (make a tooltip layer and make some wacky JS to show a popup at the right position (preferably within the screen bounds))
+var rect = elem.getBoundingClientRect();
+var win = elem.ownerDocument.defaultView;
+
+return {
+    top: rect.top + win.pageYOffset,
+    left: rect.left + win.pageXOffset
+};
+
+change sidebar color to not be identical to message hover
+change attachment color to be defined as css property
+fix code snippets (remake into grids preferably instead of glueing them together with ductape AGAIN)
+animate hiding the spinner (transition-property: opacity, visibility; transition-delay: 0s, animation length)
+
+P3:
+hostname resolution
+attachment upload/download quota
+
+P4 QoL:
+maybe make the spinner animation cooler
 attachment upload progress bar
 add admins (admin panel) (and user bans)
+
+Far Future QoL:
 add replies
 add mentions <https://stackoverflow.com/questions/4705848/rendering-html-inside-textarea>
