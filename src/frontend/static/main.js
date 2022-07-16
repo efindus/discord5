@@ -322,8 +322,23 @@ const showUsernameTooltip = (element, uid, isSidebar = false) => {
 	});
 };
 
+const showDateTooltip = (element, timestamp) => {
+	const position = getElementPosition(element, true);
+	showTooltip({
+		x: position.left + ((position.right - position.left) / 2),
+		y: position.top - 10,
+		side: 'bottom',
+		content: `${new Date(timestamp).toLocaleString('pl')}`,
+		withArrow: true,
+	});
+};
+
 const generateUsernameTooltip = (uid, isSidebar = false) => {
 	return `onclick="showUsernameTooltip(this, '${uid}', ${isSidebar})"`;
+};
+
+const generateDateTooltip = (timestamp) => {
+	return `onclick="showDateTooltip(this, ${timestamp})"`;
 };
 
 const generateMessageMeta = (msgData, isContinuation) => {
@@ -341,10 +356,8 @@ const generateMessageMeta = (msgData, isContinuation) => {
 
 const generateMessageContent = (msgData, isContinuation) => {
 	const messageContent = markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>');
-	let dateTooltip = '';
-	if (isContinuation) dateTooltip = `<span class="tooltiptext">${new Date(msgData.ts).toLocaleString('pl')}</span>`;
 
-	return `<div class="message-content ${isContinuation ? 'tooltip' : ''}">${messageContent}${dateTooltip}</div>`;
+	return `<div class="message-content" ${isContinuation ? generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
 };
 
 const generateMessageAttachment = (msgData) => {
