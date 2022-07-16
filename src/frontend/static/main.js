@@ -28,6 +28,9 @@ const elements = {
 	popupFooter: document.getElementById('popup-footer'),
 	popupSpinner: document.getElementById('popup-spinner'),
 
+	tooltipContainer: document.querySelector('.tooltip-container'),
+	tooltip: document.getElementById('tooltip'),
+
 	usernameContainer: document.getElementById('username-container'),
 	usernameDisplay: document.getElementById('username-display'),
 	dropdown: document.querySelector('.dropdown'),
@@ -158,17 +161,11 @@ const hidePopup = () => {
 	state.isClosablePopupOpen = false;
 };
 
-document.onkeydown = (event) => {
-	if (event.code === 'Escape' && state.isClosablePopupOpen) {
-		hidePopup();
-	}
-};
-
 const showSpinner = () => {
 	elements.spinner.style.visibility = 'visible';
 	elements.spinner.style.opacity = '1';
 	elements.spinner.style.transitionDelay = '0s, 0s';
-	elements.spinner.style.transitionDuration = '0s, .0s';
+	elements.spinner.style.transitionDuration = '0s, 0s';
 };
 
 const hideSpinner = () => {
@@ -186,6 +183,105 @@ const showPopupSpinner = () => {
 const hidePopupSpinner = () => {
 	elements.popupFooter.style.display = '';
 	elements.popupSpinner.style.display = 'none';
+};
+
+/**
+ * Show a tooltip
+ * @param {object} data
+ * @param {number} data.x
+ * @param {number} data.y
+ * @param {'left' | 'right' | 'top' | 'bottom'} data.side
+ * @param {string} data.content
+ * @param {boolean?} data.withArrow
+ */
+const showTooltip = (data) => {
+	elements.tooltipContainer.style.visibility = 'visible';
+	elements.tooltipContainer.style.opacity = '1';
+	elements.tooltipContainer.style.transitionDelay = '0s, 0s';
+	elements.tooltipContainer.style.transitionDuration = '0s, .25s';
+
+	elements.tooltip.style.top = `${data.y}px`;
+	elements.tooltip.style.left = `${data.x}px`;
+
+	const transforms = {
+		x: '0%',
+		y: '0%',
+		varLeft: '0%',
+		varTop: '0%',
+	};
+
+	switch (data.side) {
+		case 'left':
+			transforms.y = '-50%';
+			transforms.varTop = '50%';
+			break;
+		case 'right':
+			transforms.x = '-100%';
+			transforms.y = '-50%';
+			transforms.varLeft = '100%';
+			transforms.varTop = '50%';
+			break;
+		case 'top':
+			transforms.x = '-50%';
+			transforms.varLeft = '50%';
+			break;
+		case 'bottom':
+		default:
+			transforms.x = '-50%';
+			transforms.y = '-100%';
+			transforms.varLeft = '50%';
+			transforms.varTop = '100%';
+			break;
+	}
+
+	elements.tooltip.innerHTML = data.content;
+	elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
+
+	const offset = getElementPosition(elements.tooltip);
+	const position = getElementPosition(elements.tooltip, true);
+	let maxMovement = (position.bottom - position.top) / 2 - 11;
+	const margin = 10;
+
+	switch (data.side) {
+		case 'left':
+		case 'right':
+			if (offset.top < margin) {
+				transforms.y = `calc(${transforms.y} + ${margin - offset.top}px)`;
+				transforms.varTop = `calc(${transforms.varTop} - ${Math.min(margin - offset.top, maxMovement)}px)`;
+			} else if (offset.bottom < margin) {
+				transforms.y = `calc(${transforms.y} - ${margin - offset.bottom}px)`;
+				transforms.varTop = `calc(${transforms.varTop} + ${Math.min(margin - offset.bottom, maxMovement)}px)`;
+			}
+			break;
+		case 'top':
+		case 'bottom':
+		default:
+			maxMovement = (position.right - position.left) / 2 - 11;
+
+			if (offset.left < margin) {
+				transforms.x = `calc(${transforms.x} + ${margin - offset.left}px)`;
+				transforms.varLeft = `calc(${transforms.varLeft} - ${Math.min(margin - offset.left, maxMovement)}px)`;
+			} else if (offset.right < margin) {
+				transforms.x = `calc(${transforms.y} - ${margin - offset.right}px)`;
+				transforms.varLeft = `calc(${transforms.varLeft} + ${Math.min(margin - offset.right, maxMovement)}px)`;
+			}
+			break;
+	}
+
+	elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
+	if (data.withArrow) {
+		elements.tooltip.classList.remove('tooltip-arrow-top', 'tooltip-arrow-bottom', 'tooltip-arrow-left', 'tooltip-arrow-right');
+		elements.tooltip.classList.add(`tooltip-arrow-${data.side}`);
+		elements.tooltip.style.setProperty('--tooltip-left', transforms.varLeft);
+		elements.tooltip.style.setProperty('--tooltip-top', transforms.varTop);
+	}
+};
+
+const hideTooltip = () => {
+	elements.tooltipContainer.style.visibility = 'hidden';
+	elements.tooltipContainer.style.opacity = '0';
+	elements.tooltipContainer.style.transitionDelay = '.25s, 0s';
+	elements.tooltipContainer.style.transitionDuration = '0s, .25s';
 };
 
 const propagateUserData = () => {
@@ -215,18 +311,29 @@ const sha256 = async (message) => {
 	return hashHex;
 };
 
-const generateUsernameTooltip = (uid) => {
-	return `${state.users[uid].nickname}<span class="tooltiptext">${state.users[uid].username}</span>`;
+const showUsernameTooltip = (element, uid, isSidebar = false) => {
+	const position = getElementPosition(element, true);
+	showTooltip({
+		x: isSidebar ? position.left - 10 : position.right + 10,
+		y: position.top + ((position.bottom - position.top) / 2),
+		side: isSidebar ? 'right' : 'left',
+		content: `${state.users[uid].username}<br>ID: ${uid}`,
+		withArrow: true,
+	});
+};
+
+const generateUsernameTooltip = (uid, isSidebar = false) => {
+	return `onclick="showUsernameTooltip(this, '${uid}', ${isSidebar})"`;
 };
 
 const generateMessageMeta = (msgData, isContinuation) => {
 	if (isContinuation) return '';
 
-	const messageAuthor = `<div class="message-username tooltip">${generateUsernameTooltip(msgData.uid)}</div>`;
+	const messageAuthor = `<div class="message-username" ${generateUsernameTooltip(msgData.uid)}>${state.users[msgData.uid].nickname}</div>`;
 	const messageDate = `<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div>`;
 	let messageFor = '';
 	if (msgData.originalAuthor) {
-		messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username tooltip">${generateUsernameTooltip(msgData.originalAuthor)}</div>`;
+		messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username" ${generateUsernameTooltip(msgData.originalAuthor)}>${state.users[msgData.originalAuthor].nickname}</div>`;
 	}
 
 	return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
@@ -290,6 +397,7 @@ const generateDaySeparator = (timestamp) => {
 
 const messageJoinCheck = (lastMessage, newMessage) => {
 	let isJoined = (lastMessage?.uid === newMessage.uid);
+
 	if (isJoined && lastMessage) {
 		if (lastMessage.originalAuthor !== newMessage.originalAuthor) isJoined = false;
 		if (lastMessage.attachment) isJoined = false;
@@ -309,7 +417,7 @@ const insertMessage = (data) => {
 			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
 				elements.messages.insertBefore(generateDaySeparator(lastMessage.ts), elements.messages.firstChild);
-			} else if (!data.continuation && messageJoinCheck(lastMessage, data.msgData)) {
+			} else if (!data.continuation && messageJoinCheck(data.msgData, lastMessage)) {
 				document.getElementById(state.messages[0].id).remove();
 				insertMessage({
 					msgData: state.messages[0],
@@ -403,8 +511,8 @@ const insertMessage = (data) => {
 const getMissingUserData = (uid) => {
 	if (!state.users[uid]) {
 		state.users[uid] = {
-			username: uid.slice(0, 10),
-			nickname: uid.slice(0, 10),
+			username: 'Ładowanie...',
+			nickname: 'Ładowanie...',
 		};
 
 		state.socket.send(JSON.stringify({
@@ -434,18 +542,18 @@ const updateNickname = (uid) => {
 		if (msgMeta) {
 			if (msg.uid === uid) {
 				const element = msgMeta.childNodes[0];
-				if (element) element.innerHTML = generateUsernameTooltip(uid);
+				if (element) element.innerHTML = state.users[uid].nickname;
 			}
 
 			if (msg.originalAuthor === uid) {
 				const element = msgMeta.childNodes[2];
-				if (element) element.innerHTML = generateUsernameTooltip(uid);
+				if (element) element.innerHTML = state.users[uid].nickname;
 			}
 		}
 	}
 
 	const sidebarEntry = document.getElementById(`online-${uid}`);
-	if (sidebarEntry) sidebarEntry.innerHTML = generateUsernameTooltip(uid);
+	if (sidebarEntry) sidebarEntry.innerHTML = state.users[uid].nickname;
 };
 
 const sanitizeText = (text) => {
@@ -575,7 +683,7 @@ const connect = () => {
 			elements.onlineSidebar.innerHTML = '';
 			for (const client of data.clients) {
 				getMissingUserData(client);
-				elements.onlineSidebar.innerHTML += `<div class="online-entry tooltip-left" id="online-${client}">${generateUsernameTooltip(client)}</div>`;
+				elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}" ${generateUsernameTooltip(client, true)}>${state.users[client].nickname}</div>`;
 			}
 		}
 	};
@@ -595,6 +703,12 @@ const connect = () => {
 const disconnect = () => {
 	state.reconnect = false;
 	state.socket.close();
+};
+
+document.onkeydown = (event) => {
+	if (event.code === 'Escape' && state.isClosablePopupOpen) {
+		hidePopup();
+	}
 };
 
 elements.input.onkeydown = (event) => {
@@ -1128,6 +1242,20 @@ const fromArrayBufferToBase64 = (arrayBuffer) => {
 	}
 
 	return base64;
+};
+
+const getElementPosition = (element, noOffset = false) => {
+	const rect = element.getBoundingClientRect();
+	const win = element.ownerDocument.defaultView;
+
+	let bottom = rect.bottom + win.pageYOffset, right = rect.right + win.pageXOffset;
+	if (!noOffset) bottom = document.documentElement.clientHeight - bottom, right = document.documentElement.clientWidth - right;
+	return {
+		top: rect.top + win.pageYOffset,
+		left: rect.left + win.pageXOffset,
+		bottom,
+		right,
+	};
 };
 
 updateClock();

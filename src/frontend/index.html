@@ -11,8 +11,12 @@
 	</head>
 
 	<body>
-		<div class="loader" id="spinner">
-			<div class="loader-content"></div>
+		<div class="spinner-container" id="spinner">
+			<div class="spinner"></div>
+		</div>
+
+		<div class="tooltip-container" onclick="hideTooltip()">
+			<div id="tooltip">Test</div>
 		</div>
 
 		<div class="container">
@@ -66,7 +70,7 @@
 				</div>
 				<div id="popup-body"></div>
 				<div id="popup-footer"></div>
-				<div id="popup-spinner" class="loader-content" style="display: none;"></div>
+				<div id="popup-spinner" class="spinner" style="display: none;"></div>
 			</div>
 		</div>
 

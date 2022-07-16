@@ -3,21 +3,11 @@ ratelimits
 ipbans after consistently hitting the rate limit
 username allowlist
 
-P2 QoL:
-fix tooltips (make a tooltip layer and make some wacky JS to show a popup at the right position (preferably within the screen bounds))
-var rect = elem.getBoundingClientRect();
-var win = elem.ownerDocument.defaultView;
-
-return {
-    top: rect.top + win.pageYOffset,
-    left: rect.left + win.pageXOffset
-};
-
-P3:
+P2:
 hostname resolution
 attachment upload/download quota
 
-P4 QoL:
+P3 QoL:
 attachment upload progress bar
 add admins (admin panel) (and user bans)
 

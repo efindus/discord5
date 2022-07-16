@@ -205,6 +205,7 @@ html, body {
     left: 0px;
     width: 100%;
     height: 100vh;
+	z-index: 68;
 }
 
 /* Chat body */
@@ -475,7 +476,7 @@ html, body {
 	100% { transform: rotate(1800deg); }
 }
 
-.loader {
+.spinner-container {
 	position: absolute;
 	left: 0px;
 	top: 0px;
@@ -486,7 +487,7 @@ html, body {
 	transition-property: visibility, opacity;
 }
 
-.loader-content {
+.spinner {
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -494,7 +495,7 @@ html, body {
     width: 100%;
 }
 
-.loader-content::before {
+.spinner::before {
     content: '';
     width: 2em;
     height: 2em;
@@ -506,81 +507,67 @@ html, body {
 }
 
 /* Tooltips */
-.tooltip {
-	position: relative;
-	display: inline-block;
-}
-
-.tooltiptext {
+.tooltip-container {
+	position: absolute;
+	height: 100%;
+	width: 100%;
 	visibility: hidden;
 	opacity: 0;
+	z-index: 1;
+	transition-property: visibility, opacity;
+}
+
+#tooltip {
+	position: absolute;
 	width: max-content;
-	background-color: var(--box);
+	background-color: var(--lightbox);
 	color: var(--text);
 	text-align: center;
 	border-radius: 8px;
 	padding: 5px 8px;
-	position: absolute;
-	z-index: 1;
 	font-weight: 500;
 	font-size: 16px;
 	font-family: 'Rubik', Helvetica, Arial, sans-serif;
 	box-shadow: 5px 5px 10px 0px var(--shadow);
-	transition: ease-in opacity 150ms;
 }
 
-.tooltip .tooltiptext {
-	bottom: 150%;
-	left: 0px;
+#tooltip::after {
+	visibility: hidden;
+	content: "";
+	position: absolute;
+	border-width: 5px;
+	border-style: solid;
+	left: var(--tooltip-left);
+	top: var(--tooltip-top);
 }
 
-.message-content .tooltiptext {
-	filter: brightness(140%);
+.tooltip-arrow-top::after {
+	visibility: visible !important;
+	margin-top: -10px;
+	border-color: transparent transparent var(--lightbox) transparent;
+}
+
+.tooltip-arrow-bottom::after {
+	visibility: visible !important;
+	margin-left: -5px;
+	border-color: var(--lightbox) transparent transparent transparent;
+}
+
+.tooltip-arrow-right::after {
+	visibility: visible !important;
+	margin-top: -5px;
+	border-color: transparent transparent transparent var(--lightbox);
+}
+
+.tooltip-arrow-left::after {
+	visibility: visible !important;
+	margin-top: -5px;
+	margin-left: -10px;
+	border-color: transparent var(--lightbox) transparent transparent;
 }
 
 .message-username:hover {
 	text-decoration: underline;
-}
-
-.tooltip .tooltiptext::after {
-	content: "";
-	position: absolute;
-	top: 100%;
-	left: 50%;
-	margin-left: -5px;
-	border-width: 5px;
-	border-style: solid;
-	border-color: var(--box) transparent transparent transparent;
-}
-
-.tooltip:active .tooltiptext {
-	opacity: 1;
-	visibility: visible;
-}
-
-.tooltip-left {
-	position: relative;
-}
-
-.tooltip-left .tooltiptext {
-	position: fixed;
-	transform: translatex(-138px)
-}
-
-.tooltip-left .tooltiptext::after {
-	content: "";
-	position: absolute;
-	left: 100%;
-	top: 50%;
-	margin-top: -5px;
-	border-width: 5px;
-	border-style: solid;
-	border-color: transparent transparent transparent var(--box);
-}
-
-.tooltip-left:active .tooltiptext {
-	opacity: 1;
-	visibility: visible;
 }
 
 /* Shaking */
