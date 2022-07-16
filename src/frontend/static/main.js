@@ -325,7 +325,7 @@ const showUsernameTooltip = (element, uid, isSidebar = false) => {
 const showDateTooltip = (element, timestamp) => {
 	const position = getElementPosition(element, true);
 	showTooltip({
-		x: position.left + ((position.right - position.left) / 2),
+		x: position.left,
 		y: position.top - 10,
 		side: 'bottom',
 		content: `${new Date(timestamp).toLocaleString('pl')}`,
@@ -338,7 +338,7 @@ const generateUsernameTooltip = (uid, isSidebar = false) => {
 };
 
 const generateDateTooltip = (timestamp) => {
-	return `onclick="showDateTooltip(this, ${timestamp})"`;
+	return `ondblclick="showDateTooltip(this, ${timestamp})"`;
 };
 
 const generateMessageMeta = (msgData, isContinuation) => {
@@ -613,7 +613,7 @@ const connect = () => {
 			}
 		} else if (data.type === 'newMessage') {
 			if (data.nonce) {
-				document.getElementById(data.nonce).remove();
+				document.getElementById(data.nonce)?.remove();
 			}
 
 			insertMessage({

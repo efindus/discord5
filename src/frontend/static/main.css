@@ -244,6 +244,7 @@ html, body {
 	filter: brightness(140%);
 	margin-right: 6px;
 	font-weight: 700;
+	cursor: pointer;
 }
 
 .message-date {
@@ -307,7 +308,7 @@ html, body {
 	padding: 8px 5px;
 	border-radius: 5px;
 	word-break: break-all;
-	cursor: default;
+	cursor: pointer;
 }
 
 .online-entry:hover {
@@ -445,6 +446,7 @@ html, body {
 	border-style: solid;
 	border-width: 1px;
 	border-color: var(--border);
+	cursor: pointer;
 }
 
 #upload-button:hover {
@@ -529,6 +531,7 @@ html, body {
 	font-size: 16px;
 	font-family: 'Rubik', Helvetica, Arial, sans-serif;
 	box-shadow: 5px 5px 10px 0px var(--shadow);
+	cursor: default;
 }
 
 #tooltip::after {

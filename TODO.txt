@@ -10,6 +10,8 @@ attachment upload/download quota
 P3 QoL:
 attachment upload progress bar
 add admins (admin panel) (and user bans)
+load new messages from top to bottom to reinsert only once
+consider a scroll-to-bottom button
 
 Far Future QoL:
 add replies
