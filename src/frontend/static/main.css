@@ -102,6 +102,13 @@ html, body {
 }
 
 /* Top bar */
+.logo {
+	filter: brightness(75%);
+	position: absolute;
+	left: 15px;
+	font-weight: 700;
+}
+
 #username-container {
     right: 15px;
     position: absolute;
