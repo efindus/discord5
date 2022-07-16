@@ -34,6 +34,7 @@
 	--light-grey: #a4a4a4;
 	--grey-accent: #82828a;
     --text: #d8dee9;
+	--attachment-background: #3c4453;
 }
 
 html, body {
@@ -93,12 +94,12 @@ html, body {
 	display: flex;
 	flex-direction: column;
 	padding: 10px;
-	background-color: var(--box);
+	background-color: var(--upload-button);
 	color: var(--text);
 	grid-column: 2;
 	grid-row: 2;
-	overflow-y: scroll;
-	overflow-x: visible;
+	overflow-y: auto;
+	box-shadow: -3px 4px 10px 0px var(--shadow);
 }
 
 /* Top bar */
@@ -259,7 +260,7 @@ html, body {
 }
 
 .message-attachment {
-	background-color: #3c4453;
+	background-color: var(--attachment-background);
 	width: max-content;
 	padding: 4px 10px;
 	border-radius: 8px;

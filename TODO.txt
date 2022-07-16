@@ -13,9 +13,6 @@ return {
     left: rect.left + win.pageXOffset
 };
 
-change sidebar color to not be identical to message hover
-change attachment color to be defined as css property
-
 P3:
 hostname resolution
 attachment upload/download quota
