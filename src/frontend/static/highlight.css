@@ -1,7 +1,7 @@
-table {
-    display: block;
+.code-snippet {
+	display: grid;
+	grid-template-columns: max-content auto;
     tab-size: 4;
-    -moz-tab-size: 4;
     background-color: var(--box);
     border: 1px solid var(--border);
     border-spacing: 0px;
@@ -10,34 +10,26 @@ table {
 	box-shadow: 3px 3px 6px 0px var(--shadow);
 }
 
-table > tbody {
-	display: table;
-	width: 100%;
+.code-line {
+	display: contents;
 }
 
-table > tbody > tr {
-	display: flex;
-	width: 100%;
+.code-line:hover > .code-line-number, .code-line:hover > .code-line-content {
+	background-color: var(--hover);
 }
 
-table > tbody > tr:hover {
-    background-color: var(--hover);
+.code-line-number {
+	text-align: right;
+    padding: 2px 8px 2px 16px;
+	border-right-style: solid;
+	border-right-width: thin;
+	border-right-color: var(--border);
+	user-select: none;
 }
 
-table > tbody > tr > td {
-    padding: 2px 8px;
-    white-space: pre-wrap;
-}
-
-table > tbody > tr > td:first-child {
-    text-align: right;
-    padding: 2px 20px;
-    display: block;
-	width: 20px;
-}
-
-table > tbody > tr > td:first-child::after {
-    content: attr(line);
+.code-line-content {
+	padding-left: 16px;
+	white-space: pre-wrap;
 }
 
 .preprocessor {

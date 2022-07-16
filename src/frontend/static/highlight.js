@@ -95,17 +95,17 @@ const highlightPart = (text) => {
 };
 
 const highlight = (text) => {
-	let result = '<table><tbody>';
+	let result = '';
 	const lines = text.split('&lt;').join('<').trim().split('\n');
 
 	mode = 'default';
 
 	// TODO: maybe remove this
 	for (let i = 0; i < lines.length; i++) {
-		result += `<tr><td line='${i + 1}'><td>${highlightPart(`${lines[i]}\u200B`)}</tr>`;
+		result += `<div class="code-line"><div class="code-line-number">${i + 1}</div><div class="code-line-content">${highlightPart(`${lines[i]}\u200B`)}</div></div>`;
 	}
 
-	return `${result}</tbody></table>`;
+	return `<div class="code-snippet">${result}</div>`;
 };
 
 const findNext = (text, value, position) => {

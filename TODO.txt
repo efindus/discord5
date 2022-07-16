@@ -15,7 +15,6 @@ return {
 
 change sidebar color to not be identical to message hover
 change attachment color to be defined as css property
-fix code snippets (remake into grids preferably instead of glueing them together with ductape AGAIN)
 
 P3:
 hostname resolution
