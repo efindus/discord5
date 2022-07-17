@@ -360,7 +360,7 @@ const generateMessageContent = (msgData, isContinuation) => {
 	return `<div class="message-content" ${isContinuation ? generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
 };
 
-const generateMessageAttachment = (msgData) => {
+const generateMessageAttachment = (msgData, isNew) => {
 	if (!msgData.attachment) return '';
 
 	const generateAttachmentLink = (attachment) => {
@@ -382,13 +382,13 @@ const generateMessageAttachment = (msgData) => {
 
 	let messageAttachment = generateAttachmentLink(msgData.attachment);
 	if (isImage(msgData.attachment)) {
-		messageAttachment = `<img src="/attachments/${msgData.attachment}" onerror="this.remove()"><div>${messageAttachment}</div>`;
+		messageAttachment = `<img src="/attachments/${msgData.attachment}" ${isNew ? 'onload="onAttachmentLoad(this)" ' : ''}onerror="this.remove()"><div>${messageAttachment}</div>`;
 	}
 
 	return `<div class="message-attachment">${messageAttachment}</div>`;
 };
 
-const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
+const generateMessage = (msgData, isContinuation = false, isShadow = false, isNew = false) => {
 	const message = document.createElement('div');
 	message.id = msgData.id;
 	message.classList.add('message');
@@ -397,7 +397,7 @@ const generateMessage = (msgData, isContinuation = false, isShadow = false) => {
 		isContinuation = false;
 	}
 
-	message.innerHTML = `${generateMessageMeta(msgData, isContinuation)}${generateMessageContent(msgData, isContinuation)}${generateMessageAttachment(msgData)}`;
+	message.innerHTML = `${generateMessageMeta(msgData, isContinuation)}${generateMessageContent(msgData, isContinuation)}${generateMessageAttachment(msgData, isNew)}`;
 	return message;
 };
 
@@ -440,14 +440,14 @@ const insertMessage = (data) => {
 			}
 		}
 
-		elements.messages.insertBefore(generateMessage(data.msgData, data.continuation), elements.messages.firstChild);
+		elements.messages.insertBefore(generateMessage(data.msgData, data.continuation, false, data.scrollAttachment), elements.messages.firstChild);
 		if (!data.continuation) state.messages.splice(0, 0, data.msgData);
 	} else {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 
 		if (data.afterElement) {
 			const beforeElement = data.afterElement.nextSibling;
-			const messageElement = generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData));
+			const messageElement = generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), false, data.isNew);
 
 			if (beforeElement) {
 				elements.messages.insertBefore(messageElement, beforeElement);
@@ -462,7 +462,7 @@ const insertMessage = (data) => {
 
 			const lastMessage = state.messages[state.messages.length - (correctIndex + 1)];
 			const nextMessage = state.messages[state.messages.length - correctIndex];
-			const messageElement = generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow);
+			const messageElement = generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow, data.isNew);
 
 			if (correctIndex === 0) {
 				const lastMessageElement = document.getElementById(lastMessage.id);
@@ -533,6 +533,10 @@ const getMissingUserData = (uid) => {
 			uid: uid,
 		}));
 	}
+};
+
+const onAttachmentLoad = (element) => {
+	elements.messageContainer.scrollTop = elements.messageContainer.scrollTop + element.height;
 };
 
 const loadMessages = () => {
@@ -625,6 +629,7 @@ const connect = () => {
 			for (const message of data.messages) {
 				insertMessage({
 					msgData: message,
+					scrollAttachment: state.messages.length < state.messagesToLoad,
 				});
 			}
 
