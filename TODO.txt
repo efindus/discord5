@@ -12,7 +12,6 @@ attachment upload progress bar
 add admins (admin panel) (and user bans)
 load new messages from top to bottom to reinsert only once
 consider a scroll-to-bottom button
-animate popup
 
 Far Future QoL:
 add replies

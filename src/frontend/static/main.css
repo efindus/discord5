@@ -159,7 +159,6 @@ html, body {
     align-items: center;
     justify-content: center;
     width: max-content;
-    z-index: 2;
 	font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -328,11 +327,18 @@ html, body {
 }
 
 #popup-container {
+	position: absolute;
+	top: 0px;
+	left: 0px;
 	height: 100%;
 	width: 100%;
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	visibility: hidden;
+	opacity: 0;
+	transition-property: visibility, opacity;
+	background-color: var(--background);
 }
 
 #popup-close {
@@ -482,7 +488,6 @@ html, body {
 	position: absolute;
 	left: 0px;
 	top: 0px;
-	z-index: 69;
 	width: 100%;
     height: 100%;
     background-color: var(--background);
@@ -511,11 +516,12 @@ html, body {
 /* Tooltips */
 .tooltip-container {
 	position: absolute;
+	top: 0px;
+	left: 0px;;
 	height: 100%;
 	width: 100%;
 	visibility: hidden;
 	opacity: 0;
-	z-index: 1;
 	transition-property: visibility, opacity;
 }
 

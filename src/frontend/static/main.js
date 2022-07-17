@@ -15,7 +15,6 @@ const state = {
 };
 
 const elements = {
-	container: document.querySelector('.container'),
 	onlineSidebar: document.querySelector('.online-sidebar'),
 
 	popupContainer: document.getElementById('popup-container'),
@@ -87,9 +86,11 @@ const svgs = {
  * @param {Record<number, FooterButton>} data.footer Popup footer
  */
 const showPopup = (data) => {
-	elements.container.style.display = 'none';
+	elements.popupContainer.style.visibility = 'visible';
+	elements.popupContainer.style.opacity = '1';
+	elements.popupContainer.style.transitionDelay = '0s, 0s';
+	elements.popupContainer.style.transitionDuration = '0s, .25s';
 
-	elements.popupContainer.style.display = '';
 	elements.popupTitle.innerHTML = data.title;
 
 	setPopupSubtitle(data);
@@ -155,9 +156,11 @@ const setPopupSubtitle = (data) => {
 };
 
 const hidePopup = () => {
-	elements.container.style.display = '';
+	elements.popupContainer.style.visibility = 'hidden';
+	elements.popupContainer.style.opacity = '0';
+	elements.popupContainer.style.transitionDelay = '.25s, 0s';
+	elements.popupContainer.style.transitionDuration = '0s, .25s';
 
-	elements.popupContainer.style.display = 'none';
 	state.isClosablePopupOpen = false;
 };
 
