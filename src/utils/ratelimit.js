@@ -110,3 +110,7 @@ class RatelimitManager {
 		return this.#ratelimits[id];
 	}
 }
+
+const ratelimitManager = new RatelimitManager();
+
+module.exports = { Ratelimit, ratelimitManager };
