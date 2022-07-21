@@ -1,18 +1,14 @@
 const { existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync } = require('fs');
-const { randomBytes } = require('crypto');
 
 const { request, websocket } = require('./utils/reqhandler');
 const { bold, red } = require('./utils/colors');
 const { Server } = require('./utils/server');
 const db = require('./utils/database');
-const { config } = require('./config');
 
 const main = async () => {
 	console.log('Connecting to DB...');
 	await db.connect();
 	console.log('Connected to DB!');
-
-	config.captchaSecret = randomBytes(96).toString('hex');
 
 	console.log('Loading modules...');
 	for (const module of readdirSync(`${__dirname}/modules`)) {

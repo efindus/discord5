@@ -4,9 +4,8 @@ const { sign } = require('jsonwebtoken');
 const { addEndpoint } = require('../utils/reqhandler');
 const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 const db = require('../utils/database');
-const { config } = require('../config');
 const { validateUsername } = require('../utils/user');
-const CAPTCHA_SECRET = config.captchaSecret;
+const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 
 const captchaHandler = async (_handler) => {
 	const captcha = createCaptcha(8, CAPTCHA_SECRET);
