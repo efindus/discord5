@@ -7,7 +7,10 @@ const db = require('../utils/database');
 const { validateUsername } = require('../utils/user');
 const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 
-const captchaHandler = async (_handler) => {
+/**
+ * @param {import('../utils/reqhandler').RequestData} request
+ */
+const captchaHandler = async (request) => {
 	const captcha = createCaptcha(8, CAPTCHA_SECRET);
 	return {
 		status: 200,
@@ -16,7 +19,7 @@ const captchaHandler = async (_handler) => {
 };
 
 /**
- * @param {import('../requestHandler').RequestData} request
+ * @param {import('../utils/reqhandler').RequestData} request
  */
 const registerHandler = async (request) => {
 	const data = request.body;
@@ -75,7 +78,7 @@ const registerHandler = async (request) => {
 };
 
 /**
- * @param {import('../requestHandler').RequestData} request
+ * @param {import('../utils/reqhandler').RequestData} request
  */
 const loginHandler = async (request) => {
 	const data = request.body;
