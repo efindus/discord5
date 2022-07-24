@@ -40,6 +40,7 @@ const addEndpoint = (path, method, handler) => {
  * @property {object | null} body
  * @property {Record<string, string>} cookies
  * @property {Record<string, string>} headers
+ * @property {string} remoteAddress - IP address of the client
  */
 
 /**

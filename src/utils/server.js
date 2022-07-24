@@ -92,6 +92,7 @@ class Server extends EventEmitter {
 				body: {},
 				cookies: {},
 				headers: request.headers,
+				remoteAddress: remoteAddress,
 			};
 
 			if ([ 'application/json', 'application/x-www-form-urlencoded' ].includes(request.headers['content-type'])) {
