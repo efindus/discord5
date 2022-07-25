@@ -21,7 +21,7 @@ class Ratelimit {
 	/**
 	 * Consume a number of points from a key if possible
 	 * @param {string} key - The key to take the points from
-	 * @param {number} points - The number of points to take
+	 * @param {number} points - The number of points to take [default: 1]
 	 * @returns {boolean} Whether the request was within the limit or not
 	 */
 	consume(key, points = 1) {
@@ -83,10 +83,10 @@ class RatelimitManager {
 	 * Consume a number of points from a key in a ratelimit instance if possible
 	 * @param {string} id - Id of the ratelimit instance to consume from
 	 * @param {string} key - The key to take the points from
-	 * @param {number} points - The number of points to take
+	 * @param {number} points - The number of points to take [default: 1]
 	 * @returns {boolean} Whether the request was within the limit or not
 	 */
-	consume(id, key, points) {
+	consume(id, key, points = 1) {
 		if (!this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
 
 		return this.#ratelimits[id].consume(key, points);
