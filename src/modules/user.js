@@ -2,15 +2,20 @@ const { createHash, randomBytes } = require('crypto');
 const { sign } = require('jsonwebtoken');
 
 const { addEndpoint } = require('../utils/reqhandler');
+const { ratelimitManager } = require('../utils/ratelimit');
 const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 const db = require('../utils/database');
 const { validateUsername } = require('../utils/user');
 const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 
+ratelimitManager.create('captchaRequest', 5, 60_000);
+
 /**
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const captchaHandler = async (request) => {
+	if (!ratelimitManager.consume('captchaRequest', request.remoteAddress)) return { status: 429 };
+
 	const captcha = createCaptcha(8, CAPTCHA_SECRET);
 	return {
 		status: 200,
