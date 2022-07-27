@@ -2,8 +2,7 @@ class Ratelimit {
 	#limit;
 	#duration;
 	#startOffset;
-
-	#points = {};
+	#points;
 
 	/**
 	 * Create a ratelimit instance
@@ -13,8 +12,11 @@ class Ratelimit {
 	constructor(limit, duration) {
 		this.#limit = limit;
 		this.#duration = duration;
+		this.#points = {};
 
-		setInterval(this.reset, this.#duration);
+		setInterval(() => {
+			this.reset();
+		}, this.#duration);
 		this.#startOffset = Date.now() % this.#duration;
 	}
 
