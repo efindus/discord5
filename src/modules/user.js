@@ -8,7 +8,8 @@ const db = require('../utils/database');
 const { validateUsername } = require('../utils/user');
 const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 
-ratelimitManager.create('captchaRequest', 5, 60_000);
+ratelimitManager.create('captchaRequest', 5, 60_000); // Each request consumes one point, can be restored by solving
+ratelimitManager.create('registerRequest', 100, 60 * 60_000); // Each request consumes one point, additionally when succeeds consumes 100 points
 
 /**
  * @param {import('../utils/reqhandler').RequestData} request
@@ -27,6 +28,8 @@ const captchaHandler = async (request) => {
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const registerHandler = async (request) => {
+	if (!ratelimitManager.consume('registerRequest', request.remoteAddress)) return { status: 429 };
+
 	const data = request.body;
 	if (!(
 		typeof data.username === 'string' &&
@@ -50,6 +53,8 @@ const registerHandler = async (request) => {
 				message: result,
 			},
 		};
+	} else {
+		ratelimitManager.consume('captchaRequest', request.remoteAddress, -1);
 	}
 
 	result = await validateUsername(data.username);
@@ -73,6 +78,8 @@ const registerHandler = async (request) => {
 		salt: passwordSalt,
 		jwtSecret: randomBytes(48).toString('hex'),
 	});
+
+	ratelimitManager.consume('registerRequest', request.remoteAddress, 100);
 
 	return {
 		status: 200,
