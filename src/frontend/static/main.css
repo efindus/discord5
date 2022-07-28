@@ -79,7 +79,7 @@ html, body {
 .bottom-bar {
 	grid-row: 3;
 	grid-column-start: 1;
-	grid-column-end: 3;
+	grid-column-end: 2;
 	display: grid;
 	grid-template-columns: max(50px, 8vw) auto;
 	grid-template-rows: auto;
@@ -97,7 +97,8 @@ html, body {
 	background-color: var(--upload-button);
 	color: var(--text);
 	grid-column: 2;
-	grid-row: 2;
+	grid-row-start: 2;
+	grid-row-end: 4;
 	overflow-y: auto;
 	box-shadow: -3px 4px 10px 0px var(--shadow);
 }
