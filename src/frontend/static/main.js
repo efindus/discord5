@@ -450,7 +450,7 @@ const insertMessage = (data) => {
 
 		if (data.afterElement) {
 			const beforeElement = data.afterElement.nextSibling;
-			const messageElement = generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), false, data.isNew);
+			const messageElement = generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), data.isShadow, data.isNew);
 
 			if (beforeElement) {
 				elements.messages.insertBefore(messageElement, beforeElement);
@@ -759,6 +759,7 @@ elements.input.onkeydown = (event) => {
 				},
 				isNew: true,
 				isShadow: true,
+				afterElement: elements.messages.lastChild,
 			});
 
 			let attachment = {};
