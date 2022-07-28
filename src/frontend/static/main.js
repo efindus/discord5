@@ -143,13 +143,13 @@ const showPopup = (data) => {
  * Set the subtitle
  * @param {object} data
  * @param {string} data.subtitle Popup subtitle
- * @param {string} data.subtitleColor Popup subtitle color
+ * @param {string} data.subtitleColor Popup subtitle color [default: var(--orange)]
  */
 const setPopupSubtitle = (data) => {
 	if (data.subtitle?.length > 0) {
 		elements.popupSubtitle.style.display = '';
 		elements.popupSubtitle.innerHTML = data.subtitle;
-		elements.popupSubtitle.style.color = data.subtitleColor ?? '';
+		elements.popupSubtitle.style.color = data.subtitleColor ?? 'var(--orange)';
 	} else {
 		elements.popupSubtitle.style.display = 'none';
 	}
@@ -576,6 +576,11 @@ const updateNickname = (uid) => {
 	if (sidebarEntry) sidebarEntry.innerHTML = state.users[uid].nickname;
 };
 
+const verifyUsername = (username) => {
+	if (username.length < 3 || username.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(username)) return false;
+	else return true;
+};
+
 const sanitizeText = (text) => {
 	text = text.split('&').join('&amp;');
 	text = text.split('<').join('&lt;');
@@ -654,7 +659,6 @@ const connect = () => {
 				hidePopupSpinner();
 				setPopupSubtitle({
 					subtitle: 'Niepoprawne stare hasło',
-					subtitleColor: 'var(--orange)',
 				});
 				elements.popup.classList.add('shaking');
 			}
@@ -678,7 +682,6 @@ const connect = () => {
 
 					setPopupSubtitle({
 						subtitle: error,
-						subtitleColor: 'var(--orange)',
 					});
 					elements.popup.classList.add('shaking');
 				}
@@ -870,10 +873,9 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 	const changeNicknameFormHandler = () => {
 		const value = nicknameInput.value.trim();
 
-		if (value.length < 3 || value.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(value)) {
+		if (!verifyUsername(value)) {
 			setPopupSubtitle({
 				subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
-				subtitleColor: 'var(--orange)',
 			});
 			elements.popup.classList.add('shaking');
 		} else {
@@ -941,7 +943,6 @@ const changePasswordHandler = () => {
 		if (newPassword !== document.getElementById('popup-input-password2').value) {
 			setPopupSubtitle({
 				subtitle: 'Podane nowe hasła nie są identyczne',
-				color: 'var(--orange)',
 			});
 			elements.popup.classList.add('shaking');
 			return;
@@ -1014,19 +1015,25 @@ const loginHandler = () => {
 			}),
 		});
 
-		const data = await response.json();
-		if (data.message === 'invalidLogin') {
-			setPopupSubtitle({
-				subtitle: 'Niepoprawny login lub hasło',
-				subtitleColor: 'var(--orange)',
-			});
-			elements.popup.classList.add('shaking');
-			hidePopupSpinner();
-			return;
-		} else if (data.message === 'success') {
-			localStorage.setItem('token', data.token);
-			connect();
+		let error = 'Nieznany błąd. Spróbuj ponownie później';
+		if (response.status === 200 || response.status === 400) {
+			const data = await response.json();
+			if (data.message === 'invalidLogin') {
+				error = 'Niepoprawny login lub hasło';
+			} else if (data.message === 'success') {
+				localStorage.setItem('token', data.token);
+				connect();
+				return;
+			}
+		} else if (response.status === 429) {
+			error = 'Zbyt wiele nieudanych prób logowania. Spróbuj ponownie później';
 		}
+
+		setPopupSubtitle({
+			subtitle: error,
+		});
+		elements.popup.classList.add('shaking');
+		hidePopupSpinner();
 	};
 
 	document.getElementById('popup-button-login').onclick = loginFormHandler;
@@ -1093,6 +1100,7 @@ const registerHandler = () => {
 	const captchaRow = document.getElementById('popup-captcha').parentElement;
 	let captchaData = {};
 	const resetCaptcha = () => {
+		if (!captchaRow) return;
 		captchaRow.innerHTML = popupCaptchaHTML;
 
 		document.getElementById('popup-captcha').onclick = async () => {
@@ -1100,17 +1108,24 @@ const registerHandler = () => {
 				method: 'POST',
 			});
 
-			captchaData = await response.json();
-			captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
-			document.getElementById('popup-input-captcha').onkeydown = (event) => {
-				if (event.code === 'Enter' || event.keyCode === 13) {
-					registerFormHandler();
-				}
-			};
+			if (response.status === 200) {
+				captchaData = await response.json();
+				captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
+				document.getElementById('popup-input-captcha').onkeydown = (event) => {
+					if (event.code === 'Enter' || event.keyCode === 13) {
+						registerFormHandler();
+					}
+				};
 
-			setTimeout(() => {
-				if (captchaRow) resetCaptcha();
-			}, 60_000);
+				setTimeout(() => {
+					if (captchaRow) resetCaptcha();
+				}, 60_000);
+			} else {
+				setPopupSubtitle({
+					subtitle: 'Zbyt wiele nieudanych prób rozwiązania CAPTCHy. Spróbuj ponownie później',
+				});
+				elements.popup.classList.add('shaking');
+			}
 		};
 	};
 	resetCaptcha();
@@ -1119,22 +1134,24 @@ const registerHandler = () => {
 		if (registrationInProgress) return;
 		else registrationInProgress = true;
 
+		let error = '';
 		const captchaInput = document.getElementById('popup-input-captcha');
 		if (!captchaInput){
-			setPopupSubtitle({
-				subtitle: 'Musisz potwierdzić że nie jesteś robotem',
-				subtitleColor: 'var(--orange)',
-			});
-			elements.popup.classList.add('shaking');
-			registrationInProgress = false;
-			return;
+			error = 'Musisz potwierdzić że nie jesteś robotem';
+		}
+
+		if (!verifyUsername(usernameInput.value)) {
+			error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
 		}
 
 		const password = document.getElementById('popup-input-password').value;
 		if (password !== document.getElementById('popup-input-password2').value) {
+			error = 'Wpisane hasła nie są identyczne';
+		}
+
+		if (error !== '') {
 			setPopupSubtitle({
-				subtitle: 'Wpisane hasła nie są identyczne',
-				subtitleColor: 'var(--orange)',
+				subtitle: error,
 			});
 			elements.popup.classList.add('shaking');
 			registrationInProgress = false;
@@ -1159,28 +1176,29 @@ const registerHandler = () => {
 			}),
 		});
 
-		const data = await response.json();
-		let error = '';
-		switch (data.message) {
-			case 'success':
-				break;
-			case 'usernameInvalidFormat':
-			case 'usernameInvalidLength':
-				error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
-				break;
-			case 'usernameAlreadyInUse':
-				error = 'Ta nazwa użytkownika jest już zajęta';
-				resetCaptcha();
-				break;
-			case 'invalidSolution':
-				error = 'Wpisany tekst nie jest poprawnym rozwiązaniem CAPTCHy';
-				break;
-			case 'captchaExpired':
-				error = 'CAPTCHA wygasła';
-				resetCaptcha();
-				break;
-			default:
-				error = 'Wystąpił nieznany błąd';
+		if (response.status === 200 || response.status === 400) {
+			const data = await response.json();
+			switch (data.message) {
+				case 'success':
+					break;
+				case 'usernameAlreadyInUse':
+					error = 'Ta nazwa użytkownika jest już zajęta';
+					resetCaptcha();
+					break;
+				case 'invalidSolution':
+					error = 'Wpisany tekst nie jest poprawnym rozwiązaniem CAPTCHy';
+					break;
+				case 'captchaExpired':
+					error = 'CAPTCHA wygasła';
+					resetCaptcha();
+					break;
+				default:
+					error = 'Wystąpił nieznany błąd';
+			}
+		} else if (response.status === 429) {
+			error = 'Zbyt wiele prób rejestracji. Spróbuj ponownie później';
+		} else {
+			error = 'Nieznany błąd. Spróbuj ponownie później';
 		}
 
 		if (error === '') {
@@ -1195,7 +1213,6 @@ const registerHandler = () => {
 			hidePopupSpinner();
 			setPopupSubtitle({
 				subtitle: error,
-				subtitleColor: 'var(--orange)',
 			});
 			elements.popup.classList.add('shaking');
 			registrationInProgress = false;

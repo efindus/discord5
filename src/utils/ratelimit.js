@@ -14,9 +14,7 @@ class Ratelimit {
 		this.#duration = duration;
 		this.#points = {};
 
-		setInterval(() => {
-			this.reset();
-		}, this.#duration);
+		setInterval(() => this.reset(), this.#duration);
 		this.#startOffset = Date.now() % this.#duration;
 	}
 

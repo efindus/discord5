@@ -2,14 +2,17 @@ const { createHash, randomBytes } = require('crypto');
 const { sign } = require('jsonwebtoken');
 
 const { addEndpoint } = require('../utils/reqhandler');
-const { ratelimitManager } = require('../utils/ratelimit');
 const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 const db = require('../utils/database');
 const { validateUsername } = require('../utils/user');
+const { ratelimitManager } = require('../utils/ratelimit');
+
 const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 
 ratelimitManager.create('captchaRequest', 5, 60_000); // Each request consumes one point, can be restored by solving
-ratelimitManager.create('registerRequest', 100, 60 * 60_000); // Each request consumes one point, additionally when succeeds consumes 100 points
+ratelimitManager.create('registerRequest', 50, 60 * 60_000); // Each request consumes one point, additionally when succeeds consumes 50 points
+ratelimitManager.create('loginRequest', 15, 30_000); // Each request consumes one point, could be 1 per 2s but to save performance on intervals its 15 per 30s
+
 
 /**
  * @param {import('../utils/reqhandler').RequestData} request
@@ -79,7 +82,7 @@ const registerHandler = async (request) => {
 		jwtSecret: randomBytes(48).toString('hex'),
 	});
 
-	ratelimitManager.consume('registerRequest', request.remoteAddress, 100);
+	ratelimitManager.consume('registerRequest', request.remoteAddress, 50);
 
 	return {
 		status: 200,
@@ -93,6 +96,8 @@ const registerHandler = async (request) => {
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const loginHandler = async (request) => {
+	if (!ratelimitManager.consume('loginRequest', request.remoteAddress)) return { status: 429 };
+
 	const data = request.body;
 	if (!(
 		typeof data.username === 'string' &&
