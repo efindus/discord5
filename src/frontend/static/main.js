@@ -1,9 +1,28 @@
 /* eslint-disable no-undef */
 
+/**
+ * @typedef App
+ * @property {SocketManager} socket
+ * @property {PopupManager} popup
+ * @property {TooltipManager} tooltip
+ * @property {SpinnerManager} spinner
+ * @property {object} user
+ * @property {Record<string, object>} users
+ * @property {Array<object>} messages
+ * @property {Array<object>} notifications
+ * @property {number} messagesToLoad
+ * @property {number} timeOffset
+ * @property {string?} currentAttachment
+ */
+
+/**
+ * @type {App}
+ */
 const state = {
 	socket: null,
 	popup: null,
 	tooltip: null,
+	spinner: null,
 
 	user: {},
 	users: {},
@@ -36,7 +55,6 @@ const elements = {
 	uploadButton: document.getElementById('upload-button'),
 
 	clock: document.getElementById('clock'),
-	spinner: document.getElementById('spinner'),
 };
 
 const svgs = {
@@ -65,7 +83,7 @@ class SocketManager {
 		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
 		this.#reconnect = true;
 
-		showSpinner();
+		state.spinner.show();
 		state.popup.hide();
 
 		this.#socket.onopen = () => {
@@ -119,7 +137,7 @@ class SocketManager {
 		state.messages = [];
 
 		if (this.#reconnect) {
-			showSpinner();
+			state.spinner.show();
 			setTimeout(() => this.connect(), 1000);
 		}
 	}
@@ -182,7 +200,7 @@ class SocketManager {
 
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
 			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
-			if (state.messages.length <= state.messagesToLoad) hideSpinner();
+			if (state.messages.length <= state.messagesToLoad) state.spinner.hide();
 		} else if (data.type === 'changePasswordCB') {
 			if (data.message === 'success') {
 				this.#reconnect = false;
@@ -207,7 +225,7 @@ class SocketManager {
 					state.user.nickname = data.nickname;
 					propagateUserData();
 					state.popup.hide();
-					hideSpinner();
+					state.spinner.hide();
 				} else {
 					let error = '';
 					switch (data.message) {
@@ -535,23 +553,40 @@ class TooltipManager {
 	}
 }
 
+class SpinnerManager {
+	#elements = {
+		spinner: document.getElementById('spinner'),
+	};
+
+	#isOpen = false;
+
+	get isOpen() {
+		return this.#isOpen;
+	}
+
+	show() {
+		this.#isOpen = true;
+
+		elements.spinner.style.visibility = 'visible';
+		elements.spinner.style.opacity = '1';
+		elements.spinner.style.transitionDelay = '0s, 0s';
+		elements.spinner.style.transitionDuration = '0s, 0s';
+	}
+
+	hide() {
+		this.#isOpen = false;
+
+		elements.spinner.style.visibility = 'hidden';
+		elements.spinner.style.opacity = '0';
+		elements.spinner.style.transitionDelay = '.5s, 0s';
+		elements.spinner.style.transitionDuration = '0s, .5s';
+	}
+}
+
 state.socket = new SocketManager();
 state.popup = new PopupManager();
 state.tooltip = new TooltipManager();
-
-const showSpinner = () => {
-	elements.spinner.style.visibility = 'visible';
-	elements.spinner.style.opacity = '1';
-	elements.spinner.style.transitionDelay = '0s, 0s';
-	elements.spinner.style.transitionDuration = '0s, 0s';
-};
-
-const hideSpinner = () => {
-	elements.spinner.style.visibility = 'hidden';
-	elements.spinner.style.opacity = '0';
-	elements.spinner.style.transitionDelay = '.5s, 0s';
-	elements.spinner.style.transitionDuration = '0s, .5s';
-};
+state.spinner = new SpinnerManager();
 
 const propagateUserData = () => {
 	elements.usernameDisplay.innerText = state.user.username;
@@ -1123,7 +1158,7 @@ const changePasswordHandler = () => {
 };
 
 const loginHandler = () => {
-	hideSpinner();
+	state.spinner.hide();
 	state.popup.show({
 		title: 'Zaloguj się',
 		body: [
@@ -1207,7 +1242,7 @@ const loginHandler = () => {
 };
 
 const registerHandler = () => {
-	hideSpinner();
+	state.spinner.hide();
 	let registrationInProgress = false;
 	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border); margin-bottom: 20px;">Nie jestem robotem</div>';
 	state.popup.show({
