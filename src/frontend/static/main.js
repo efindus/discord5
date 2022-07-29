@@ -1,7 +1,16 @@
 /* eslint-disable no-undef */
 const state = {
+	/**
+	 * @type {SocketManager}
+	 */
+	socket: null,
+
+	/**
+	 * @type {PopupManager}
+	 */
+	popup: null,
+
 	user: {},
-	sManager: null,
 	users: {},
 	messages: [],
 	notifications: [],
@@ -10,23 +19,12 @@ const state = {
 	timeOffset: 0,
 
 	isDropdownOpen: false,
-	isClosablePopupOpen: false,
 
 	currentAttachment: null,
 };
 
 const elements = {
 	onlineSidebar: document.querySelector('.online-sidebar'),
-
-	popupContainer: document.getElementById('popup-container'),
-	popup: document.getElementById('popup'),
-	popupClose: document.getElementById('popup-close'),
-	popupHeader: document.getElementById('popup-header'),
-	popupTitle: document.getElementById('popup-title'),
-	popupSubtitle: document.getElementById('popup-subtitle'),
-	popupBody: document.getElementById('popup-body'),
-	popupFooter: document.getElementById('popup-footer'),
-	popupSpinner: document.getElementById('popup-spinner'),
 
 	tooltipContainer: document.querySelector('.tooltip-container'),
 	tooltip: document.getElementById('tooltip'),
@@ -76,7 +74,7 @@ class SocketManager {
 		this.#reconnect = true;
 
 		showSpinner();
-		hidePopup();
+		state.popup.hide();
 
 		this.#socket.onopen = () => {
 			this.#setupPinger();
@@ -196,7 +194,7 @@ class SocketManager {
 		} else if (data.type === 'changePasswordCB') {
 			if (data.message === 'success') {
 				this.#reconnect = false;
-				setPopupSubtitle({
+				state.popup.setSubtitle({
 					subtitle: 'Hasło zostało zmienione pomyślnie',
 					subtitleColor: 'var(--green)',
 				});
@@ -205,18 +203,18 @@ class SocketManager {
 					main();
 				}, 1000);
 			} else {
-				hidePopupSpinner();
-				setPopupSubtitle({
+				state.popup.hideSpinner();
+				state.popup.setSubtitle({
 					subtitle: 'Niepoprawne stare hasło',
 				});
-				elements.popup.classList.add('shaking');
+				state.popup.shake();
 			}
 		} else if (data.type === 'updateNickname') {
 			if (data.uid === state.user.uid) {
 				if (data.nickname) {
 					state.user.nickname = data.nickname;
 					propagateUserData();
-					hidePopup();
+					state.popup.hide();
 					hideSpinner();
 				} else {
 					let error = '';
@@ -229,10 +227,10 @@ class SocketManager {
 							break;
 					}
 
-					setPopupSubtitle({
+					state.popup.setSubtitle({
 						subtitle: error,
 					});
-					elements.popup.classList.add('shaking');
+					state.popup.shake();
 				}
 			}
 
@@ -262,112 +260,169 @@ class SocketManager {
 	}
 }
 
-state.sManager = new SocketManager();
+class PopupManager {
+	#elements = {
+		container: document.getElementById('popup-container'),
+		popup: document.getElementById('popup'),
+		popupClose: document.getElementById('popup-close'),
+		header: document.getElementById('popup-header'),
+		title: document.getElementById('popup-title'),
+		subtitle: document.getElementById('popup-subtitle'),
+		body: document.getElementById('popup-body'),
+		footer: document.getElementById('popup-footer'),
+		spinner: document.getElementById('popup-spinner'),
+	};
 
-/**
- * @typedef Row
- * @property {string} label Label of the row
- * @property {object} input
- * @property {string} input.id ID of the input
- * @property {string} input.type Type of the input
- * @property {number?} input.limit Max length of inputed text
- */
+	#isOpen = false;
+	#isCloseable = false;
 
-/**
- * @typedef FooterButton
- * @property {string} label Label of the button
- * @property {string} id ID of the button
- * @property {string} color Color of the button
- */
-
-/**
- * Create a modal
- * @param {object} data Parameters used to construct the modal
- * @param {string} data.title Popup title
- * @param {string} data.subtitle Popup subtitle
- * @param {string} data.subtitleColor Popup subtitle color
- * @param {boolean} data.closeable Allow closing the popup?
- * @param {Record<number, Row>} data.body Popup body
- * @param {Record<number, FooterButton>} data.footer Popup footer
- */
-const showPopup = (data) => {
-	elements.popupContainer.style.visibility = 'visible';
-	elements.popupContainer.style.opacity = '1';
-	elements.popupContainer.style.transitionDelay = '0s, 0s';
-	elements.popupContainer.style.transitionDuration = '0s, .25s';
-
-	elements.popupTitle.innerHTML = data.title;
-
-	setPopupSubtitle(data);
-	hidePopupSpinner();
-
-	if (data.closeable) {
-		elements.popupClose.style.display = '';
-		state.isClosablePopupOpen = true;
-	} else {
-		elements.popupClose.style.display = 'none';
-		state.isClosablePopupOpen = false;
+	constructor() {
+		this.#elements.popup.onanimationend = () => {
+			this.#elements.popup.classList.remove('shaking');
+		};
+		this.#elements.popupClose.onclick = () => {
+			this.hide();
+		};
 	}
 
-	elements.popupBody.innerHTML = '';
-	if (data.body) {
-		elements.popupHeader.style.margin = '';
-		elements.popupTitle.style.margin = '';
-		for (const row of data.body) {
-			const rowElement = document.createElement('div');
-			rowElement.classList.add('popup-row');
-			if (row.input) {
-				rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}" ${row.input.limit ? ` maxlength="${row.input.limit}"` : ''}>`;
-			} else {
-				rowElement.innerHTML = row.html;
+	get isOpen() {
+		return this.#isOpen;
+	}
+
+	get isClosable() {
+		return this.#isCloseable;
+	}
+
+	/**
+	 * @typedef Row
+	 * @property {string} label Label of the row
+	 * @property {object} input
+	 * @property {string} input.id ID of the input
+	 * @property {string} input.type Type of the input
+	 * @property {number?} input.limit Max length of inputed text
+	 */
+
+	/**
+	 * @typedef FooterButton
+	 * @property {string} label Label of the button
+	 * @property {string} id ID of the button
+	 * @property {string} color Color of the button
+	 */
+
+	/**
+	 * Create a modal
+	 * @param {object} data Parameters used to construct the modal
+	 * @param {string} data.title Popup title
+	 * @param {string} data.subtitle Popup subtitle
+	 * @param {string} data.subtitleColor Popup subtitle color
+	 * @param {boolean} data.closeable Allow closing the popup?
+	 * @param {Record<number, Row>} data.body Popup body
+	 * @param {Record<number, FooterButton>} data.footer Popup footer
+	 */
+	show(data) {
+		this.#elements.container.style.visibility = 'visible';
+		this.#elements.container.style.opacity = '1';
+		this.#elements.container.style.transitionDelay = '0s, 0s';
+		this.#elements.container.style.transitionDuration = '0s, .25s';
+
+		this.#elements.title.innerHTML = data.title;
+
+		this.setSubtitle(data);
+		state.popup.hideSpinner();
+
+		this.#isOpen = true;
+		if (data.closeable) {
+			this.#elements.popupClose.style.display = '';
+			this.#isCloseable = true;
+		} else {
+			this.#elements.popupClose.style.display = 'none';
+			this.#isCloseable = false;
+		}
+
+		this.#elements.body.innerHTML = '';
+		if (data.body) {
+			this.#elements.header.style.margin = '';
+			this.#elements.title.style.margin = '';
+			for (const row of data.body) {
+				const rowElement = document.createElement('div');
+				rowElement.classList.add('popup-row');
+				if (row.input) {
+					rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}" ${row.input.limit ? ` maxlength="${row.input.limit}"` : ''}>`;
+				} else {
+					rowElement.innerHTML = row.html;
+				}
+				this.#elements.body.appendChild(rowElement);
 			}
-			elements.popupBody.appendChild(rowElement);
+			this.#elements.body.lastChild.style.marginBottom = '0px';
+		} else {
+			this.#elements.header.style.margin = '0px';
+			this.#elements.title.style.margin = '0px';
 		}
-		elements.popupBody.lastChild.style.marginBottom = '0px';
-	} else {
-		elements.popupHeader.style.margin = '0px';
-		elements.popupTitle.style.margin = '0px';
-	}
 
-	elements.popupFooter.innerHTML = '';
-	if (data.footer) {
-		elements.popupBody.lastChild.style.marginBottom = '15px';
-		for (const button of data.footer) {
-			const buttonElement = document.createElement('div');
-			buttonElement.classList.add('popup-button');
-			buttonElement.id = button.id;
-			buttonElement.innerHTML = button.label;
-			buttonElement.style.backgroundColor = button.color ?? 'var(--blue)';
-			elements.popupFooter.appendChild(buttonElement);
+		this.#elements.footer.innerHTML = '';
+		if (data.footer) {
+			this.#elements.body.lastChild.style.marginBottom = '15px';
+			for (const button of data.footer) {
+				const buttonElement = document.createElement('div');
+				buttonElement.classList.add('popup-button');
+				buttonElement.id = button.id;
+				buttonElement.innerHTML = button.label;
+				buttonElement.style.backgroundColor = button.color ?? 'var(--blue)';
+				this.#elements.footer.appendChild(buttonElement);
+			}
+			this.#elements.footer.lastChild.style.marginBottom = '0px';
 		}
-		elements.popupFooter.lastChild.style.marginBottom = '0px';
 	}
-};
 
-/**
- * Set the subtitle
- * @param {object} data
- * @param {string} data.subtitle Popup subtitle
- * @param {string} data.subtitleColor Popup subtitle color [default: var(--orange)]
- */
-const setPopupSubtitle = (data) => {
-	if (data.subtitle?.length > 0) {
-		elements.popupSubtitle.style.display = '';
-		elements.popupSubtitle.innerHTML = data.subtitle;
-		elements.popupSubtitle.style.color = data.subtitleColor ?? 'var(--orange)';
-	} else {
-		elements.popupSubtitle.style.display = 'none';
+	/**
+	 * Set the subtitle
+	 * @param {object} data
+	 * @param {string} data.subtitle Popup subtitle (if empty hides the subtitle)
+	 * @param {string} data.subtitleColor Popup subtitle color [default: var(--orange)]
+	 */
+	setSubtitle(data) {
+		if (data.subtitle?.length > 0) {
+			this.#elements.subtitle.style.display = '';
+			this.#elements.subtitle.innerHTML = data.subtitle;
+			this.#elements.subtitle.style.color = data.subtitleColor ?? 'var(--orange)';
+		} else {
+			this.#elements.subtitle.style.display = 'none';
+		}
 	}
-};
 
-const hidePopup = () => {
-	elements.popupContainer.style.visibility = 'hidden';
-	elements.popupContainer.style.opacity = '0';
-	elements.popupContainer.style.transitionDelay = '.25s, 0s';
-	elements.popupContainer.style.transitionDuration = '0s, .25s';
+	/**
+	 * Change the popup footer into a spinner
+	 */
+	showSpinner() {
+		this.#elements.footer.style.display = 'none';
+		this.#elements.spinner.style.display = '';
+	}
 
-	state.isClosablePopupOpen = false;
-};
+	hideSpinner() {
+		this.#elements.footer.style.display = '';
+		this.#elements.spinner.style.display = 'none';
+	}
+
+	/**
+	 * Makes the popup shake sideways
+	 */
+	shake() {
+		this.#elements.popup.classList.add('shaking');
+	}
+
+	hide() {
+		this.#elements.container.style.visibility = 'hidden';
+		this.#elements.container.style.opacity = '0';
+		this.#elements.container.style.transitionDelay = '.25s, 0s';
+		this.#elements.container.style.transitionDuration = '0s, .25s';
+
+		this.#isOpen = false;
+		this.#isCloseable = false;
+	}
+}
+
+state.socket = new SocketManager();
+state.popup = new PopupManager();
 
 const showSpinner = () => {
 	elements.spinner.style.visibility = 'visible';
@@ -381,16 +436,6 @@ const hideSpinner = () => {
 	elements.spinner.style.opacity = '0';
 	elements.spinner.style.transitionDelay = '.5s, 0s';
 	elements.spinner.style.transitionDuration = '0s, .5s';
-};
-
-const showPopupSpinner = () => {
-	elements.popupFooter.style.display = 'none';
-	elements.popupSpinner.style.display = '';
-};
-
-const hidePopupSpinner = () => {
-	elements.popupFooter.style.display = '';
-	elements.popupSpinner.style.display = 'none';
 };
 
 /**
@@ -777,7 +822,7 @@ const getMissingUserData = (uid) => {
 			nickname: 'Ładowanie...',
 		};
 
-		state.sManager.send('getUser', {
+		state.socket.send('getUser', {
 			uid: uid,
 		});
 	}
@@ -789,7 +834,7 @@ const onAttachmentLoad = (element) => {
 
 const loadMessages = () => {
 	elements.loadMessagesButton.style.display = 'none';
-	state.sManager.send('getMessages');
+	state.socket.send('getMessages');
 };
 
 const resetUpload = () => {
@@ -831,8 +876,11 @@ const sanitizeText = (text) => {
 };
 
 document.onkeydown = (event) => {
-	if (event.code === 'Escape' && state.isClosablePopupOpen) {
-		hidePopup();
+	if (event.code === 'Escape' && state.popup.isClosable) {
+		state.popup.hide();
+	} else if (document.body === document.activeElement && !state.isDropdownOpen) {
+		console.log(document.activeElement);
+		elements.input.focus();
 	}
 };
 
@@ -878,7 +926,7 @@ elements.input.onkeydown = (event) => {
 				resetUpload();
 			}
 
-			state.sManager.send('sendMessage', {
+			state.socket.send('sendMessage', {
 				message: value,
 				nonce: nonce,
 				...attachment,
@@ -897,10 +945,6 @@ document.onfocus = () => {
 
 elements.messageContainer.onscroll = () => {
 	if (Notification.permission === 'default') Notification.requestPermission();
-};
-
-elements.popup.onanimationend = () => {
-	elements.popup.classList.remove('shaking');
 };
 
 elements.uploadInput.onchange = () => {
@@ -935,17 +979,17 @@ const updateClock = () => {
 };
 
 const logOutEverywhereHandler = () => {
-	state.sManager.send('logOutEverywhere');
+	state.socket.send('logOutEverywhere');
 };
 
 const logOutHandler = () => {
 	localStorage.removeItem('token');
-	state.sManager.disconnect();
+	state.socket.disconnect();
 	main();
 };
 
 const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = '') => {
-	showPopup({
+	state.popup.show({
 		title: 'Ustaw swój pseudonim',
 		subtitle: subtitle,
 		closeable: closeable,
@@ -972,18 +1016,18 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 		const value = nicknameInput.value.trim();
 
 		if (!verifyUsername(value)) {
-			setPopupSubtitle({
+			state.popup.setSubtitle({
 				subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
 			});
-			elements.popup.classList.add('shaking');
+			state.popup.shake();
 		} else {
 			if (value !== state.user.nickname) {
-				showPopupSpinner();
-				state.sManager.send('setNickname', {
+				state.popup.showSpinner();
+				state.socket.send('setNickname', {
 					nickname: value,
 				});
 			} else {
-				hidePopup();
+				state.popup.hide();
 			}
 		}
 	};
@@ -1000,7 +1044,7 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 };
 
 const changePasswordHandler = () => {
-	showPopup({
+	state.popup.show({
 		title: 'Zmień hasło',
 		closeable: true,
 		body: [
@@ -1038,15 +1082,15 @@ const changePasswordHandler = () => {
 	const changePasswordFormHandler = async () => {
 		const newPassword = document.getElementById('popup-input-password').value;
 		if (newPassword !== document.getElementById('popup-input-password2').value) {
-			setPopupSubtitle({
+			state.popup.setSubtitle({
 				subtitle: 'Podane nowe hasła nie są identyczne',
 			});
-			elements.popup.classList.add('shaking');
+			state.popup.shake();
 			return;
 		}
 
-		showPopupSpinner();
-		state.sManager.send('changePassword', {
+		state.popup.showSpinner();
+		state.socket.send('changePassword', {
 			oldPassword: await sha256(oldPasswordInput.value),
 			password: await sha256(document.getElementById('popup-input-password').value),
 		});
@@ -1064,7 +1108,7 @@ const changePasswordHandler = () => {
 
 const loginHandler = () => {
 	hideSpinner();
-	showPopup({
+	state.popup.show({
 		title: 'Zaloguj się',
 		body: [
 			{
@@ -1099,7 +1143,7 @@ const loginHandler = () => {
 	const usernameInput = document.getElementById('popup-input-username');
 
 	const loginFormHandler = async () => {
-		showPopupSpinner();
+		state.popup.showSpinner();
 		const response = await fetch('/api/login', {
 			method: 'POST',
 			headers: {
@@ -1125,11 +1169,11 @@ const loginHandler = () => {
 			error = 'Zbyt wiele nieudanych prób logowania. Spróbuj ponownie później';
 		}
 
-		setPopupSubtitle({
+		state.popup.setSubtitle({
 			subtitle: error,
 		});
-		elements.popup.classList.add('shaking');
-		hidePopupSpinner();
+		state.popup.shake();
+		state.popup.hideSpinner();
 	};
 
 	document.getElementById('popup-button-login').onclick = loginFormHandler;
@@ -1150,7 +1194,7 @@ const registerHandler = () => {
 	hideSpinner();
 	let registrationInProgress = false;
 	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border); margin-bottom: 20px;">Nie jestem robotem</div>';
-	showPopup({
+	state.popup.show({
 		title: 'Zarejestruj się',
 		body: [
 			{
@@ -1217,10 +1261,10 @@ const registerHandler = () => {
 					if (captchaRow) resetCaptcha();
 				}, 60_000);
 			} else {
-				setPopupSubtitle({
+				state.popup.setSubtitle({
 					subtitle: 'Zbyt wiele nieudanych prób rozwiązania CAPTCHy. Spróbuj ponownie później',
 				});
-				elements.popup.classList.add('shaking');
+				state.popup.shake();
 			}
 		};
 	};
@@ -1246,15 +1290,15 @@ const registerHandler = () => {
 		}
 
 		if (error !== '') {
-			setPopupSubtitle({
+			state.popup.setSubtitle({
 				subtitle: error,
 			});
-			elements.popup.classList.add('shaking');
+			state.popup.shake();
 			registrationInProgress = false;
 			return;
 		}
 
-		showPopupSpinner();
+		state.popup.showSpinner();
 		const response = await fetch('/api/register', {
 			method: 'POST',
 			headers: {
@@ -1298,7 +1342,7 @@ const registerHandler = () => {
 		}
 
 		if (error === '') {
-			setPopupSubtitle({
+			state.popup.setSubtitle({
 				subtitle: 'Zarejestrowano pomyślnie!',
 				subtitleColor: 'var(--green)',
 			});
@@ -1306,11 +1350,11 @@ const registerHandler = () => {
 				loginHandler();
 			}, 1000);
 		} else {
-			hidePopupSpinner();
-			setPopupSubtitle({
+			state.popup.hideSpinner();
+			state.popup.setSubtitle({
 				subtitle: error,
 			});
-			elements.popup.classList.add('shaking');
+			state.popup.shake();
 			registrationInProgress = false;
 		}
 	};
@@ -1331,7 +1375,7 @@ const main = async () => {
 		return;
 	}
 
-	state.sManager.connect();
+	state.socket.connect();
 };
 
 
