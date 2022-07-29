@@ -7,6 +7,7 @@ const { bold, green, blue } = require('./colors.js');
 const { WebSocket } = require('./websocket.js');
 const db = require('./database');
 const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./user');
+const { ratelimitManager } = require('./ratelimit');
 
 const basePath = './src/frontend';
 const attachmentsBasePath = './data';
@@ -134,6 +135,20 @@ const updateOnlineUsers = () => {
 	}
 };
 
+// TODO: attachment quotas
+// TODO: static content quotas
+
+// Per IP
+ratelimitManager.create('authorizePacket', 15, 60_000); // Each request consumes one point, closes WS when limit is reached
+ratelimitManager.create('getUserPacket', 120, 60_000); // Each request consumes one point, ignores packets when limit is reached
+ratelimitManager.create('getMessagesPacket', 50, 60_000); // Each request consumes one point, ignores packets when limit is reached
+
+// Per user
+ratelimitManager.create('setNicknamePacket', 15, 60_000); // Each request consumes one point, ignores packets when limit is reached
+ratelimitManager.create('sendMessagePacket', 20, 15_000); // Each request consumes one point, ignores packets when limit is reached
+ratelimitManager.create('changePasswordPacket', 10, 60_000); // Each request consumes one point, ignores packets when limit is reached
+ratelimitManager.create('logOutEverywherePacket', 5, 60_000); // Each request consumes one point, ignores packets when limit is reached
+
 const websocket = async (request, socket) => {
 	if (request.url !== '/ws/' || (request.headers.upgrade || '').toLowerCase() !== 'websocket') {
 		socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -153,9 +168,12 @@ const websocket = async (request, socket) => {
 
 	webSocket.on('message', async (message) => {
 		const data = JSON.parse(message);
+		if (typeof data.pid !== 'string' && data.type !== 'ping') return;
 
 		if (!webSocket.data.user) {
 			if (data.type === 'authorize') {
+				if (!ratelimitManager.consume('authorizePacket', webSocket.getIp())) return webSocket.close();
+
 				if (typeof data.token === 'string') {
 					const user = await getUser(data.token);
 
@@ -165,6 +183,7 @@ const websocket = async (request, socket) => {
 						console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket logged in:'))} ${bold(blue(webSocket.data.user.username))}`);
 
 						webSocket.send(JSON.stringify({
+							pid: data.pid,
 							type: 'authorizeCB',
 							message: 'accepted',
 							user: {
@@ -180,6 +199,7 @@ const websocket = async (request, socket) => {
 						updateOnlineUsers();
 					} else {
 						webSocket.send(JSON.stringify({
+							pid: data.pid,
 							type: 'authorizeCB',
 							message: 'invalidLogin',
 						}));
@@ -190,10 +210,20 @@ const websocket = async (request, socket) => {
 			}
 		} else {
 			if (data.type === 'getUser') {
+				if (!ratelimitManager.consume('getUserPacket', webSocket.getIp())) {
+					webSocket.send(JSON.stringify({
+						pid: data.pid,
+						type: 'ratelimit',
+						retryAfter: ratelimitManager.retryAfter('getUserPacket', webSocket.getIp()),
+					}));
+					return;
+				}
+
 				if (typeof data.uid === 'string') {
 					const user = await db.findOne('users', { uid: data.uid });
 
 					webSocket.send(JSON.stringify({
+						pid: data.pid,
 						type: 'updateUser',
 						uid: data.uid,
 						username: user?.username ?? '',
@@ -201,6 +231,15 @@ const websocket = async (request, socket) => {
 					}));
 				}
 			} else if (data.type === 'setNickname') {
+				if (!ratelimitManager.consume('setNicknamePacket', webSocket.data.user.uid)) {
+					webSocket.send(JSON.stringify({
+						pid: data.pid,
+						type: 'ratelimit',
+						retryAfter: ratelimitManager.retryAfter('setNicknamePacket', webSocket.data.user.uid),
+					}));
+					return;
+				}
+
 				if (typeof data.nickname === 'string') {
 					const result = await validateNickname(data.nickname);
 					if (!result) {
@@ -218,6 +257,7 @@ const websocket = async (request, socket) => {
 						}
 					} else {
 						webSocket.send(JSON.stringify({
+							pid: data.pid,
 							type: 'updateNickname',
 							uid: webSocket.data.user.uid,
 							message: result,
@@ -225,6 +265,15 @@ const websocket = async (request, socket) => {
 					}
 				}
 			} else if (data.type === 'getMessages') {
+				if (!ratelimitManager.consume('getMessagesPacket', webSocket.getIp())) {
+					webSocket.send(JSON.stringify({
+						pid: data.pid,
+						type: 'ratelimit',
+						retryAfter: ratelimitManager.retryAfter('getMessagesPacket', webSocket.getIp()),
+					}));
+					return;
+				}
+
 				let messagesToSend = [];
 				if (webSocket.data.lastMessage !== -1) {
 					messagesToSend = await db.findMany('messages', {}, { ts: -1 }, messagesToLoad, webSocket.data.lastMessage);
@@ -233,12 +282,22 @@ const websocket = async (request, socket) => {
 				}
 
 				webSocket.send(JSON.stringify({
+					pid: data.pid,
 					type: 'loadMessages',
 					messages: messagesToSend,
 				}));
 			} else if (data.type === 'sendMessage') {
+				if (!ratelimitManager.consume('sendMessagePacket', webSocket.data.user.uid)) {
+					webSocket.send(JSON.stringify({
+						pid: data.pid,
+						type: 'ratelimit',
+						retryAfter: ratelimitManager.retryAfter('sendMessagePacket', webSocket.data.user.uid),
+					}));
+					return;
+				}
+
 				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000 &&
-					typeof data.nonce === 'string' && data.nonce.length > 0 && data.nonce.length < 35
+					typeof data.nonce === 'string' && data.nonce.length > 0 && data.nonce.length < 52
 				) {
 					const ts = Date.now();
 					const message = {
@@ -269,6 +328,7 @@ const websocket = async (request, socket) => {
 						if (ws.data.user) {
 							if (ws === webSocket) {
 								ws.send(JSON.stringify({
+									pid: data.pid,
 									type: 'newMessage',
 									nonce: data.nonce,
 									...message,
@@ -283,23 +343,43 @@ const websocket = async (request, socket) => {
 					}
 				}
 			} else if (data.type === 'changePassword') {
+				if (!ratelimitManager.consume('changePasswordPacket', webSocket.data.user.uid)) {
+					webSocket.send(JSON.stringify({
+						pid: data.pid,
+						type: 'ratelimit',
+						retryAfter: ratelimitManager.retryAfter('changePasswordPacket', webSocket.data.user.uid),
+					}));
+					return;
+				}
+
 				if (typeof data.oldPassword === 'string' && typeof data.password === 'string') {
 					if (verifyLogin(webSocket.data.user, data.oldPassword)) {
 						await setPassword(webSocket.data.user.uid, data.password);
 						await regenerateJWTSecret(webSocket.data.user.uid);
 						webSocket.send(JSON.stringify({
+							pid: data.pid,
 							type: 'changePasswordCB',
 							message: 'success',
 						}));
 						webSocket.close();
 					} else {
 						webSocket.send(JSON.stringify({
+							pid: data.pid,
 							type: 'changePasswordCB',
 							message: 'invalidLogin',
 						}));
 					}
 				}
 			} else if (data.type === 'logOutEverywhere') {
+				if (!ratelimitManager.consume('logOutEverywherePacket', webSocket.data.user.uid)) {
+					webSocket.send(JSON.stringify({
+						pid: data.pid,
+						type: 'ratelimit',
+						retryAfter: ratelimitManager.retryAfter('logOutEverywherePacket', webSocket.data.user.uid),
+					}));
+					return;
+				}
+
 				await regenerateJWTSecret(webSocket.data.user.uid);
 				for (const [ _, ws ] of Object.entries(webSockets)) {
 					if (ws.data.user?.uid === webSocket.data.user.uid) {

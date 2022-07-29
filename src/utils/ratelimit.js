@@ -59,6 +59,15 @@ class Ratelimit {
 	get timeUntilReset() {
 		return (this.#duration - (Date.now() % this.#duration) + this.#startOffset) % this.#duration;
 	}
+
+	/**
+	 * The time in ms after which the client should retry
+	 * @param {string} key - The key to take calculate the time for
+	 * @returns {number}
+	 */
+	retryAfter(key) {
+		return this.timeUntilReset + (this.#points[key] - this.limit - 1) * (this.duration / this.limit);
+	}
 }
 
 class RatelimitManager {
@@ -100,6 +109,18 @@ class RatelimitManager {
 		if (!this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
 
 		this.#ratelimits[id].reset();
+	}
+
+	/**
+	 * Query the time in ms after which the client should retry
+	 * @param {string} id - Id of the ratelimit instance to query
+	 * @param {string} key - The key to take calculate the time for
+	 * @returns {number}
+	 */
+	retryAfter(id, key) {
+		if (!this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
+
+		return this.#ratelimits[id].retryAfter(key);
 	}
 
 	/**

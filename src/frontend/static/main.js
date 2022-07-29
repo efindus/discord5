@@ -1,16 +1,17 @@
 /* eslint-disable no-undef */
 const state = {
 	user: {},
-	socket: null,
+	sManager: null,
 	users: {},
 	messages: [],
 	notifications: [],
+
 	messagesToLoad: 50,
+	timeOffset: 0,
+
 	isDropdownOpen: false,
 	isClosablePopupOpen: false,
-	reconnect: false,
-	protocolVersion: '1',
-	timeOffset: 0,
+
 	currentAttachment: null,
 };
 
@@ -58,6 +59,206 @@ const svgs = {
 			<line y1="0.25" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
 		</svg>`,
 };
+
+class SocketManager {
+	/**
+	 * @type {WebSocket}
+	 */
+	#socket;
+	#pinger;
+
+	#reconnect = true;
+	#receiveQueue = {};
+	#protocolVersion = '1';
+
+	connect() {
+		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
+		this.#reconnect = true;
+
+		showSpinner();
+		hidePopup();
+
+		this.#socket.onopen = () => {
+			this.#setupPinger();
+		};
+
+		this.#socket.onmessage = (event) => {
+			this.#onMessage(event);
+		};
+
+		this.#socket.onclose = () => {
+			this.#onClose();
+		};
+	}
+
+	disconnect() {
+		this.#reconnect = false;
+		this.#socket.close();
+	}
+
+	send(type, message) {
+		let pid;
+		do {
+			pid = `${crypto.randomUUID()}-${Date.now()}`;
+		} while (this.#receiveQueue[pid]);
+
+		const packet = {
+			pid: pid,
+			type: type,
+			...message,
+		};
+
+		this.#socket.send(JSON.stringify(packet));
+		this.#receiveQueue[pid] = {
+			type: type,
+			message: message,
+		};
+	}
+
+	#setupPinger() {
+		this.#pinger = setInterval(() => {
+			this.#socket.send(JSON.stringify({
+				type: 'ping',
+			}));
+		}, 20_000);
+	}
+
+	#onClose() {
+		clearInterval(this.#pinger);
+		elements.messages.innerHTML = '';
+		state.messages = [];
+
+		if (this.#reconnect) {
+			showSpinner();
+			setTimeout(() => this.connect(), 1000);
+		}
+	}
+
+	async #onMessage(event) {
+		const data = JSON.parse(event.data);
+
+		if (data.pid && this.#receiveQueue[data.pid]) {
+			if (data.type === 'ratelimit') {
+				setTimeout(() => {
+					const packet = this.#receiveQueue[data.pid];
+
+					this.send(packet.type, packet.message);
+					delete this.#receiveQueue[data.pid];
+				}, data.retryAfter + 100);
+				return;
+			} else {
+				delete this.#receiveQueue[data.pid];
+			}
+		}
+
+		if (data.type === 'connectionReady') {
+			this.send('authorize', {
+				token: localStorage.getItem('token'),
+			});
+		} else if (data.type === 'authorizeCB') {
+			if (data.message === 'accepted') {
+				if (this.#protocolVersion !== data.protocolVersion) window.location.reload();
+
+				state.user = data.user;
+				state.messagesToLoad = data.messagesToLoad;
+				state.timeOffset = Date.now() - data.serverTime;
+
+				propagateUserData();
+				loadMessages();
+			} else if (data.message === 'invalidLogin') {
+				logOutHandler();
+			}
+		} else if (data.type === 'newMessage') {
+			if (data.nonce) {
+				document.getElementById(data.nonce)?.remove();
+			}
+
+			insertMessage({
+				msgData: data,
+				isNew: true,
+			});
+		} else if (data.type === 'loadMessages') {
+			const oldHeight = elements.messageContainer.scrollHeight;
+			for (const message of data.messages) {
+				insertMessage({
+					msgData: message,
+					scrollAttachment: state.messages.length < state.messagesToLoad,
+				});
+			}
+
+			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
+			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
+			if (state.messages.length <= state.messagesToLoad) hideSpinner();
+		} else if (data.type === 'changePasswordCB') {
+			if (data.message === 'success') {
+				this.#reconnect = false;
+				setPopupSubtitle({
+					subtitle: 'Hasło zostało zmienione pomyślnie',
+					subtitleColor: 'var(--green)',
+				});
+				setTimeout(() => {
+					localStorage.removeItem('token');
+					main();
+				}, 1000);
+			} else {
+				hidePopupSpinner();
+				setPopupSubtitle({
+					subtitle: 'Niepoprawne stare hasło',
+				});
+				elements.popup.classList.add('shaking');
+			}
+		} else if (data.type === 'updateNickname') {
+			if (data.uid === state.user.uid) {
+				if (data.nickname) {
+					state.user.nickname = data.nickname;
+					propagateUserData();
+					hidePopup();
+					hideSpinner();
+				} else {
+					let error = '';
+					switch (data.message) {
+						case 'usernameInvalidFormat':
+						case 'usernameInvalidLength':
+							error = 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
+							break;
+						default:
+							break;
+					}
+
+					setPopupSubtitle({
+						subtitle: error,
+					});
+					elements.popup.classList.add('shaking');
+				}
+			}
+
+			if (data.nickname.length !== 0) {
+				state.users[data.uid].nickname = data.nickname;
+
+				updateNickname(data.uid);
+			}
+		} else if (data.type === 'updateUser') {
+			if (data.username.length !== 0) {
+				state.users[data.uid] = {
+					username: data.username,
+					nickname: data.nickname,
+				};
+
+				updateNickname(data.uid);
+			}
+		} else if (data.type === 'reload') {
+			window.location.reload();
+		} else if (data.type === 'clientsOnline') {
+			elements.onlineSidebar.innerHTML = '';
+			for (const client of data.clients) {
+				getMissingUserData(client);
+				elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}" ${generateUsernameTooltip(client, true)}>${state.users[client].nickname}</div>`;
+			}
+		}
+	}
+}
+
+state.sManager = new SocketManager();
 
 /**
  * @typedef Row
@@ -516,9 +717,9 @@ const insertMessage = (data) => {
 				msgElement.style.color = 'var(--red)';
 				setTimeout(() => {
 					document.getElementById(data.msgData.id)?.remove();
-				}, 2_000);
+				}, 1_500);
 			}
-		}, 10_000);
+		}, 20_000);
 
 		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 	}
@@ -531,10 +732,9 @@ const getMissingUserData = (uid) => {
 			nickname: 'Ładowanie...',
 		};
 
-		state.socket.send(JSON.stringify({
-			type: 'getUser',
+		state.sManager.send('getUser', {
 			uid: uid,
-		}));
+		});
 	}
 };
 
@@ -544,9 +744,7 @@ const onAttachmentLoad = (element) => {
 
 const loadMessages = () => {
 	elements.loadMessagesButton.style.display = 'none';
-	state.socket.send(JSON.stringify({
-		type: 'getMessages',
-	}));
+	state.sManager.send('getMessages');
 };
 
 const resetUpload = () => {
@@ -587,148 +785,6 @@ const sanitizeText = (text) => {
 	return text;
 };
 
-const connect = () => {
-	state.socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
-	state.reconnect = true;
-	showSpinner();
-	hidePopup();
-	let pinger;
-
-	state.socket.onopen = () => {
-		pinger = setInterval(() => {
-			state.socket.send(JSON.stringify({
-				type: 'ping',
-			}));
-		}, 20_000);
-	};
-
-	state.socket.onmessage = async (event) => {
-		const data = JSON.parse(event.data);
-
-		if (data.type === 'connectionReady') {
-			state.socket.send(JSON.stringify({
-				type: 'authorize',
-				token: localStorage.getItem('token'),
-			}));
-		} else if (data.type === 'authorizeCB') {
-			if (data.message === 'accepted') {
-				if (state.protocolVersion !== data.protocolVersion) window.location.reload();
-
-				state.user = data.user;
-				state.messagesToLoad = data.messagesToLoad;
-				state.timeOffset = Date.now() - data.serverTime;
-
-				propagateUserData();
-				loadMessages();
-			} else if (data.message === 'invalidLogin') {
-				logOutHandler();
-			}
-		} else if (data.type === 'newMessage') {
-			if (data.nonce) {
-				document.getElementById(data.nonce)?.remove();
-			}
-
-			insertMessage({
-				msgData: data,
-				isNew: true,
-			});
-		} else if (data.type === 'loadMessages') {
-			const oldHeight = elements.messageContainer.scrollHeight;
-			for (const message of data.messages) {
-				insertMessage({
-					msgData: message,
-					scrollAttachment: state.messages.length < state.messagesToLoad,
-				});
-			}
-
-			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
-			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
-			if (state.messages.length <= state.messagesToLoad) hideSpinner();
-		} else if (data.type === 'changePasswordCB') {
-			if (data.message === 'success') {
-				state.reconnect = false;
-				setPopupSubtitle({
-					subtitle: 'Hasło zostało zmienione pomyślnie',
-					subtitleColor: 'var(--green)',
-				});
-				setTimeout(() => {
-					localStorage.removeItem('token');
-					main();
-				}, 1000);
-			} else {
-				hidePopupSpinner();
-				setPopupSubtitle({
-					subtitle: 'Niepoprawne stare hasło',
-				});
-				elements.popup.classList.add('shaking');
-			}
-		} else if (data.type === 'updateNickname') {
-			if (data.uid === state.user.uid) {
-				if (data.nickname) {
-					state.user.nickname = data.nickname;
-					propagateUserData();
-					hidePopup();
-					hideSpinner();
-				} else {
-					let error = '';
-					switch (data.message) {
-						case 'usernameInvalidFormat':
-						case 'usernameInvalidLength':
-							error = 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
-							break;
-						default:
-							break;
-					}
-
-					setPopupSubtitle({
-						subtitle: error,
-					});
-					elements.popup.classList.add('shaking');
-				}
-			}
-
-			if (data.nickname.length !== 0) {
-				state.users[data.uid].nickname = data.nickname;
-
-				updateNickname(data.uid);
-			}
-		} else if (data.type === 'updateUser') {
-			if (data.username.length !== 0) {
-				state.users[data.uid] = {
-					username: data.username,
-					nickname: data.nickname,
-				};
-
-				updateNickname(data.uid);
-			}
-		} else if (data.type === 'reload') {
-			window.location.reload();
-		} else if (data.type === 'clientsOnline') {
-			elements.onlineSidebar.innerHTML = '';
-			for (const client of data.clients) {
-				getMissingUserData(client);
-				elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}" ${generateUsernameTooltip(client, true)}>${state.users[client].nickname}</div>`;
-			}
-		}
-	};
-
-	state.socket.onclose = () => {
-		clearInterval(pinger);
-		elements.messages.innerHTML = '';
-		state.messages = [];
-
-		if (state.reconnect) {
-			showSpinner();
-			setTimeout(connect, 1000);
-		}
-	};
-};
-
-const disconnect = () => {
-	state.reconnect = false;
-	state.socket.close();
-};
-
 document.onkeydown = (event) => {
 	if (event.code === 'Escape' && state.isClosablePopupOpen) {
 		hidePopup();
@@ -752,7 +808,7 @@ elements.input.onkeydown = (event) => {
 		if (value.length > 0 && value.length <= 2000) {
 			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
 			elements.input.value = '';
-			const nonce = `${Date.now()}${Math.random()}`;
+			const nonce = `${crypto.randomUUID()}-${Date.now()}`;
 			insertMessage({
 				msgData: {
 					id: nonce,
@@ -777,12 +833,11 @@ elements.input.onkeydown = (event) => {
 				resetUpload();
 			}
 
-			state.socket.send(JSON.stringify({
-				type: 'sendMessage',
+			state.sManager.send('sendMessage', {
 				message: value,
 				nonce: nonce,
 				...attachment,
-			}));
+			});
 		}
 	}
 };
@@ -835,14 +890,12 @@ const updateClock = () => {
 };
 
 const logOutEverywhereHandler = () => {
-	state.socket.send(JSON.stringify({
-		type: 'logOutEverywhere',
-	}));
+	state.sManager.send('logOutEverywhere');
 };
 
 const logOutHandler = () => {
 	localStorage.removeItem('token');
-	disconnect();
+	state.sManager.disconnect();
 	main();
 };
 
@@ -881,10 +934,9 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 		} else {
 			if (value !== state.user.nickname) {
 				showPopupSpinner();
-				state.socket.send(JSON.stringify({
-					type: 'setNickname',
+				state.sManager.send('setNickname', {
 					nickname: value,
-				}));
+				});
 			} else {
 				hidePopup();
 			}
@@ -949,11 +1001,10 @@ const changePasswordHandler = () => {
 		}
 
 		showPopupSpinner();
-		state.socket.send(JSON.stringify({
-			type: 'changePassword',
+		state.sManager.send('changePassword', {
 			oldPassword: await sha256(oldPasswordInput.value),
 			password: await sha256(document.getElementById('popup-input-password').value),
-		}));
+		});
 	};
 
 	document.getElementById('popup-button-changePassword').onclick = changePasswordFormHandler;
@@ -1022,7 +1073,7 @@ const loginHandler = () => {
 				error = 'Niepoprawny login lub hasło';
 			} else if (data.message === 'success') {
 				localStorage.setItem('token', data.token);
-				connect();
+				main();
 				return;
 			}
 		} else if (response.status === 429) {
@@ -1235,7 +1286,7 @@ const main = async () => {
 		return;
 	}
 
-	connect();
+	state.sManager.connect();
 };
 
 

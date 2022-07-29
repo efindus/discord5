@@ -1,6 +1,8 @@
 P1:
-ratelimits
+reset shadow message timer when receiving ratelimit packets
+load new messages from top to bottom to reinsert only once
 ipbans after consistently hitting the rate limit
+ipbans after some treshold of points over the limit
 username allowlist
 
 P2:
@@ -10,7 +12,6 @@ attachment upload/download quota
 P3 QoL:
 attachment upload progress bar
 add admins (admin panel) (and user bans)
-load new messages from top to bottom to reinsert only once
 consider a scroll-to-bottom button
 
 Far Future QoL:
