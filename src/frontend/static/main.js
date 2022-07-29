@@ -1,14 +1,9 @@
 /* eslint-disable no-undef */
-const state = {
-	/**
-	 * @type {SocketManager}
-	 */
-	socket: null,
 
-	/**
-	 * @type {PopupManager}
-	 */
+const state = {
+	socket: null,
 	popup: null,
+	tooltip: null,
 
 	user: {},
 	users: {},
@@ -25,9 +20,6 @@ const state = {
 
 const elements = {
 	onlineSidebar: document.querySelector('.online-sidebar'),
-
-	tooltipContainer: document.querySelector('.tooltip-container'),
-	tooltip: document.getElementById('tooltip'),
 
 	usernameContainer: document.getElementById('username-container'),
 	usernameDisplay: document.getElementById('username-display'),
@@ -421,8 +413,131 @@ class PopupManager {
 	}
 }
 
+class TooltipManager {
+	#elements = {
+		container: document.querySelector('.tooltip-container'),
+		tooltip: document.getElementById('tooltip'),
+	};
+
+	#isOpen = false;
+
+	constructor() {
+		this.#elements.container.onclick = () => {
+			this.hide();
+		};
+	}
+
+	get isOpen() {
+		return this.#isOpen;
+	}
+
+	/**
+	 * Show a tooltip
+	 * @param {object} data
+	 * @param {number} data.x
+	 * @param {number} data.y
+	 * @param {'left' | 'right' | 'top' | 'bottom'} data.side
+	 * @param {string} data.content
+	 * @param {boolean?} data.withArrow
+	 */
+	show(data) {
+		this.#isOpen = true;
+
+		this.#elements.container.style.visibility = 'visible';
+		this.#elements.container.style.opacity = '1';
+		this.#elements.container.style.transitionDelay = '0s, 0s';
+		this.#elements.container.style.transitionDuration = '0s, .25s';
+
+		this.#elements.tooltip.style.top = `${data.y}px`;
+		this.#elements.tooltip.style.left = `${data.x}px`;
+
+		const transforms = {
+			x: '0%',
+			y: '0%',
+			varLeft: '0%',
+			varTop: '0%',
+		};
+
+		switch (data.side) {
+			case 'left':
+				transforms.y = '-50%';
+				transforms.varTop = '50%';
+				break;
+			case 'right':
+				transforms.x = '-100%';
+				transforms.y = '-50%';
+				transforms.varLeft = '100%';
+				transforms.varTop = '50%';
+				break;
+			case 'top':
+				transforms.x = '-50%';
+				transforms.varLeft = '50%';
+				break;
+			case 'bottom':
+			default:
+				transforms.x = '-50%';
+				transforms.y = '-100%';
+				transforms.varLeft = '50%';
+				transforms.varTop = '100%';
+				break;
+		}
+
+		this.#elements.tooltip.innerHTML = data.content;
+		this.#elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
+
+		const offset = getElementPosition(this.#elements.tooltip);
+		const position = getElementPosition(this.#elements.tooltip, true);
+		const margin = 10;
+		let maxMovement = (position.bottom - position.top) / 2 - 11;
+
+		switch (data.side) {
+			case 'left':
+			case 'right':
+				if (offset.top < margin) {
+					transforms.y = `calc(${transforms.y} + ${margin - offset.top}px)`;
+					transforms.varTop = `calc(${transforms.varTop} - ${Math.min(margin - offset.top, maxMovement)}px)`;
+				} else if (offset.bottom < margin) {
+					transforms.y = `calc(${transforms.y} - ${margin - offset.bottom}px)`;
+					transforms.varTop = `calc(${transforms.varTop} + ${Math.min(margin - offset.bottom, maxMovement)}px)`;
+				}
+				break;
+			case 'top':
+			case 'bottom':
+			default:
+				maxMovement = (position.right - position.left) / 2 - 11;
+
+				if (offset.left < margin) {
+					transforms.x = `calc(${transforms.x} + ${margin - offset.left}px)`;
+					transforms.varLeft = `calc(${transforms.varLeft} - ${Math.min(margin - offset.left, maxMovement)}px)`;
+				} else if (offset.right < margin) {
+					transforms.x = `calc(${transforms.y} - ${margin - offset.right}px)`;
+					transforms.varLeft = `calc(${transforms.varLeft} + ${Math.min(margin - offset.right, maxMovement)}px)`;
+				}
+				break;
+		}
+
+		this.#elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
+		if (data.withArrow) {
+			this.#elements.tooltip.classList.remove('tooltip-arrow-top', 'tooltip-arrow-bottom', 'tooltip-arrow-left', 'tooltip-arrow-right');
+			this.#elements.tooltip.classList.add(`tooltip-arrow-${data.side}`);
+			this.#elements.tooltip.style.setProperty('--tooltip-left', transforms.varLeft);
+			this.#elements.tooltip.style.setProperty('--tooltip-top', transforms.varTop);
+		}
+	}
+
+	hide() {
+		this.#isOpen = false;
+
+		this.#elements.container.style.visibility = 'hidden';
+		this.#elements.container.style.opacity = '0';
+		this.#elements.container.style.transitionDelay = '.25s, 0s';
+		this.#elements.container.style.transitionDuration = '0s, .25s';
+	}
+}
+
 state.socket = new SocketManager();
 state.popup = new PopupManager();
+state.tooltip = new TooltipManager();
 
 const showSpinner = () => {
 	elements.spinner.style.visibility = 'visible';
@@ -436,105 +551,6 @@ const hideSpinner = () => {
 	elements.spinner.style.opacity = '0';
 	elements.spinner.style.transitionDelay = '.5s, 0s';
 	elements.spinner.style.transitionDuration = '0s, .5s';
-};
-
-/**
- * Show a tooltip
- * @param {object} data
- * @param {number} data.x
- * @param {number} data.y
- * @param {'left' | 'right' | 'top' | 'bottom'} data.side
- * @param {string} data.content
- * @param {boolean?} data.withArrow
- */
-const showTooltip = (data) => {
-	elements.tooltipContainer.style.visibility = 'visible';
-	elements.tooltipContainer.style.opacity = '1';
-	elements.tooltipContainer.style.transitionDelay = '0s, 0s';
-	elements.tooltipContainer.style.transitionDuration = '0s, .25s';
-
-	elements.tooltip.style.top = `${data.y}px`;
-	elements.tooltip.style.left = `${data.x}px`;
-
-	const transforms = {
-		x: '0%',
-		y: '0%',
-		varLeft: '0%',
-		varTop: '0%',
-	};
-
-	switch (data.side) {
-		case 'left':
-			transforms.y = '-50%';
-			transforms.varTop = '50%';
-			break;
-		case 'right':
-			transforms.x = '-100%';
-			transforms.y = '-50%';
-			transforms.varLeft = '100%';
-			transforms.varTop = '50%';
-			break;
-		case 'top':
-			transforms.x = '-50%';
-			transforms.varLeft = '50%';
-			break;
-		case 'bottom':
-		default:
-			transforms.x = '-50%';
-			transforms.y = '-100%';
-			transforms.varLeft = '50%';
-			transforms.varTop = '100%';
-			break;
-	}
-
-	elements.tooltip.innerHTML = data.content;
-	elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
-
-	const offset = getElementPosition(elements.tooltip);
-	const position = getElementPosition(elements.tooltip, true);
-	let maxMovement = (position.bottom - position.top) / 2 - 11;
-	const margin = 10;
-
-	switch (data.side) {
-		case 'left':
-		case 'right':
-			if (offset.top < margin) {
-				transforms.y = `calc(${transforms.y} + ${margin - offset.top}px)`;
-				transforms.varTop = `calc(${transforms.varTop} - ${Math.min(margin - offset.top, maxMovement)}px)`;
-			} else if (offset.bottom < margin) {
-				transforms.y = `calc(${transforms.y} - ${margin - offset.bottom}px)`;
-				transforms.varTop = `calc(${transforms.varTop} + ${Math.min(margin - offset.bottom, maxMovement)}px)`;
-			}
-			break;
-		case 'top':
-		case 'bottom':
-		default:
-			maxMovement = (position.right - position.left) / 2 - 11;
-
-			if (offset.left < margin) {
-				transforms.x = `calc(${transforms.x} + ${margin - offset.left}px)`;
-				transforms.varLeft = `calc(${transforms.varLeft} - ${Math.min(margin - offset.left, maxMovement)}px)`;
-			} else if (offset.right < margin) {
-				transforms.x = `calc(${transforms.y} - ${margin - offset.right}px)`;
-				transforms.varLeft = `calc(${transforms.varLeft} + ${Math.min(margin - offset.right, maxMovement)}px)`;
-			}
-			break;
-	}
-
-	elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
-	if (data.withArrow) {
-		elements.tooltip.classList.remove('tooltip-arrow-top', 'tooltip-arrow-bottom', 'tooltip-arrow-left', 'tooltip-arrow-right');
-		elements.tooltip.classList.add(`tooltip-arrow-${data.side}`);
-		elements.tooltip.style.setProperty('--tooltip-left', transforms.varLeft);
-		elements.tooltip.style.setProperty('--tooltip-top', transforms.varTop);
-	}
-};
-
-const hideTooltip = () => {
-	elements.tooltipContainer.style.visibility = 'hidden';
-	elements.tooltipContainer.style.opacity = '0';
-	elements.tooltipContainer.style.transitionDelay = '.25s, 0s';
-	elements.tooltipContainer.style.transitionDuration = '0s, .25s';
 };
 
 const propagateUserData = () => {
@@ -566,7 +582,7 @@ const sha256 = async (message) => {
 
 const showUsernameTooltip = (element, uid, isSidebar = false) => {
 	const position = getElementPosition(element, true);
-	showTooltip({
+	state.tooltip.show({
 		x: isSidebar ? position.left - 10 : position.right + 10,
 		y: position.top + ((position.bottom - position.top) / 2),
 		side: isSidebar ? 'right' : 'left',
@@ -577,7 +593,7 @@ const showUsernameTooltip = (element, uid, isSidebar = false) => {
 
 const showDateTooltip = (element, timestamp) => {
 	const position = getElementPosition(element, true);
-	showTooltip({
+	state.tooltip.show({
 		x: position.left,
 		y: position.top - 10,
 		side: 'bottom',
