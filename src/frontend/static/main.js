@@ -6,6 +6,7 @@
  * @property {PopupManager} popup
  * @property {TooltipManager} tooltip
  * @property {SpinnerManager} spinner
+ * @property {DropdownManager} dropdown
  * @property {object} user
  * @property {Record<string, object>} users
  * @property {Array<object>} messages
@@ -23,6 +24,7 @@ const state = {
 	popup: null,
 	tooltip: null,
 	spinner: null,
+	dropdown: null,
 
 	user: {},
 	users: {},
@@ -32,18 +34,13 @@ const state = {
 	messagesToLoad: 50,
 	timeOffset: 0,
 
-	isDropdownOpen: false,
-
 	currentAttachment: null,
 };
 
 const elements = {
 	onlineSidebar: document.querySelector('.online-sidebar'),
 
-	usernameContainer: document.getElementById('username-container'),
 	usernameDisplay: document.getElementById('username-display'),
-	dropdown: document.querySelector('.dropdown'),
-	dropdownClose: document.getElementById('dropdown-close'),
 	userData: document.getElementById('user-data'),
 
 	messageContainer: document.getElementById('message-container'),
@@ -567,19 +564,63 @@ class SpinnerManager {
 	show() {
 		this.#isOpen = true;
 
-		elements.spinner.style.visibility = 'visible';
-		elements.spinner.style.opacity = '1';
-		elements.spinner.style.transitionDelay = '0s, 0s';
-		elements.spinner.style.transitionDuration = '0s, 0s';
+		this.#elements.spinner.style.visibility = 'visible';
+		this.#elements.spinner.style.opacity = '1';
+		this.#elements.spinner.style.transitionDelay = '0s, 0s';
+		this.#elements.spinner.style.transitionDuration = '0s, 0s';
 	}
 
 	hide() {
 		this.#isOpen = false;
 
-		elements.spinner.style.visibility = 'hidden';
-		elements.spinner.style.opacity = '0';
-		elements.spinner.style.transitionDelay = '.5s, 0s';
-		elements.spinner.style.transitionDuration = '0s, .5s';
+		this.#elements.spinner.style.visibility = 'hidden';
+		this.#elements.spinner.style.opacity = '0';
+		this.#elements.spinner.style.transitionDelay = '.5s, 0s';
+		this.#elements.spinner.style.transitionDuration = '0s, .5s';
+	}
+}
+
+class DropdownManager {
+	#elements = {
+		usernameContainer: document.getElementById('username-container'),
+		dropdown: document.querySelector('.dropdown'),
+		dropdownClose: document.getElementById('dropdown-close'),
+	};
+
+	#isOpen = false;
+
+	constructor() {
+		this.#elements.usernameContainer.onclick = () => {
+			this.toggle();
+		};
+		this.#elements.dropdownClose.onclick = () => {
+			this.toggle();
+		};
+	}
+
+	get isOpen() {
+		return this.#isOpen;
+	}
+
+	show() {
+		this.#isOpen = true;
+
+		this.#elements.dropdown.style.display = 'flex';
+		this.#elements.usernameContainer.classList.add('dropdown-open');
+		this.#elements.dropdownClose.style.display = 'block';
+	}
+
+	hide() {
+		this.#isOpen = false;
+
+		this.#elements.dropdown.style.display = 'none';
+		this.#elements.usernameContainer.classList.remove('dropdown-open');
+		this.#elements.dropdownClose.style.display = 'none';
+	}
+
+	toggle() {
+		if (!this.#isOpen) this.show();
+		else this.hide();
 	}
 }
 
@@ -587,24 +628,11 @@ state.socket = new SocketManager();
 state.popup = new PopupManager();
 state.tooltip = new TooltipManager();
 state.spinner = new SpinnerManager();
+state.dropdown = new DropdownManager();
 
 const propagateUserData = () => {
 	elements.usernameDisplay.innerText = state.user.username;
 	elements.userData.innerHTML = `ID: ${state.user.uid}<br>Pseudonim: ${state.user.nickname}`;
-};
-
-const toggleDropdown = () => {
-	if (state.isDropdownOpen) {
-		state.isDropdownOpen = false;
-		elements.dropdown.style.display = 'none';
-		elements.usernameContainer.classList.remove('dropdown-open');
-		elements.dropdownClose.style.display = 'none';
-	} else {
-		state.isDropdownOpen = true;
-		elements.dropdown.style.display = 'flex';
-		elements.usernameContainer.classList.add('dropdown-open');
-		elements.dropdownClose.style.display = 'block';
-	}
 };
 
 const sha256 = async (message) => {
@@ -929,7 +957,7 @@ const sanitizeText = (text) => {
 document.onkeydown = (event) => {
 	if (event.code === 'Escape' && state.popup.isClosable) {
 		state.popup.hide();
-	} else if (document.body === document.activeElement && !state.isDropdownOpen) {
+	} else if (document.body === document.activeElement && !state.dropdown.isOpen) {
 		console.log(document.activeElement);
 		elements.input.focus();
 	}
@@ -1019,9 +1047,6 @@ elements.uploadButton.onclick = (event) => {
 		resetUpload();
 	}
 };
-
-elements.usernameContainer.onclick = toggleDropdown;
-elements.dropdownClose.onclick = toggleDropdown;
 
 const updateClock = () => {
 	const NOW = new Date(Date.now() - state.timeOffset);
