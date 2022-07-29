@@ -179,9 +179,13 @@ class SocketManager {
 			});
 		} else if (data.type === 'loadMessages') {
 			const oldHeight = elements.messageContainer.scrollHeight;
-			for (const message of data.messages) {
+
+			data.messages.reverse();
+			for (let i = 0; i < data.messages.length; i++) {
 				insertMessage({
-					msgData: message,
+					msgData: data.messages[i],
+					msgIndex: i,
+					isLastNew: (i + 1 === data.messages.length),
 					scrollAttachment: state.messages.length < state.messagesToLoad,
 				});
 			}
@@ -624,40 +628,86 @@ const messageJoinCheck = (lastMessage, newMessage) => {
 	return isJoined;
 };
 
+/**
+ * Insert node after element
+ * @param {Node} parent
+ * @param {Node} newNode
+ * @param {Node} referenceChild
+ */
+const insertAfter = (parent, newNode, referenceChild) => {
+	if (!referenceChild.nextSibling) {
+		parent.appendChild(newNode);
+	} else {
+		parent.insertBefore(newNode, referenceChild.nextSibling);
+	}
+};
+
+/**
+ * @typedef MessageData
+ * @property {string} id
+ * @property {number} ts
+ * @property {string} message
+ * @property {string} uid
+ * @property {string?} originalAuthor
+ * @property {string?} attachment
+ * @property {string?} nonce
+ */
+
+/**
+ * Insert a message into the website
+ * @param {object} data
+ * @param {MessageData} data.msgData
+ * @param {number} data.msgIndex
+ * @param {boolean} data.isLastNew
+ * @param {boolean} data.isNew
+ * @param {boolean} data.continuation
+ * @param {boolean} data.scrollAttachment
+ * @param {boolean} data.isShadow
+ * @param {Node} data.afterElement
+ * @param {MessageData} data.lastMessage
+ */
 const insertMessage = (data) => {
 	getMissingUserData(data.msgData.uid);
 	if (data.msgData.originalAuthor) getMissingUserData(data.msgData.originalAuthor);
 
 	if (!data.isNew) {
-		const lastMessage = state.messages[0];
-		if (lastMessage) {
+		if (data.msgIndex === 0) {
+			elements.messages.insertBefore(generateMessage(data.msgData, false, false, data.scrollAttachment), elements.messages.firstChild);
+		} else {
+			const lastMessage = state.messages[data.msgIndex - 1], lastMessageElement = document.getElementById(lastMessage.id);
+			insertAfter(
+				elements.messages,
+				generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), false, data.scrollAttachment),
+				lastMessageElement,
+			);
+
 			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
-				elements.messages.insertBefore(generateDaySeparator(lastMessage.ts), elements.messages.firstChild);
-			} else if (!data.continuation && messageJoinCheck(data.msgData, lastMessage)) {
-				document.getElementById(state.messages[0].id).remove();
-				insertMessage({
-					msgData: state.messages[0],
-					isNew: false,
-					continuation: true,
-				});
+				insertAfter(elements.messages, generateDaySeparator(data.msgData.ts), lastMessageElement);
 			}
 		}
 
-		elements.messages.insertBefore(generateMessage(data.msgData, data.continuation, false, data.scrollAttachment), elements.messages.firstChild);
-		if (!data.continuation) state.messages.splice(0, 0, data.msgData);
+		state.messages.splice(data.msgIndex, 0, data.msgData);
+
+		const nextMessage = state.messages[data.msgIndex + 1];
+		if (data.isLastNew && nextMessage && messageJoinCheck(data.msgData, nextMessage)) {
+			document.getElementById(nextMessage.id).remove();
+			insertMessage({
+				msgData: nextMessage,
+				msgIndex: data.msgIndex + 1,
+				isNew: false,
+			});
+			state.messages.splice(data.msgIndex + 1, 1);
+		}
 	} else {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 
 		if (data.afterElement) {
-			const beforeElement = data.afterElement.nextSibling;
-			const messageElement = generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), data.isShadow, data.isNew);
-
-			if (beforeElement) {
-				elements.messages.insertBefore(messageElement, beforeElement);
-			} else {
-				elements.messages.appendChild(messageElement);
-			}
+			insertAfter(
+				elements.messages,
+				generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), data.isShadow, data.isNew),
+				data.afterElement,
+			);
 		} else {
 			let correctIndex = 0;
 			for (let i = state.messages.length - 1; i >= 0; i--) {
@@ -669,12 +719,7 @@ const insertMessage = (data) => {
 			const messageElement = generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow, data.isNew);
 
 			if (correctIndex === 0) {
-				const lastMessageElement = document.getElementById(lastMessage.id);
-				if (lastMessageElement.nextSibling) {
-					elements.messages.insertBefore(messageElement, lastMessageElement.nextSibling);
-				} else {
-					elements.messages.appendChild(messageElement);
-				}
+				insertAfter(elements.messages, messageElement, document.getElementById(lastMessage.id));
 
 				if (lastMessage && !data.isShadow) {
 					const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);

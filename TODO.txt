@@ -1,6 +1,5 @@
 P1:
 reset shadow message timer when receiving ratelimit packets
-load new messages from top to bottom to reinsert only once
 ipbans after consistently hitting the rate limit
 ipbans after some treshold of points over the limit
 username allowlist

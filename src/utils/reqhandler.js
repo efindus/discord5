@@ -16,7 +16,7 @@ const SERVER_USER_UID = '691657194299387Server';
 
 const endpoints = {};
 const webSockets = {};
-const messagesToLoad = 50;
+const messagesToLoad = 100;
 global.webSockets = webSockets;
 
 global.updateClients = () => {
