@@ -7,6 +7,7 @@
  * @property {TooltipManager} tooltip
  * @property {SpinnerManager} spinner
  * @property {DropdownManager} dropdown
+ * @property {Utils} utils
  * @property {object} user
  * @property {Record<string, object>} users
  * @property {Array<object>} messages
@@ -25,6 +26,7 @@ const state = {
 	tooltip: null,
 	spinner: null,
 	dropdown: null,
+	utils: null,
 
 	user: {},
 	users: {},
@@ -83,17 +85,9 @@ class SocketManager {
 		state.spinner.show();
 		state.popup.hide();
 
-		this.#socket.onopen = () => {
-			this.#setupPinger();
-		};
-
-		this.#socket.onmessage = (event) => {
-			this.#onMessage(event);
-		};
-
-		this.#socket.onclose = () => {
-			this.#onClose();
-		};
+		this.#socket.addEventListener('open', () => this.#setupPinger());
+		this.#socket.addEventListener('message', (event) => this.#onMessage(event));
+		this.#socket.addEventListener('close', () => this.#onClose());
 	}
 
 	disconnect() {
@@ -284,12 +278,11 @@ class PopupManager {
 	#isCloseable = false;
 
 	constructor() {
-		this.#elements.popup.onanimationend = () => {
+		this.#elements.popup.addEventListener('animationend', () => {
 			this.#elements.popup.classList.remove('shaking');
-		};
-		this.#elements.popupClose.onclick = () => {
-			this.hide();
-		};
+		});
+
+		this.#elements.popupClose.addEventListener('click', () => this.hide());
 	}
 
 	get isOpen() {
@@ -437,9 +430,7 @@ class TooltipManager {
 	#isOpen = false;
 
 	constructor() {
-		this.#elements.container.onclick = () => {
-			this.hide();
-		};
+		this.#elements.container.addEventListener('click', () => this.hide());
 	}
 
 	get isOpen() {
@@ -500,8 +491,8 @@ class TooltipManager {
 		this.#elements.tooltip.innerHTML = data.content;
 		this.#elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
 
-		const offset = getElementPosition(this.#elements.tooltip);
-		const position = getElementPosition(this.#elements.tooltip, true);
+		const offset = state.utils.getElementPosition(this.#elements.tooltip);
+		const position = state.utils.getElementPosition(this.#elements.tooltip, true);
 		const margin = 10;
 		let maxMovement = (position.bottom - position.top) / 2 - 11;
 
@@ -590,12 +581,8 @@ class DropdownManager {
 	#isOpen = false;
 
 	constructor() {
-		this.#elements.usernameContainer.onclick = () => {
-			this.toggle();
-		};
-		this.#elements.dropdownClose.onclick = () => {
-			this.toggle();
-		};
+		this.#elements.usernameContainer.addEventListener('click', () => this.toggle());
+		this.#elements.dropdownClose.addEventListener('click', () => this.toggle());
 	}
 
 	get isOpen() {
@@ -624,27 +611,112 @@ class DropdownManager {
 	}
 }
 
+class Utils {
+	async sha256(message) {
+		const msgBuffer = new TextEncoder().encode(message);
+		const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+		return hashHex;
+	}
+
+	fromArrayBufferToBase64(arrayBuffer) {
+		let base64 = '';
+		const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+		const bytes = new Uint8Array(arrayBuffer);
+		const byteLength = bytes.byteLength;
+		const byteRemainder = byteLength % 3;
+		const mainLength = byteLength - byteRemainder;
+
+		let a, b, c, d;
+		let chunk;
+
+		for (let i = 0; i < mainLength; i = i + 3) {
+			chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+
+			a = (chunk & 16515072) >> 18;
+			b = (chunk & 258048) >> 12;
+			c = (chunk & 4032) >> 6;
+			d = chunk & 63;
+
+			base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
+		}
+
+		if (byteRemainder === 1) {
+			chunk = bytes[mainLength];
+
+			a = (chunk & 252) >> 2;
+			b = (chunk & 3) << 4;
+
+			base64 += encodings[a] + encodings[b] + '==';
+		} else if (byteRemainder === 2) {
+			chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
+
+			a = (chunk & 64512) >> 10;
+			b = (chunk & 1008) >> 4;
+			c = (chunk & 15) << 2;
+
+			base64 += encodings[a] + encodings[b] + encodings[c] + '=';
+		}
+
+		return base64;
+	}
+
+	getElementPosition(element, noOffset = false) {
+		const rect = element.getBoundingClientRect();
+		const win = element.ownerDocument.defaultView;
+
+		let bottom = rect.bottom + win.pageYOffset, right = rect.right + win.pageXOffset;
+		if (!noOffset) bottom = document.documentElement.clientHeight - bottom, right = document.documentElement.clientWidth - right;
+		return {
+			top: rect.top + win.pageYOffset,
+			left: rect.left + win.pageXOffset,
+			bottom,
+			right,
+		};
+	}
+
+	/**
+	 * Insert node after element
+	 * @param {Node} parent
+	 * @param {Node} newNode
+	 * @param {Node} referenceChild
+	 */
+	insertAfter(parent, newNode, referenceChild) {
+		if (!referenceChild.nextSibling) {
+			parent.appendChild(newNode);
+		} else {
+			parent.insertBefore(newNode, referenceChild.nextSibling);
+		}
+	}
+
+	verifyUsername(username) {
+		if (username.length < 3 || username.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(username)) return false;
+		else return true;
+	}
+
+	sanitizeText(text) {
+		text = text.split('&').join('&amp;');
+		text = text.split('<').join('&lt;');
+		return text;
+	}
+}
+
 state.socket = new SocketManager();
 state.popup = new PopupManager();
 state.tooltip = new TooltipManager();
 state.spinner = new SpinnerManager();
 state.dropdown = new DropdownManager();
+state.utils = new Utils();
 
 const propagateUserData = () => {
 	elements.usernameDisplay.innerText = state.user.username;
 	elements.userData.innerHTML = `ID: ${state.user.uid}<br>Pseudonim: ${state.user.nickname}`;
 };
 
-const sha256 = async (message) => {
-	const msgBuffer = new TextEncoder().encode(message);
-	const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-	return hashHex;
-};
-
 const showUsernameTooltip = (element, uid, isSidebar = false) => {
-	const position = getElementPosition(element, true);
+	const position = state.utils.getElementPosition(element, true);
 	state.tooltip.show({
 		x: isSidebar ? position.left - 10 : position.right + 10,
 		y: position.top + ((position.bottom - position.top) / 2),
@@ -655,7 +727,7 @@ const showUsernameTooltip = (element, uid, isSidebar = false) => {
 };
 
 const showDateTooltip = (element, timestamp) => {
-	const position = getElementPosition(element, true);
+	const position = state.utils.getElementPosition(element, true);
 	state.tooltip.show({
 		x: position.left,
 		y: position.top - 10,
@@ -687,7 +759,7 @@ const generateMessageMeta = (msgData, isContinuation) => {
 };
 
 const generateMessageContent = (msgData, isContinuation) => {
-	const messageContent = markdownToHTML(sanitizeText(msgData.message)).split('\n').join('<br>');
+	const messageContent = markdownToHTML(state.utils.sanitizeText(msgData.message)).split('\n').join('<br>');
 
 	return `<div class="message-content" ${isContinuation ? generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
 };
@@ -753,20 +825,6 @@ const messageJoinCheck = (lastMessage, newMessage) => {
 };
 
 /**
- * Insert node after element
- * @param {Node} parent
- * @param {Node} newNode
- * @param {Node} referenceChild
- */
-const insertAfter = (parent, newNode, referenceChild) => {
-	if (!referenceChild.nextSibling) {
-		parent.appendChild(newNode);
-	} else {
-		parent.insertBefore(newNode, referenceChild.nextSibling);
-	}
-};
-
-/**
  * @typedef MessageData
  * @property {string} id
  * @property {number} ts
@@ -799,7 +857,7 @@ const insertMessage = (data) => {
 			elements.messages.insertBefore(generateMessage(data.msgData, false, false, data.scrollAttachment), elements.messages.firstChild);
 		} else {
 			const lastMessage = state.messages[data.msgIndex - 1], lastMessageElement = document.getElementById(lastMessage.id);
-			insertAfter(
+			state.utils.insertAfter(
 				elements.messages,
 				generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), false, data.scrollAttachment),
 				lastMessageElement,
@@ -807,7 +865,7 @@ const insertMessage = (data) => {
 
 			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
-				insertAfter(elements.messages, generateDaySeparator(data.msgData.ts), lastMessageElement);
+				state.utils.insertAfter(elements.messages, generateDaySeparator(data.msgData.ts), lastMessageElement);
 			}
 		}
 
@@ -827,7 +885,7 @@ const insertMessage = (data) => {
 		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
 
 		if (data.afterElement) {
-			insertAfter(
+			state.utils.insertAfter(
 				elements.messages,
 				generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), data.isShadow, data.isNew),
 				data.afterElement,
@@ -843,7 +901,7 @@ const insertMessage = (data) => {
 			const messageElement = generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow, data.isNew);
 
 			if (correctIndex === 0) {
-				insertAfter(elements.messages, messageElement, document.getElementById(lastMessage.id));
+				state.utils.insertAfter(elements.messages, messageElement, document.getElementById(lastMessage.id));
 
 				if (lastMessage && !data.isShadow) {
 					const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
@@ -873,9 +931,9 @@ const insertMessage = (data) => {
 			});
 
 			notif.index = state.notifications.length;
-			notif.onclose = () => {
+			notif.addEventListener('close', () => {
 				state.notifications.splice(notif.index, 1);
-			};
+			});
 
 			state.notifications.push(notif);
 		}
@@ -941,17 +999,6 @@ const updateNickname = (uid) => {
 
 	const sidebarEntry = document.getElementById(`online-${uid}`);
 	if (sidebarEntry) sidebarEntry.innerHTML = state.users[uid].nickname;
-};
-
-const verifyUsername = (username) => {
-	if (username.length < 3 || username.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(username)) return false;
-	else return true;
-};
-
-const sanitizeText = (text) => {
-	text = text.split('&').join('&amp;');
-	text = text.split('<').join('&lt;');
-	return text;
 };
 
 document.onkeydown = (event) => {
@@ -1032,7 +1079,7 @@ elements.uploadInput.onchange = () => {
 
 		const reader = new FileReader();
 		reader.onload = (event) => {
-			state.currentAttachment = fromArrayBufferToBase64(event.target.result);
+			state.currentAttachment = state.utils.fromArrayBufferToBase64(event.target.result);
 		};
 
 		reader.readAsArrayBuffer(elements.uploadInput.files[0]);
@@ -1091,7 +1138,7 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 	const changeNicknameFormHandler = () => {
 		const value = nicknameInput.value.trim();
 
-		if (!verifyUsername(value)) {
+		if (!state.utils.verifyUsername(value)) {
 			state.popup.setSubtitle({
 				subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
 			});
@@ -1167,8 +1214,8 @@ const changePasswordHandler = () => {
 
 		state.popup.showSpinner();
 		state.socket.send('changePassword', {
-			oldPassword: await sha256(oldPasswordInput.value),
-			password: await sha256(document.getElementById('popup-input-password').value),
+			oldPassword: await state.utils.sha256(oldPasswordInput.value),
+			password: await state.utils.sha256(document.getElementById('popup-input-password').value),
 		});
 	};
 
@@ -1227,7 +1274,7 @@ const loginHandler = () => {
 			},
 			body: JSON.stringify({
 				username: usernameInput.value,
-				password: await sha256(document.getElementById('popup-input-password').value),
+				password: await state.utils.sha256(document.getElementById('popup-input-password').value),
 			}),
 		});
 
@@ -1356,7 +1403,7 @@ const registerHandler = () => {
 			error = 'Musisz potwierdzić że nie jesteś robotem';
 		}
 
-		if (!verifyUsername(usernameInput.value)) {
+		if (!state.utils.verifyUsername(usernameInput.value)) {
 			error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
 		}
 
@@ -1382,7 +1429,7 @@ const registerHandler = () => {
 			},
 			body: JSON.stringify({
 				username: usernameInput.value,
-				password: await sha256(password),
+				password: await state.utils.sha256(password),
 				captcha: {
 					id: captchaData.id,
 					timestamp: captchaData.timestamp,
@@ -1452,65 +1499,6 @@ const main = async () => {
 	}
 
 	state.socket.connect();
-};
-
-
-const fromArrayBufferToBase64 = (arrayBuffer) => {
-	let base64    = '';
-	const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-	const bytes = new Uint8Array(arrayBuffer);
-	const byteLength    = bytes.byteLength;
-	const byteRemainder = byteLength % 3;
-	const mainLength    = byteLength - byteRemainder;
-
-	let a, b, c, d;
-	let chunk;
-
-	for (let i = 0; i < mainLength; i = i + 3) {
-		chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
-
-		a = (chunk & 16515072) >> 18;
-		b = (chunk & 258048)   >> 12;
-		c = (chunk & 4032)     >>  6;
-		d = chunk & 63;
-
-		base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
-	}
-
-	if (byteRemainder === 1) {
-		chunk = bytes[mainLength];
-
-		a = (chunk & 252) >> 2;
-		b = (chunk & 3)   << 4;
-
-		base64 += encodings[a] + encodings[b] + '==';
-	} else if (byteRemainder === 2) {
-		chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
-
-		a = (chunk & 64512) >> 10;
-		b = (chunk & 1008)  >>  4;
-
-		c = (chunk & 15)    <<  2;
-
-		base64 += encodings[a] + encodings[b] + encodings[c] + '=';
-	}
-
-	return base64;
-};
-
-const getElementPosition = (element, noOffset = false) => {
-	const rect = element.getBoundingClientRect();
-	const win = element.ownerDocument.defaultView;
-
-	let bottom = rect.bottom + win.pageYOffset, right = rect.right + win.pageXOffset;
-	if (!noOffset) bottom = document.documentElement.clientHeight - bottom, right = document.documentElement.clientWidth - right;
-	return {
-		top: rect.top + win.pageYOffset,
-		left: rect.left + win.pageXOffset,
-		bottom,
-		right,
-	};
 };
 
 updateClock();
