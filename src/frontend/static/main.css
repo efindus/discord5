@@ -613,3 +613,90 @@ html, body {
 	font-size: 14px;
 	color: var(--grey-accent);
 }
+
+/* Highlight */
+.code-snippet {
+	display: grid;
+	grid-template-columns: max-content auto;
+    tab-size: 4;
+    background-color: var(--box);
+    border: 1px solid var(--border);
+    border-spacing: 0px;
+    border-radius: 4px;
+    margin: 8px 0px;
+	box-shadow: 3px 3px 6px 0px var(--shadow);
+}
+
+.code-line {
+	display: contents;
+}
+
+.code-line:hover > .code-line-number, .code-line:hover > .code-line-content {
+	background-color: var(--hover);
+}
+
+.code-line-number {
+	text-align: right;
+    padding: 2px 8px 2px 16px;
+	border-right-style: solid;
+	border-right-width: thin;
+	border-right-color: var(--border);
+	user-select: none;
+}
+
+.code-line-content {
+	padding-left: 16px;
+	white-space: pre-wrap;
+}
+
+.preprocessor {
+    color: rgb(155, 155, 155);
+}
+
+.string {
+    color: rgb(214, 157, 133);
+}
+
+.string-special {
+    color: rgb(232, 201, 178);
+}
+
+.keyword {
+    color: rgb(76, 156, 214);
+}
+
+.operator {
+    color: rgb(180, 180, 180);
+}
+
+.function {
+    color: rgb(220, 220, 180);
+}
+
+.other {
+    color: rgb(156, 220, 254);
+}
+
+.comment {
+    color: rgb(87, 166, 74);
+}
+
+.number {
+    color: rgb(181, 206, 168);
+}
+
+.instruction {
+    color: rgb(216, 160, 223);
+}
+
+.definition {
+    color: rgb(190, 183, 255);
+}
+
+.builtin {
+    color: rgb(78, 201, 176);
+}
+
+.white {
+    color: rgb(255, 255, 255);
+}

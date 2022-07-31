@@ -1,61 +1,5 @@
 /* eslint-disable no-undef */
 
-/**
- * @typedef App
- * @property {SocketManager} socket
- * @property {PopupManager} popup
- * @property {TooltipManager} tooltip
- * @property {SpinnerManager} spinner
- * @property {DropdownManager} dropdown
- * @property {Utils} utils
- * @property {object} user
- * @property {Record<string, object>} users
- * @property {Array<object>} messages
- * @property {Array<object>} notifications
- * @property {number} messagesToLoad
- * @property {number} timeOffset
- * @property {string?} currentAttachment
- */
-
-/**
- * @type {App}
- */
-const state = {
-	socket: null,
-	popup: null,
-	tooltip: null,
-	spinner: null,
-	dropdown: null,
-	utils: null,
-
-	user: {},
-	users: {},
-	messages: [],
-	notifications: [],
-
-	messagesToLoad: 50,
-	timeOffset: 0,
-
-	currentAttachment: null,
-};
-
-const elements = {
-	onlineSidebar: document.querySelector('.online-sidebar'),
-
-	usernameDisplay: document.getElementById('username-display'),
-	userData: document.getElementById('user-data'),
-
-	messageContainer: document.getElementById('message-container'),
-	messages: document.getElementById('messages'),
-	loadMessagesButton: document.getElementById('load-messages-button'),
-
-	input: document.getElementById('input'),
-	uploadInput: document.getElementById('upload-input'),
-	uploadButton: document.getElementById('upload-button'),
-
-	clock: document.getElementById('clock'),
-};
-
 const svgs = {
 	plus: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
 			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--light-grey)" stroke-width="0.06"></line>
@@ -68,6 +12,8 @@ const svgs = {
 };
 
 class SocketManager {
+	#app;
+
 	/**
 	 * @type {WebSocket}
 	 */
@@ -77,13 +23,21 @@ class SocketManager {
 	#reconnect = true;
 	#receiveQueue = {};
 	#protocolVersion = '1';
+	#messagesToLoad = 100;
+
+	/**
+	 * @param {App} app
+	 */
+	constructor(app) {
+		this.#app = app;
+	}
 
 	connect() {
 		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
 		this.#reconnect = true;
 
-		state.spinner.show();
-		state.popup.hide();
+		this.#app.spinner.show();
+		this.#app.popup.hide();
 
 		this.#socket.addEventListener('open', () => this.#setupPinger());
 		this.#socket.addEventListener('message', (event) => this.#onMessage(event));
@@ -114,6 +68,25 @@ class SocketManager {
 		};
 	}
 
+
+	#propagateUserData() {
+		this.#app.elements.usernameDisplay.innerText = this.#app.user.username;
+		this.#app.elements.userData.innerHTML = `ID: ${this.#app.user.uid}<br>Pseudonim: ${this.#app.user.nickname}`;
+	}
+
+	getMissingUserData(uid) {
+		if (!this.#app.users[uid]) {
+			this.#app.users[uid] = {
+				username: 'Ładowanie...',
+				nickname: 'Ładowanie...',
+			};
+
+			this.send('getUser', {
+				uid: uid,
+			});
+		}
+	}
+
 	#setupPinger() {
 		this.#pinger = setInterval(() => {
 			this.#socket.send(JSON.stringify({
@@ -124,11 +97,10 @@ class SocketManager {
 
 	#onClose() {
 		clearInterval(this.#pinger);
-		elements.messages.innerHTML = '';
-		state.messages = [];
+		this.#app.messages.clear();
 
 		if (this.#reconnect) {
-			state.spinner.show();
+			this.#app.spinner.show();
 			setTimeout(() => this.connect(), 1000);
 		}
 	}
@@ -158,12 +130,12 @@ class SocketManager {
 			if (data.message === 'accepted') {
 				if (this.#protocolVersion !== data.protocolVersion) window.location.reload();
 
-				state.user = data.user;
-				state.messagesToLoad = data.messagesToLoad;
-				state.timeOffset = Date.now() - data.serverTime;
+				this.#app.user = data.user;
+				this.#messagesToLoad = data.messagesToLoad;
+				this.#app.timeOffset = Date.now() - data.serverTime;
 
-				propagateUserData();
-				loadMessages();
+				this.#propagateUserData();
+				this.#app.messages.load();
 			} else if (data.message === 'invalidLogin') {
 				logOutHandler();
 			}
@@ -172,51 +144,51 @@ class SocketManager {
 				document.getElementById(data.nonce)?.remove();
 			}
 
-			insertMessage({
+			this.#app.messages.insert({
 				msgData: data,
 				isNew: true,
 			});
 		} else if (data.type === 'loadMessages') {
-			const oldHeight = elements.messageContainer.scrollHeight;
+			const oldHeight = this.#app.elements.messageContainer.scrollHeight;
 
 			data.messages.reverse();
 			for (let i = 0; i < data.messages.length; i++) {
-				insertMessage({
+				this.#app.messages.insert({
 					msgData: data.messages[i],
 					msgIndex: i,
 					isLastNew: (i + 1 === data.messages.length),
-					scrollAttachment: state.messages.length < state.messagesToLoad,
+					scrollAttachment: this.#app.messages.count < this.#messagesToLoad,
 				});
 			}
 
-			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight - oldHeight + elements.messageContainer.scrollTop);
-			if (data.messages.length === state.messagesToLoad) elements.loadMessagesButton.style.display = 'table';
-			if (state.messages.length <= state.messagesToLoad) state.spinner.hide();
+			this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight - oldHeight + this.#app.elements.messageContainer.scrollTop);
+			if (data.messages.length === this.#messagesToLoad) this.#app.messages.showLoadButton();
+			if (this.#app.messages.count <= this.#messagesToLoad) this.#app.spinner.hide();
 		} else if (data.type === 'changePasswordCB') {
 			if (data.message === 'success') {
 				this.#reconnect = false;
-				state.popup.setSubtitle({
+				this.#app.popup.setSubtitle({
 					subtitle: 'Hasło zostało zmienione pomyślnie',
 					subtitleColor: 'var(--green)',
 				});
 				setTimeout(() => {
 					localStorage.removeItem('token');
-					main();
+					this.#app.main();
 				}, 1000);
 			} else {
-				state.popup.hideSpinner();
-				state.popup.setSubtitle({
+				this.#app.popup.hideSpinner();
+				this.#app.popup.setSubtitle({
 					subtitle: 'Niepoprawne stare hasło',
 				});
-				state.popup.shake();
+				this.#app.popup.shake();
 			}
 		} else if (data.type === 'updateNickname') {
-			if (data.uid === state.user.uid) {
+			if (data.uid === this.#app.user.uid) {
 				if (data.nickname) {
-					state.user.nickname = data.nickname;
-					propagateUserData();
-					state.popup.hide();
-					state.spinner.hide();
+					this.#app.user.nickname = data.nickname;
+					this.#propagateUserData();
+					this.#app.popup.hide();
+					this.#app.spinner.hide();
 				} else {
 					let error = '';
 					switch (data.message) {
@@ -228,34 +200,34 @@ class SocketManager {
 							break;
 					}
 
-					state.popup.setSubtitle({
+					this.#app.popup.setSubtitle({
 						subtitle: error,
 					});
-					state.popup.shake();
+					this.#app.popup.shake();
 				}
 			}
 
 			if (data.nickname.length !== 0) {
-				state.users[data.uid].nickname = data.nickname;
+				this.#app.users[data.uid].nickname = data.nickname;
 
-				updateNickname(data.uid);
+				this.#app.messages.updateNickname(data.uid);
 			}
 		} else if (data.type === 'updateUser') {
 			if (data.username.length !== 0) {
-				state.users[data.uid] = {
+				this.#app.users[data.uid] = {
 					username: data.username,
 					nickname: data.nickname,
 				};
 
-				updateNickname(data.uid);
+				this.#app.messages.updateNickname(data.uid);
 			}
 		} else if (data.type === 'reload') {
 			window.location.reload();
 		} else if (data.type === 'clientsOnline') {
-			elements.onlineSidebar.innerHTML = '';
+			this.#app.elements.onlineSidebar.innerHTML = '';
 			for (const client of data.clients) {
-				getMissingUserData(client);
-				elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}" ${generateUsernameTooltip(client, true)}>${state.users[client].nickname}</div>`;
+				this.getMissingUserData(client);
+				this.#app.elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}" ${this.#app.utils.generateUsernameTooltip(client, true)}>${this.#app.users[client].nickname}</div>`;
 			}
 		}
 	}
@@ -283,13 +255,18 @@ class PopupManager {
 		});
 
 		this.#elements.popupClose.addEventListener('click', () => this.hide());
+		document.addEventListener('keydown', (event) => {
+			if (event.code === 'Escape' && this.#isCloseable) {
+				this.hide();
+			}
+		});
 	}
 
 	get isOpen() {
 		return this.#isOpen;
 	}
 
-	get isClosable() {
+	get isCloseable() {
 		return this.#isCloseable;
 	}
 
@@ -328,7 +305,7 @@ class PopupManager {
 		this.#elements.title.innerHTML = data.title;
 
 		this.setSubtitle(data);
-		state.popup.hideSpinner();
+		this.hideSpinner();
 
 		this.#isOpen = true;
 		if (data.closeable) {
@@ -422,6 +399,8 @@ class PopupManager {
 }
 
 class TooltipManager {
+	#app;
+
 	#elements = {
 		container: document.querySelector('.tooltip-container'),
 		tooltip: document.getElementById('tooltip'),
@@ -429,7 +408,11 @@ class TooltipManager {
 
 	#isOpen = false;
 
-	constructor() {
+	/**
+	 * @param {App} app
+	 */
+	constructor(app) {
+		this.#app = app;
 		this.#elements.container.addEventListener('click', () => this.hide());
 	}
 
@@ -491,8 +474,8 @@ class TooltipManager {
 		this.#elements.tooltip.innerHTML = data.content;
 		this.#elements.tooltip.style.transform = `translate(${transforms.x}, ${transforms.y})`;
 
-		const offset = state.utils.getElementPosition(this.#elements.tooltip);
-		const position = state.utils.getElementPosition(this.#elements.tooltip, true);
+		const offset = this.#app.utils.getElementPosition(this.#elements.tooltip);
+		const position = this.#app.utils.getElementPosition(this.#elements.tooltip, true);
 		const margin = 10;
 		let maxMovement = (position.bottom - position.top) / 2 - 11;
 
@@ -611,7 +594,555 @@ class DropdownManager {
 	}
 }
 
+class NotificationManager {
+	#notifications = [];
+
+	/**
+	 * @param {App} app
+	 */
+	constructor(app) {
+		document.addEventListener('focus', () => {
+			for (const notification of this.#notifications) {
+				notification.close();
+			}
+
+			this.#notifications = [];
+		});
+
+		app.elements.messageContainer.addEventListener('scroll', () => {
+			if (Notification.permission === 'default') Notification.requestPermission();
+		});
+	}
+
+	/**
+	 * Create a new notification
+	 * @param {object} data
+	 * @param {string} data.title
+	 * @param {string} data.body
+	 */
+	create(data) {
+		if (Notification.permission !== 'granted') return;
+
+		const notification = new Notification(data.title, {
+			body: data.body,
+			icon: '/favicon.ico',
+		});
+
+		notification.addEventListener('close', () => {
+			this.#notifications.splice(this.#notifications.indexOf(notification), 1);
+		});
+
+		this.#notifications.push(notification);
+	}
+}
+
+class MessageManager {
+	#app;
+
+	#utils = {
+		generateMessageMeta: (msgData, isContinuation) => {
+			if (isContinuation) return '';
+
+			const messageAuthor = `<div class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.uid)}>${this.#app.users[msgData.uid].nickname}</div>`;
+			const messageDate = `<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div>`;
+			let messageFor = '';
+			if (msgData.originalAuthor) {
+				messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.originalAuthor)}>${this.#app.users[msgData.originalAuthor].nickname}</div>`;
+			}
+
+			return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
+		},
+		generateMessageContent: (msgData, isContinuation) => {
+			const messageContent = this.#app.utils.markdownToHTML(this.#app.utils.sanitizeText(msgData.message)).split('\n').join('<br>');
+
+			return `<div class="message-content" ${isContinuation ? this.#app.utils.generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
+		},
+		generateMessageAttachment: (msgData, isNew) => {
+			if (!msgData.attachment) return '';
+
+			let messageAttachment = `<a class="message-attachment-name" href="/attachments/${msgData.attachment}" target="_blank">${msgData.attachment}</a>`;
+			if (msgData.attachment && (
+				msgData.attachment.endsWith('.png') ||
+				msgData.attachment.endsWith('.jpg') ||
+				msgData.attachment.endsWith('.jpeg') ||
+				msgData.attachment.endsWith('.gif') ||
+				msgData.attachment.endsWith('.webp')
+			)) {
+				messageAttachment = `<img src="/attachments/${msgData.attachment}" ${isNew ? 'onload="app.onAttachmentLoad(this)" ' : ''}onerror="this.remove()"><div>${messageAttachment}</div>`;
+			}
+
+			return `<div class="message-attachment">${messageAttachment}</div>`;
+		},
+		messageJoinCheck: (lastMessage, newMessage) => {
+			let isJoined = (lastMessage?.uid === newMessage.uid);
+
+			if (isJoined && lastMessage) {
+				if (lastMessage.originalAuthor !== newMessage.originalAuthor) isJoined = false;
+				if (lastMessage.attachment) isJoined = false;
+				if (newMessage.ts - (20 * 60_000) > lastMessage.ts) isJoined = false;
+			}
+
+			return isJoined;
+		},
+	};
+
+	#elements = {
+		messages: document.getElementById('messages'),
+		loadMessagesButton: document.getElementById('load-messages-button'),
+
+		input: document.getElementById('input'),
+		uploadInput: document.getElementById('upload-input'),
+		uploadButton: document.getElementById('upload-button'),
+	};
+
+	#messages = [];
+	#currentAttachment = null;
+
+	get count() {
+		return this.#messages.length;
+	}
+
+	/**
+	 * @param {App} app
+	 */
+	constructor(app) {
+		this.#app = app;
+
+		this.#elements.input.addEventListener('keydown', (event) => {
+			if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
+				event.preventDefault();
+
+				let value = this.#elements.input.value.trim();
+
+				if (value === '/tableflip') {
+					value = '(╯°□°）╯︵ ┻━┻';
+				} else if (value === '/unflip') {
+					value = '┬─┬ ノ( ゜-゜ノ)';
+				} else if (value === '/shrug') {
+					value = '¯\\\\_(ツ)_/¯';
+				}
+
+				if (value.length > 0 && value.length <= 2000) {
+					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
+					this.#elements.input.value = '';
+					const nonce = `${crypto.randomUUID()}-${Date.now()}`;
+					this.insert({
+						msgData: {
+							id: nonce,
+							ts: Date.now() - this.#app.timeOffset,
+							uid: this.#app.user.uid,
+							message: value,
+						},
+						isNew: true,
+						isShadow: true,
+						afterElement: this.#elements.messages.lastChild,
+					});
+
+					let attachment = {};
+					if (this.#currentAttachment) {
+						attachment = {
+							attachment: {
+								fileName: this.#elements.uploadInput.files[0].name,
+								data: this.#currentAttachment,
+							},
+						};
+
+						this.resetUpload();
+					}
+
+					this.#app.socket.send('sendMessage', {
+						message: value,
+						nonce: nonce,
+						...attachment,
+					});
+				}
+			}
+		});
+
+		this.#elements.uploadInput.addEventListener('change', () => {
+			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files[0].size <= 11160000) {
+				this.#elements.uploadButton.innerHTML = svgs.cross;
+
+				const reader = new FileReader();
+				reader.addEventListener('load', (event) => {
+					this.#currentAttachment = this.#app.utils.fromArrayBufferToBase64(event.target.result);
+				});
+
+				reader.readAsArrayBuffer(this.#elements.uploadInput.files[0]);
+			} else {
+				this.#elements.uploadInput.value = '';
+			}
+		});
+
+		this.#elements.uploadButton.addEventListener('click', (event) => {
+			if (this.#elements.uploadInput.value !== '') {
+				event.preventDefault();
+				this.resetUpload();
+			}
+		});
+	}
+
+	#generateMessage(msgData, isContinuation = false, isShadow = false, isNew = false) {
+		const message = document.createElement('div');
+		message.id = msgData.id;
+		message.classList.add('message');
+		if (isShadow) {
+			message.classList.add('message-shadow');
+			isContinuation = false;
+		}
+
+		message.innerHTML = `${this.#utils.generateMessageMeta(msgData, isContinuation)}${this.#utils.generateMessageContent(msgData, isContinuation)}${this.#utils.generateMessageAttachment(msgData, isNew)}`;
+		return message;
+	}
+
+	#generateDaySeparator(timestamp) {
+		const separator = document.createElement('div');
+		separator.classList.add('day-separator');
+		separator.innerHTML = `<span class="day-separator-text">${(new Date(timestamp)).toLocaleDateString('pl')}</span>`;
+		return separator;
+	}
+
+	/**
+	 * @typedef MessageData
+	 * @property {string} id
+	 * @property {number} ts
+	 * @property {string} message
+	 * @property {string} uid
+	 * @property {string?} originalAuthor
+	 * @property {string?} attachment
+	 * @property {string?} nonce
+	 */
+
+	/**
+	 * Insert a message into the website
+	 * @param {object} data
+	 * @param {MessageData} data.msgData
+	 * @param {number} data.msgIndex
+	 * @param {boolean} data.isLastNew
+	 * @param {boolean} data.isNew
+	 * @param {boolean} data.continuation
+	 * @param {boolean} data.scrollAttachment
+	 * @param {boolean} data.isShadow
+	 * @param {Node} data.afterElement
+	 * @param {MessageData} data.lastMessage
+	 */
+	insert(data) {
+		this.#app.socket.getMissingUserData(data.msgData.uid);
+		if (data.msgData.originalAuthor) this.#app.socket.getMissingUserData(data.msgData.originalAuthor);
+
+		if (!data.isNew) {
+			if (data.msgIndex === 0) {
+				this.#elements.messages.insertBefore(this.#generateMessage(data.msgData, false, false, data.scrollAttachment), this.#elements.messages.firstChild);
+			} else {
+				const lastMessage = this.#messages[data.msgIndex - 1], lastMessageElement = document.getElementById(lastMessage.id);
+				this.#app.utils.insertAfter(
+					this.#elements.messages,
+					this.#generateMessage(data.msgData, this.#utils.messageJoinCheck(lastMessage, data.msgData), false, data.scrollAttachment),
+					lastMessageElement,
+				);
+
+				const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
+				if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+					this.#app.utils.insertAfter(this.#elements.messages, this.#generateDaySeparator(data.msgData.ts), lastMessageElement);
+				}
+			}
+
+			this.#messages.splice(data.msgIndex, 0, data.msgData);
+
+			const nextMessage = this.#messages[data.msgIndex + 1];
+			if (data.isLastNew && nextMessage && this.#utils.messageJoinCheck(data.msgData, nextMessage)) {
+				document.getElementById(nextMessage.id).remove();
+				this.insert({
+					msgData: nextMessage,
+					msgIndex: data.msgIndex + 1,
+					isNew: false,
+				});
+				this.#messages.splice(data.msgIndex + 1, 1);
+			}
+		} else {
+			const scroll = this.#app.elements.messageContainer.offsetHeight + this.#app.elements.messageContainer.scrollTop + 20 > this.#app.elements.messageContainer.scrollHeight;
+
+			if (data.afterElement) {
+				this.#app.utils.insertAfter(
+					this.#elements.messages,
+					this.#generateMessage(data.msgData, this.#utils.messageJoinCheck(data.lastMessage, data.msgData), data.isShadow, data.isNew),
+					data.afterElement,
+				);
+			} else {
+				let correctIndex = 0;
+				for (let i = this.#messages.length - 1; i >= 0; i--) {
+					if (this.#messages[i].ts > data.msgData.ts) correctIndex++;
+				}
+
+				const lastMessage = this.#messages[this.#messages.length - (correctIndex + 1)];
+				const nextMessage = this.#messages[this.#messages.length - correctIndex];
+				const messageElement = this.#generateMessage(data.msgData, this.#utils.messageJoinCheck(lastMessage, data.msgData), data.isShadow, data.isNew);
+
+				if (correctIndex === 0) {
+					this.#app.utils.insertAfter(this.#elements.messages, messageElement, document.getElementById(lastMessage.id));
+
+					if (lastMessage && !data.isShadow) {
+						const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
+						if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+							this.#elements.messages.insertBefore(this.#generateDaySeparator(data.msgData.ts), document.getElementById(data.msgData.id));
+						}
+					}
+				} else {
+					this.#elements.messages.insertBefore(messageElement, document.getElementById(nextMessage.id));
+
+					document.getElementById(nextMessage.id).remove();
+					this.insert({
+						msgData: nextMessage,
+						isNew: true,
+						lastMessage: data.msgData,
+						afterElement: document.getElementById(data.msgData.id),
+					});
+				}
+
+				if (!data.isShadow) this.#messages.splice(this.#messages.length - correctIndex, 0, data.msgData);
+			}
+
+			if (!data.isShadow && !document.hasFocus()) {
+				this.#app.notifications.create({
+					title: 'Discord5: New Message',
+					body: `${this.#app.users[data.msgData.uid].nickname}: ${data.msgData.message.slice(0, 150)}`,
+				});
+			}
+
+			if (data.isShadow) setTimeout(() => {
+				const msgElement = document.getElementById(data.msgData.id);
+				if (msgElement) {
+					msgElement.style.color = 'var(--red)';
+					setTimeout(() => {
+						document.getElementById(data.msgData.id)?.remove();
+					}, 1_500);
+				}
+			}, 20_000);
+
+			if (scroll) this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
+		}
+	}
+
+	clear() {
+		this.#elements.messages.innerHTML = '';
+		this.#messages = [];
+	}
+
+	load() {
+		this.#elements.loadMessagesButton.style.display = 'none';
+		this.#app.socket.send('getMessages');
+	}
+
+	showLoadButton() {
+		this.#elements.loadMessagesButton.style.display = 'table';
+	}
+
+	resetUpload() {
+		this.#elements.uploadButton.innerHTML = svgs.plus;
+		this.#elements.uploadInput.value = '';
+		this.currentAttachment = null;
+	}
+
+	updateNickname(uid) {
+		for (const msg of this.#messages) {
+			const msgMeta = document.getElementById(msg.id).querySelector('.message-meta');
+
+			if (msgMeta) {
+				if (msg.uid === uid) {
+					const element = msgMeta.childNodes[0];
+					if (element) element.innerHTML = this.#app.users[uid].nickname;
+				}
+
+				if (msg.originalAuthor === uid) {
+					const element = msgMeta.childNodes[2];
+					if (element) element.innerHTML = this.#app.users[uid].nickname;
+				}
+			}
+		}
+
+		const sidebarEntry = document.getElementById(`online-${uid}`);
+		if (sidebarEntry) sidebarEntry.innerHTML = this.#app.users[uid].nickname;
+	}
+}
+
 class Utils {
+	#expressions = {
+		split: /(\s)*[A-Za-z0-9_]*[^A-Za-z0-9_]/g,
+		multilineComment: /^(\s)*\/\*/g,
+		comment: /^(\s)*\/\//g,
+		keyword: /^(\s)*(alignas|alignof|auto|bool|char8_t|char16_t|char32_t|char|class|const_cast|const|decltype|delete|double|dynamic_cast|enum|explicit|export|extern|false|float|friend|inline|int|long|mutable|namespace|new|noexcept|nullptr|operator|private|protected|public|register|short|signed|sizeof|static_cast|static_assert|static|struct|template|this|thread_local|true|typedef|typeid|typename|union|unsigned|using|virtual|void|volatile|wchar_t)$/g,
+		operator: /^(\s)*(and_eq|and|bitand|bitor|compl|not_eq|not|or_eq|or|xor_eq|xor|\+|-|\*|\/|%|:|;|{|}|\(|\)|&|\||=|\[|]|<|>|,)$/g,
+		instruction: /^(\s)*(break|case|catch|continue|default|do|else|for|goto|if|return|switch|throw|try|while)$/g,
+		number: /^(\s)*(([1-9][0-9]*)|(0[bB][01]+)|(0[0-8]*)|(0[xX][0-9A-Fa-f]+))$/,
+		function: /^(\s)*[A-Za-z0-9_]+(\s)*\(/g,
+		builtIn: /^(\s)*(ios_base|string|wstring|stringstream|istringstream|ostringstream|auto_ptr|deque|list|queue|stack|vector|map|set|pair|bitset|multiset|multimap|unordered_set|unordered_map|unordered_multiset|unordered_multimap|priority_queue|array|shared_ptr)$/g,
+		white: /^(\s)*(std|cin|cout|cerr|clog|endl)$/g,
+		definition: /^(\s)*(stdin|stdout|stderr|NULL)$/g,
+		include: /^(\s)*#(\s)*include(\s)*<[^>]*>/g,
+		preprocessor: /^(\s)*#(\s)*(ifdef|elif|ifndef|line|else|error|include|define|endif|if|undef)[^A-Za-z0-9_]/g,
+		string: /^(\s)*"/g,
+		stringEnd: /^(.*[^\\](\\\\)*)?"/g,
+	};
+
+	#markdown = [ [ '**', 'b' ], [ '*', 'i' ], [ '__', 'u' ], [ '~~', 'strike' ] ];
+
+	#mode;
+
+	#isAtPosition(text, value, position) {
+		for (let i = 0; i < value.length; i++) {
+			if (text[position + i] !== value[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	#highlightPart(text) {
+		if (text.length === 0) return '';
+
+		if (this.#mode === 'comment') {
+			const end = text.indexOf('*/');
+
+			if (end === -1) {
+				return `<span class='comment'>${text}</span>`;
+			} else {
+				this.#mode = 'default';
+				return `<span class='comment'>${text.slice(0, end + 2)}</span>${this.#highlightPart(text.slice(end + 2))}`;
+			}
+		} else if (text.match(this.#expressions.multilineComment) !== null) {
+			const match = text.match(this.#expressions.multilineComment)[0];
+			this.#mode = 'comment';
+
+			return `<span class='comment'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+		} else if (text.match(this.#expressions.comment) !== null) {
+			return `<span class='comment'>${text}</span>`;
+		} else if (text.match(this.#expressions.include) !== null) {
+			const match = text.match(this.#expressions.include)[0];
+			const index = match.indexOf('<');
+
+			return `<span class='preprocessor'>${text.slice(0, index)}</span><span class='string-special'>&lt;</span><span class='string'>${text.slice(index + 1, match.length - 1)}</span><span class='string-special'>></span>${this.#highlightPart(text.slice(match.length))}`;
+		} else if (text.match(this.#expressions.preprocessor) !== null) {
+			const match = text.match(this.#expressions.preprocessor)[0];
+			return `<span class='preprocessor'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+		} else if (text.match(this.#expressions.string) !== null) {
+			const match = text.match(this.#expressions.string)[0];
+			const end = text.slice(match.length).match(this.#expressions.stringEnd);
+
+			if (end === null) {
+				return `<span class='string'>${text}</span>`;
+			} else {
+				return `<span class='string'>${match + end[0]}</span>${this.#highlightPart(text.slice(end[0].length + match.length))}`;
+			}
+		} else {
+			let match = text.match(this.#expressions.split)[0];
+
+			if (match.length > 1) match = match.slice(0, match.length - 1);
+
+			if (match.match(this.#expressions.keyword) !== null) {
+				return `<span class='keyword'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (match.match(this.#expressions.instruction) !== null) {
+				return `<span class='instruction'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (match.match(this.#expressions.operator) !== null) {
+				return `<span class='operator'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (match.match(this.#expressions.number) !== null) {
+				return `<span class='number'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (text.match(this.#expressions.function) !== null) {
+				let match2 = text.match(this.#expressions.function)[0];
+				match2 = match2.slice(0, match2.length - 1);
+
+				return `<span class='function'>${match2}</span>${this.#highlightPart(text.slice(match2.length))}`;
+			} else if (match.match(this.#expressions.definition) !== null) {
+				return `<span class='definition'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (match.match(this.#expressions.white) !== null) {
+				return `<span class='white'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (match.match(this.#expressions.builtIn) !== null) {
+				return `<span class='builtin'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else {
+				return `<span class='other'>${match}</span>${(text.length > match.length ? this.#highlightPart(text.slice(match.length)) : '')}`;
+			}
+		}
+	}
+
+	#highlight(text) {
+		let result = '';
+		const lines = text.split('&lt;').join('<').trim().split('\n');
+
+		this.#mode = 'default';
+
+		// TODO: maybe remove this
+		for (let i = 0; i < lines.length; i++) {
+			result += `<div class="code-line"><div class="code-line-number">${i + 1}</div><div class="code-line-content">${this.#highlightPart(`${lines[i]}\u200B`)}</div></div>`;
+		}
+
+		return `<div class="code-snippet">${result}</div>`;
+	}
+
+	#findNext(text, value, position) {
+		let cancel = false;
+
+		for (let i = position; i < text.length; i++) {
+			if (cancel) cancel = false;
+			else if (text[i] === '\\') cancel = true;
+			else if (this.#isAtPosition(text, value, i)) return i;
+		}
+
+		return -1;
+	}
+
+	markdownToHTML(text) {
+		let result = '';
+		let cancel = false;
+
+		for (let i = 0; i < text.length; i++) {
+			if (cancel) {
+				if (text[i] !== '*' && text[i] !== '\\' && text[i] !== '_' && text[i] !== '~') {
+					result += '\\';
+				}
+
+				result += text[i];
+				cancel = false;
+			} else if (text[i] === '\\') {
+				cancel = true;
+			} else if (this.#isAtPosition(text, '```', i)) {
+				const end = text.indexOf('```', i + 3);
+
+				if (end !== -1) {
+					result += this.#highlight(text.slice(i + 3, end));
+					i = end + 2;
+				} else {
+					result += text[i];
+				}
+			} else {
+				let activated = false;
+
+				for (let position = 0; position < this.#markdown.length; position++) {
+					if (this.#isAtPosition(text, this.#markdown[position][0], i)) {
+						let next = this.#findNext(text, this.#markdown[position][0], i + this.#markdown[position][0].length);
+
+						if (next !== -1) {
+							if (text.slice(i + this.#markdown[position][0].length, next).trim().length === 0) {
+								next = this.#findNext(text, this.#markdown[position][0], next + 1);
+							}
+
+							if (next !== -1) {
+								result += `<${this.#markdown[position][1]}>${this.markdownToHTML(text.slice(i + this.#markdown[position][0].length, next))}</${this.#markdown[position][1]}>`;
+								activated = true;
+								i = next + this.#markdown[position][0].length - 1;
+
+								break;
+							}
+						}
+					}
+				}
+
+				if (!activated) result += text[i];
+			}
+		}
+
+		return result;
+	}
+
 	async sha256(message) {
 		const msgBuffer = new TextEncoder().encode(message);
 		const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -701,418 +1232,112 @@ class Utils {
 		text = text.split('<').join('&lt;');
 		return text;
 	}
+
+	generateUsernameTooltip(uid, isSidebar = false) {
+		return `onclick="app.showUsernameTooltip(this, '${uid}', ${isSidebar})"`;
+	}
+
+	generateDateTooltip(timestamp) {
+		return `ondblclick="app.showDateTooltip(this, ${timestamp})"`;
+	}
 }
 
-state.socket = new SocketManager();
-state.popup = new PopupManager();
-state.tooltip = new TooltipManager();
-state.spinner = new SpinnerManager();
-state.dropdown = new DropdownManager();
-state.utils = new Utils();
+class App {
+	socket;
+	popup;
+	tooltip;
+	spinner;
+	dropdown;
+	notifications;
+	messages;
+	utils;
 
-const propagateUserData = () => {
-	elements.usernameDisplay.innerText = state.user.username;
-	elements.userData.innerHTML = `ID: ${state.user.uid}<br>Pseudonim: ${state.user.nickname}`;
-};
+	user = {};
+	users = {};
 
-const showUsernameTooltip = (element, uid, isSidebar = false) => {
-	const position = state.utils.getElementPosition(element, true);
-	state.tooltip.show({
-		x: isSidebar ? position.left - 10 : position.right + 10,
-		y: position.top + ((position.bottom - position.top) / 2),
-		side: isSidebar ? 'right' : 'left',
-		content: `${state.users[uid].username}<br>ID: ${uid}`,
-		withArrow: true,
-	});
-};
+	timeOffset = 0;
 
-const showDateTooltip = (element, timestamp) => {
-	const position = state.utils.getElementPosition(element, true);
-	state.tooltip.show({
-		x: position.left,
-		y: position.top - 10,
-		side: 'bottom',
-		content: `${new Date(timestamp).toLocaleString('pl')}`,
-		withArrow: true,
-	});
-};
+	elements = {
+		onlineSidebar: document.querySelector('.online-sidebar'),
 
-const generateUsernameTooltip = (uid, isSidebar = false) => {
-	return `onclick="showUsernameTooltip(this, '${uid}', ${isSidebar})"`;
-};
+		usernameDisplay: document.getElementById('username-display'),
+		userData: document.getElementById('user-data'),
 
-const generateDateTooltip = (timestamp) => {
-	return `ondblclick="showDateTooltip(this, ${timestamp})"`;
-};
+		messageContainer: document.getElementById('message-container'),
 
-const generateMessageMeta = (msgData, isContinuation) => {
-	if (isContinuation) return '';
-
-	const messageAuthor = `<div class="message-username" ${generateUsernameTooltip(msgData.uid)}>${state.users[msgData.uid].nickname}</div>`;
-	const messageDate = `<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div>`;
-	let messageFor = '';
-	if (msgData.originalAuthor) {
-		messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username" ${generateUsernameTooltip(msgData.originalAuthor)}>${state.users[msgData.originalAuthor].nickname}</div>`;
-	}
-
-	return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
-};
-
-const generateMessageContent = (msgData, isContinuation) => {
-	const messageContent = markdownToHTML(state.utils.sanitizeText(msgData.message)).split('\n').join('<br>');
-
-	return `<div class="message-content" ${isContinuation ? generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
-};
-
-const generateMessageAttachment = (msgData, isNew) => {
-	if (!msgData.attachment) return '';
-
-	const generateAttachmentLink = (attachment) => {
-		return `<a class="message-attachment-name" href="/attachments/${attachment}" target="_blank">${attachment}</a>`;
+		clock: document.getElementById('clock'),
 	};
 
-	const isImage = (file) => {
-		if (file && (file.endsWith('.png') ||
-			file.endsWith('.jpg') ||
-			file.endsWith('.jpeg') ||
-			file.endsWith('.gif') ||
-			file.endsWith('.webp')
-		)) {
-			return true;
-		}
+	constructor() {
+		this.socket = new SocketManager(this);
+		this.popup = new PopupManager();
+		this.tooltip = new TooltipManager(this);
+		this.spinner = new SpinnerManager();
+		this.dropdown = new DropdownManager();
+		this.notifications = new NotificationManager(this);
+		this.messages = new MessageManager(this);
+		this.utils = new Utils();
 
-		return false;
-	};
-
-	let messageAttachment = generateAttachmentLink(msgData.attachment);
-	if (isImage(msgData.attachment)) {
-		messageAttachment = `<img src="/attachments/${msgData.attachment}" ${isNew ? 'onload="onAttachmentLoad(this)" ' : ''}onerror="this.remove()"><div>${messageAttachment}</div>`;
+		this.#updateClock();
 	}
 
-	return `<div class="message-attachment">${messageAttachment}</div>`;
-};
+	async main() {
+		const token = localStorage.getItem('token');
+		if (!token) {
+			loginHandler();
+			return;
+		}
 
-const generateMessage = (msgData, isContinuation = false, isShadow = false, isNew = false) => {
-	const message = document.createElement('div');
-	message.id = msgData.id;
-	message.classList.add('message');
-	if (isShadow) {
-		message.classList.add('message-shadow');
-		isContinuation = false;
+		this.socket.connect();
 	}
 
-	message.innerHTML = `${generateMessageMeta(msgData, isContinuation)}${generateMessageContent(msgData, isContinuation)}${generateMessageAttachment(msgData, isNew)}`;
-	return message;
-};
-
-const generateDaySeparator = (timestamp) => {
-	const separator = document.createElement('div');
-	separator.classList.add('day-separator');
-	separator.innerHTML = `<span class="day-separator-text">${(new Date(timestamp)).toLocaleDateString('pl')}</span>`;
-	return separator;
-};
-
-const messageJoinCheck = (lastMessage, newMessage) => {
-	let isJoined = (lastMessage?.uid === newMessage.uid);
-
-	if (isJoined && lastMessage) {
-		if (lastMessage.originalAuthor !== newMessage.originalAuthor) isJoined = false;
-		if (lastMessage.attachment) isJoined = false;
-		if (newMessage.ts - (20 * 60_000) > lastMessage.ts) isJoined = false;
+	#updateClock() {
+		const NOW = new Date(Date.now() - this.timeOffset);
+		this.elements.clock.innerHTML = `${`${NOW.getHours()}`.padStart(2, '0')}:${`${NOW.getMinutes()}`.padStart(2, '0')}:${`${NOW.getSeconds()}`.padStart(2, '0')}`;
+		setTimeout(() => this.#updateClock(), 1000 - ((Date.now() - this.timeOffset) % 1000) + 10);
 	}
 
-	return isJoined;
-};
-
-/**
- * @typedef MessageData
- * @property {string} id
- * @property {number} ts
- * @property {string} message
- * @property {string} uid
- * @property {string?} originalAuthor
- * @property {string?} attachment
- * @property {string?} nonce
- */
-
-/**
- * Insert a message into the website
- * @param {object} data
- * @param {MessageData} data.msgData
- * @param {number} data.msgIndex
- * @param {boolean} data.isLastNew
- * @param {boolean} data.isNew
- * @param {boolean} data.continuation
- * @param {boolean} data.scrollAttachment
- * @param {boolean} data.isShadow
- * @param {Node} data.afterElement
- * @param {MessageData} data.lastMessage
- */
-const insertMessage = (data) => {
-	getMissingUserData(data.msgData.uid);
-	if (data.msgData.originalAuthor) getMissingUserData(data.msgData.originalAuthor);
-
-	if (!data.isNew) {
-		if (data.msgIndex === 0) {
-			elements.messages.insertBefore(generateMessage(data.msgData, false, false, data.scrollAttachment), elements.messages.firstChild);
-		} else {
-			const lastMessage = state.messages[data.msgIndex - 1], lastMessageElement = document.getElementById(lastMessage.id);
-			state.utils.insertAfter(
-				elements.messages,
-				generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), false, data.scrollAttachment),
-				lastMessageElement,
-			);
-
-			const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
-			if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
-				state.utils.insertAfter(elements.messages, generateDaySeparator(data.msgData.ts), lastMessageElement);
-			}
-		}
-
-		state.messages.splice(data.msgIndex, 0, data.msgData);
-
-		const nextMessage = state.messages[data.msgIndex + 1];
-		if (data.isLastNew && nextMessage && messageJoinCheck(data.msgData, nextMessage)) {
-			document.getElementById(nextMessage.id).remove();
-			insertMessage({
-				msgData: nextMessage,
-				msgIndex: data.msgIndex + 1,
-				isNew: false,
-			});
-			state.messages.splice(data.msgIndex + 1, 1);
-		}
-	} else {
-		const scroll = elements.messageContainer.offsetHeight + elements.messageContainer.scrollTop + 20 > elements.messageContainer.scrollHeight;
-
-		if (data.afterElement) {
-			state.utils.insertAfter(
-				elements.messages,
-				generateMessage(data.msgData, messageJoinCheck(data.lastMessage, data.msgData), data.isShadow, data.isNew),
-				data.afterElement,
-			);
-		} else {
-			let correctIndex = 0;
-			for (let i = state.messages.length - 1; i >= 0; i--) {
-				if (state.messages[i].ts > data.msgData.ts) correctIndex++;
-			}
-
-			const lastMessage = state.messages[state.messages.length - (correctIndex + 1)];
-			const nextMessage = state.messages[state.messages.length - correctIndex];
-			const messageElement = generateMessage(data.msgData, messageJoinCheck(lastMessage, data.msgData), data.isShadow, data.isNew);
-
-			if (correctIndex === 0) {
-				state.utils.insertAfter(elements.messages, messageElement, document.getElementById(lastMessage.id));
-
-				if (lastMessage && !data.isShadow) {
-					const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
-					if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
-						elements.messages.insertBefore(generateDaySeparator(data.msgData.ts), document.getElementById(data.msgData.id));
-					}
-				}
-			} else {
-				elements.messages.insertBefore(messageElement, document.getElementById(nextMessage.id));
-
-				document.getElementById(nextMessage.id).remove();
-				insertMessage({
-					msgData: nextMessage,
-					isNew: true,
-					lastMessage: data.msgData,
-					afterElement: document.getElementById(data.msgData.id),
-				});
-			}
-
-			if (!data.isShadow) state.messages.splice(state.messages.length - correctIndex, 0, data.msgData);
-		}
-
-		if (!data.isShadow && !document.hasFocus() && Notification.permission === 'granted') {
-			const notif = new Notification('Discord5: New Message', {
-				body: `${state.users[data.msgData.uid].nickname}: ${data.msgData.message.slice(0, 150)}`,
-				icon: '/favicon.ico',
-			});
-
-			notif.index = state.notifications.length;
-			notif.addEventListener('close', () => {
-				state.notifications.splice(notif.index, 1);
-			});
-
-			state.notifications.push(notif);
-		}
-
-		if (data.isShadow) setTimeout(() => {
-			const msgElement = document.getElementById(data.msgData.id);
-			if (msgElement) {
-				msgElement.style.color = 'var(--red)';
-				setTimeout(() => {
-					document.getElementById(data.msgData.id)?.remove();
-				}, 1_500);
-			}
-		}, 20_000);
-
-		if (scroll) elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
+	onAttachmentLoad(element) {
+		this.elements.messageContainer.scrollTop = this.elements.messageContainer.scrollTop + element.height;
 	}
-};
 
-const getMissingUserData = (uid) => {
-	if (!state.users[uid]) {
-		state.users[uid] = {
-			username: 'Ładowanie...',
-			nickname: 'Ładowanie...',
-		};
-
-		state.socket.send('getUser', {
-			uid: uid,
+	showUsernameTooltip(element, uid, isSidebar = false) {
+		const position = this.utils.getElementPosition(element, true);
+		this.tooltip.show({
+			x: isSidebar ? position.left - 10 : position.right + 10,
+			y: position.top + ((position.bottom - position.top) / 2),
+			side: isSidebar ? 'right' : 'left',
+			content: `${this.users[uid].username}<br>ID: ${uid}`,
+			withArrow: true,
 		});
 	}
-};
 
-const onAttachmentLoad = (element) => {
-	elements.messageContainer.scrollTop = elements.messageContainer.scrollTop + element.height;
-};
-
-const loadMessages = () => {
-	elements.loadMessagesButton.style.display = 'none';
-	state.socket.send('getMessages');
-};
-
-const resetUpload = () => {
-	elements.uploadButton.innerHTML = svgs.plus;
-	elements.uploadInput.value = '';
-	state.currentAttachment = null;
-};
-
-const updateNickname = (uid) => {
-	for (const msg of state.messages) {
-		const msgMeta = document.getElementById(msg.id).querySelector('.message-meta');
-
-		if (msgMeta) {
-			if (msg.uid === uid) {
-				const element = msgMeta.childNodes[0];
-				if (element) element.innerHTML = state.users[uid].nickname;
-			}
-
-			if (msg.originalAuthor === uid) {
-				const element = msgMeta.childNodes[2];
-				if (element) element.innerHTML = state.users[uid].nickname;
-			}
-		}
+	showDateTooltip(element, timestamp) {
+		const position = this.utils.getElementPosition(element, true);
+		this.tooltip.show({
+			x: position.left,
+			y: position.top - 10,
+			side: 'bottom',
+			content: `${new Date(timestamp).toLocaleString('pl')}`,
+			withArrow: true,
+		});
 	}
+}
 
-	const sidebarEntry = document.getElementById(`online-${uid}`);
-	if (sidebarEntry) sidebarEntry.innerHTML = state.users[uid].nickname;
-};
-
-document.onkeydown = (event) => {
-	if (event.code === 'Escape' && state.popup.isClosable) {
-		state.popup.hide();
-	} else if (document.body === document.activeElement && !state.dropdown.isOpen) {
-		console.log(document.activeElement);
-		elements.input.focus();
-	}
-};
-
-elements.input.onkeydown = (event) => {
-	if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
-		event.preventDefault();
-
-		let value = elements.input.value.trim();
-
-		if (value === '/tableflip') {
-			value = '(╯°□°）╯︵ ┻━┻';
-		} else if (value === '/unflip') {
-			value = '┬─┬ ノ( ゜-゜ノ)';
-		} else if (value === '/shrug') {
-			value = '¯\\\\_(ツ)_/¯';
-		}
-
-		if (value.length > 0 && value.length <= 2000) {
-			elements.messageContainer.scrollTo(0, elements.messageContainer.scrollHeight);
-			elements.input.value = '';
-			const nonce = `${crypto.randomUUID()}-${Date.now()}`;
-			insertMessage({
-				msgData: {
-					id: nonce,
-					ts: Date.now() - state.timeOffset,
-					uid: state.user.uid,
-					message: value,
-				},
-				isNew: true,
-				isShadow: true,
-				afterElement: elements.messages.lastChild,
-			});
-
-			let attachment = {};
-			if (state.currentAttachment) {
-				attachment = {
-					attachment: {
-						fileName: elements.uploadInput.files[0].name,
-						data: state.currentAttachment,
-					},
-				};
-
-				resetUpload();
-			}
-
-			state.socket.send('sendMessage', {
-				message: value,
-				nonce: nonce,
-				...attachment,
-			});
-		}
-	}
-};
-
-document.onfocus = () => {
-	for (const notif of state.notifications) {
-		notif.close();
-	}
-
-	state.notifications = [];
-};
-
-elements.messageContainer.onscroll = () => {
-	if (Notification.permission === 'default') Notification.requestPermission();
-};
-
-elements.uploadInput.onchange = () => {
-	if (elements.uploadInput.value !== '' && elements.uploadInput.files[0].size <= 11160000) {
-		elements.uploadButton.innerHTML = svgs.cross;
-
-		const reader = new FileReader();
-		reader.onload = (event) => {
-			state.currentAttachment = state.utils.fromArrayBufferToBase64(event.target.result);
-		};
-
-		reader.readAsArrayBuffer(elements.uploadInput.files[0]);
-	} else {
-		elements.uploadInput.value = '';
-	}
-};
-
-elements.uploadButton.onclick = (event) => {
-	if (elements.uploadInput.value !== '') {
-		event.preventDefault();
-		resetUpload();
-	}
-};
-
-const updateClock = () => {
-	const NOW = new Date(Date.now() - state.timeOffset);
-	elements.clock.innerHTML = `${`${NOW.getHours()}`.padStart(2, '0')}:${`${NOW.getMinutes()}`.padStart(2, '0')}:${`${NOW.getSeconds()}`.padStart(2, '0')}`;
-	setTimeout(updateClock, 1000 - ((Date.now() - state.timeOffset) % 1000) + 10);
-};
+const app = new App();
 
 const logOutEverywhereHandler = () => {
-	state.socket.send('logOutEverywhere');
+	app.socket.send('logOutEverywhere');
 };
 
 const logOutHandler = () => {
 	localStorage.removeItem('token');
-	state.socket.disconnect();
-	main();
+	app.socket.disconnect();
+	app.main();
 };
 
 const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = '') => {
-	state.popup.show({
+	app.popup.show({
 		title: 'Ustaw swój pseudonim',
 		subtitle: subtitle,
 		closeable: closeable,
@@ -1138,19 +1363,19 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 	const changeNicknameFormHandler = () => {
 		const value = nicknameInput.value.trim();
 
-		if (!state.utils.verifyUsername(value)) {
-			state.popup.setSubtitle({
+		if (!app.utils.verifyUsername(value)) {
+			app.popup.setSubtitle({
 				subtitle: 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _',
 			});
-			state.popup.shake();
+			app.popup.shake();
 		} else {
-			if (value !== state.user.nickname) {
-				state.popup.showSpinner();
-				state.socket.send('setNickname', {
+			if (value !== app.user.nickname) {
+				app.popup.showSpinner();
+				app.socket.send('setNickname', {
 					nickname: value,
 				});
 			} else {
-				state.popup.hide();
+				app.popup.hide();
 			}
 		}
 	};
@@ -1162,12 +1387,12 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 		}
 	};
 
-	nicknameInput.value = startingValue === '' ? state.user.nickname : startingValue;
+	nicknameInput.value = startingValue === '' ? app.user.nickname : startingValue;
 	nicknameInput.focus();
 };
 
 const changePasswordHandler = () => {
-	state.popup.show({
+	app.popup.show({
 		title: 'Zmień hasło',
 		closeable: true,
 		body: [
@@ -1205,17 +1430,17 @@ const changePasswordHandler = () => {
 	const changePasswordFormHandler = async () => {
 		const newPassword = document.getElementById('popup-input-password').value;
 		if (newPassword !== document.getElementById('popup-input-password2').value) {
-			state.popup.setSubtitle({
+			app.popup.setSubtitle({
 				subtitle: 'Podane nowe hasła nie są identyczne',
 			});
-			state.popup.shake();
+			app.popup.shake();
 			return;
 		}
 
-		state.popup.showSpinner();
-		state.socket.send('changePassword', {
-			oldPassword: await state.utils.sha256(oldPasswordInput.value),
-			password: await state.utils.sha256(document.getElementById('popup-input-password').value),
+		app.popup.showSpinner();
+		app.socket.send('changePassword', {
+			oldPassword: await app.utils.sha256(oldPasswordInput.value),
+			password: await app.utils.sha256(document.getElementById('popup-input-password').value),
 		});
 	};
 
@@ -1230,8 +1455,8 @@ const changePasswordHandler = () => {
 };
 
 const loginHandler = () => {
-	state.spinner.hide();
-	state.popup.show({
+	app.spinner.hide();
+	app.popup.show({
 		title: 'Zaloguj się',
 		body: [
 			{
@@ -1266,7 +1491,7 @@ const loginHandler = () => {
 	const usernameInput = document.getElementById('popup-input-username');
 
 	const loginFormHandler = async () => {
-		state.popup.showSpinner();
+		app.popup.showSpinner();
 		const response = await fetch('/api/login', {
 			method: 'POST',
 			headers: {
@@ -1274,7 +1499,7 @@ const loginHandler = () => {
 			},
 			body: JSON.stringify({
 				username: usernameInput.value,
-				password: await state.utils.sha256(document.getElementById('popup-input-password').value),
+				password: await app.utils.sha256(document.getElementById('popup-input-password').value),
 			}),
 		});
 
@@ -1285,18 +1510,18 @@ const loginHandler = () => {
 				error = 'Niepoprawny login lub hasło';
 			} else if (data.message === 'success') {
 				localStorage.setItem('token', data.token);
-				main();
+				app.main();
 				return;
 			}
 		} else if (response.status === 429) {
 			error = 'Zbyt wiele nieudanych prób logowania. Spróbuj ponownie później';
 		}
 
-		state.popup.setSubtitle({
+		app.popup.setSubtitle({
 			subtitle: error,
 		});
-		state.popup.shake();
-		state.popup.hideSpinner();
+		app.popup.shake();
+		app.popup.hideSpinner();
 	};
 
 	document.getElementById('popup-button-login').onclick = loginFormHandler;
@@ -1314,10 +1539,10 @@ const loginHandler = () => {
 };
 
 const registerHandler = () => {
-	state.spinner.hide();
+	app.spinner.hide();
 	let registrationInProgress = false;
 	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border); margin-bottom: 20px;">Nie jestem robotem</div>';
-	state.popup.show({
+	app.popup.show({
 		title: 'Zarejestruj się',
 		body: [
 			{
@@ -1384,10 +1609,10 @@ const registerHandler = () => {
 					if (captchaRow) resetCaptcha();
 				}, 60_000);
 			} else {
-				state.popup.setSubtitle({
+				app.popup.setSubtitle({
 					subtitle: 'Zbyt wiele nieudanych prób rozwiązania CAPTCHy. Spróbuj ponownie później',
 				});
-				state.popup.shake();
+				app.popup.shake();
 			}
 		};
 	};
@@ -1403,7 +1628,7 @@ const registerHandler = () => {
 			error = 'Musisz potwierdzić że nie jesteś robotem';
 		}
 
-		if (!state.utils.verifyUsername(usernameInput.value)) {
+		if (!app.utils.verifyUsername(usernameInput.value)) {
 			error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
 		}
 
@@ -1413,15 +1638,15 @@ const registerHandler = () => {
 		}
 
 		if (error !== '') {
-			state.popup.setSubtitle({
+			app.popup.setSubtitle({
 				subtitle: error,
 			});
-			state.popup.shake();
+			app.popup.shake();
 			registrationInProgress = false;
 			return;
 		}
 
-		state.popup.showSpinner();
+		app.popup.showSpinner();
 		const response = await fetch('/api/register', {
 			method: 'POST',
 			headers: {
@@ -1429,7 +1654,7 @@ const registerHandler = () => {
 			},
 			body: JSON.stringify({
 				username: usernameInput.value,
-				password: await state.utils.sha256(password),
+				password: await app.utils.sha256(password),
 				captcha: {
 					id: captchaData.id,
 					timestamp: captchaData.timestamp,
@@ -1465,7 +1690,7 @@ const registerHandler = () => {
 		}
 
 		if (error === '') {
-			state.popup.setSubtitle({
+			app.popup.setSubtitle({
 				subtitle: 'Zarejestrowano pomyślnie!',
 				subtitleColor: 'var(--green)',
 			});
@@ -1473,11 +1698,11 @@ const registerHandler = () => {
 				loginHandler();
 			}, 1000);
 		} else {
-			state.popup.hideSpinner();
-			state.popup.setSubtitle({
+			app.popup.hideSpinner();
+			app.popup.setSubtitle({
 				subtitle: error,
 			});
-			state.popup.shake();
+			app.popup.shake();
 			registrationInProgress = false;
 		}
 	};
@@ -1491,15 +1716,4 @@ const registerHandler = () => {
 	usernameInput.focus();
 };
 
-const main = async () => {
-	const token = localStorage.getItem('token');
-	if (!token) {
-		loginHandler();
-		return;
-	}
-
-	state.socket.connect();
-};
-
-updateClock();
-main();
+app.main();

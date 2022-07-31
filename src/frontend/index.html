@@ -6,7 +6,6 @@
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-		<link rel="stylesheet" href="static/highlight.css">
 		<link rel="stylesheet" href="static/main.css">
 	</head>
 
@@ -32,7 +31,7 @@
 
 			<div class="chat-body">
 				<div id="message-container">
-					<div id="load-messages-button" onclick="loadMessages()">Wczytaj więcej wiadomości</div>
+					<div id="load-messages-button" onclick="app.messages.load()">Wczytaj więcej wiadomości</div>
 					<div id="messages"></div>
 				</div>
 			</div>
@@ -74,7 +73,6 @@
 			<div class="spinner"></div>
 		</div>
 
-		<script src="static/highlight.js"></script>
 		<script src="static/main.js"></script>
 	</body>
 </html>
