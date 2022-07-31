@@ -1,5 +1,4 @@
 P1:
-urls with spaces break
 focus message input on keydown
 reset shadow message timer when receiving ratelimit packets
 attachment upload/download quota

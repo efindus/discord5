@@ -12,11 +12,11 @@ const { ratelimitManager } = require('./ratelimit');
 const basePath = './src/frontend';
 const attachmentsBasePath = './data';
 const PROTOCOL_VERSION = '1';
+const messagesToLoad = 100;
 const SERVER_USER_UID = '691657194299387Server';
 
 const endpoints = {};
 const webSockets = {};
-const messagesToLoad = 100;
 global.webSockets = webSockets;
 
 global.updateClients = () => {

@@ -65,7 +65,7 @@ class Server extends EventEmitter {
 				let url = request.url;
 
 				if (request.method.length + url.length > 60) {
-					url = `${url.slice(0, 27 - request.method.length)}...`;
+					url = `${url.slice(0, 57 - request.method.length)}...`;
 				}
 
 				while (request.method.length + url.length < 60) {
@@ -82,7 +82,7 @@ class Server extends EventEmitter {
 			}
 
 			const url = new URL(request.url, `https://${request.headers.host}`);
-			let path = url.pathname;
+			let path = decodeURIComponent(url.pathname);
 			path = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
 
 			const requestData = {
