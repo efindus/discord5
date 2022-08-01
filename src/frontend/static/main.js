@@ -290,11 +290,12 @@ class PopupManager {
 	 * @param {string} data.title Popup title
 	 * @param {string} data.subtitle Popup subtitle
 	 * @param {string} data.subtitleColor Popup subtitle color
+	 * @param {boolean} data.isTranslucent
 	 * @param {boolean} data.closeable Allow closing the popup?
 	 * @param {Record<number, Row>} data.body Popup body
 	 * @param {Record<number, FooterButton>} data.footer Popup footer
 	 */
-	show(data) {
+	create(data) {
 		this.#elements.container.style.visibility = 'visible';
 		this.#elements.container.style.opacity = '1';
 		this.#elements.container.style.transitionDelay = '0s, 0s';
@@ -312,6 +313,12 @@ class PopupManager {
 		} else {
 			this.#elements.popupClose.style.display = 'none';
 			this.#isCloseable = false;
+		}
+
+		if (data.isTranslucent) {
+			this.#elements.container.style.backgroundColor = 'var(--translucent-background)';
+		} else {
+			this.#elements.container.style.backgroundColor = 'var(--background)';
 		}
 
 		this.#elements.body.innerHTML = '';
@@ -1336,7 +1343,7 @@ const logOutHandler = () => {
 };
 
 const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = '') => {
-	app.popup.show({
+	app.popup.create({
 		title: 'Ustaw swój pseudonim',
 		subtitle: subtitle,
 		closeable: closeable,
@@ -1391,7 +1398,7 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 };
 
 const changePasswordHandler = () => {
-	app.popup.show({
+	app.popup.create({
 		title: 'Zmień hasło',
 		closeable: true,
 		body: [
@@ -1455,7 +1462,7 @@ const changePasswordHandler = () => {
 
 const loginHandler = () => {
 	app.spinner.hide();
-	app.popup.show({
+	app.popup.create({
 		title: 'Zaloguj się',
 		body: [
 			{
@@ -1541,7 +1548,7 @@ const registerHandler = () => {
 	app.spinner.hide();
 	let registrationInProgress = false;
 	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border); margin-bottom: 20px;">Nie jestem robotem</div>';
-	app.popup.show({
+	app.popup.create({
 		title: 'Zarejestruj się',
 		body: [
 			{

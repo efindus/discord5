@@ -25,11 +25,12 @@
     --online: #41b37f;
 	--background:#292e39;
 	--input-background: #22252d;
+	--translucent-background: #060606b0;
 	--topbar: #161716;
     --box: #2e3440;
 	--lightbox: #4b535e;
-    --shadow: rgba(15, 17, 21, 0.35);
-    --hover: rgba(76, 86, 106, 0.5);
+    --shadow: #0f111559;
+    --hover: #4c566a80;
 	--upload-button: #3c3c48;
 	--light-grey: #a4a4a4;
 	--grey-accent: #82828a;
@@ -268,6 +269,7 @@ html, body {
 	border-radius: 8px;
 	margin-top: 5px;
 	margin-left: 15px;
+	margin-bottom: 4px;
 	border-width: 2px;
 	border-style: solid;
 	border-color: var(--border);
