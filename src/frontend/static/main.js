@@ -706,6 +706,7 @@ class MessageManager {
 	constructor(app) {
 		this.#app = app;
 
+		this.#elements.loadMessagesButton.addEventListener('click', () => app.messages.load());
 		this.#elements.input.addEventListener('keydown', (event) => {
 			if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
 				event.preventDefault();
