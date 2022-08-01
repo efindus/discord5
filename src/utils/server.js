@@ -3,6 +3,7 @@ const { URL } = require('url');
 const { createServer } = require('http');
 const { createSecureServer } = require('http2');
 
+const { logger } = require('./logger');
 const { green, blue, bold } = require('./colors.js');
 const { ipv6tov4 } = require('./ip');
 const { findMany } = require('./database');
@@ -36,7 +37,7 @@ class Server extends EventEmitter {
 				response.writeHead(302, { location: `https://${request.headers.host}${request.url}` });
 				response.end();
 			}).listen(80, () => {
-				console.log('HTTP server started!');
+				logger.ready('HTTP server started!');
 			});
 		}
 
@@ -72,7 +73,7 @@ class Server extends EventEmitter {
 					url += ' ';
 				}
 
-				console.log(`${bold(blue(`[${remoteAddress}] `)) }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
+				logger.info(`${bold(blue(`[${remoteAddress}] `)) }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
 			});
 
 			if (ipBans[remoteAddress]) {
@@ -144,7 +145,7 @@ class Server extends EventEmitter {
 			// TODO: Do sth?
 		});
 		server.listen(port, () => {
-			console.log('HTTPS server started!');
+			logger.ready('HTTPS server started!');
 		});
 	}
 }

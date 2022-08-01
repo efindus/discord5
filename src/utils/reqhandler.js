@@ -3,8 +3,9 @@ const { createReadStream } = require('fs');
 const { lstat, writeFile } = require('fs/promises');
 const mime = require('mime');
 
-const { bold, green, blue } = require('./colors.js');
-const { WebSocket } = require('./websocket.js');
+const { logger } = require('./logger');
+const { bold, green, blue } = require('./colors');
+const { WebSocket } = require('./websocket');
 const db = require('./database');
 const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./user');
 const { ratelimitManager } = require('./ratelimit');
@@ -164,7 +165,7 @@ const websocket = async (request, socket) => {
 	};
 
 	webSockets[webSocket.id] = webSocket;
-	console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket connected'))}`);
+	logger.info(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket connected'))}`);
 
 	webSocket.on('message', async (message) => {
 		const data = JSON.parse(message);
@@ -180,7 +181,7 @@ const websocket = async (request, socket) => {
 					if (user) {
 						// TODO: handle user bans
 						webSocket.data.user = user;
-						console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket logged in:'))} ${bold(blue(webSocket.data.user.username))}`);
+						logger.info(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket logged in:'))} ${bold(blue(webSocket.data.user.username))}`);
 
 						webSocket.send(JSON.stringify({
 							pid: data.pid,
@@ -393,7 +394,7 @@ const websocket = async (request, socket) => {
 	});
 
 	webSocket.on('close', () => {
-		console.log(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket disconnected:'))} ${webSocket.data.user ? bold(blue(webSocket.data.user.username)) : ''}`);
+		logger.info(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket disconnected:'))} ${webSocket.data.user ? bold(blue(webSocket.data.user.username)) : ''}`);
 		delete webSockets[webSocket.id];
 		updateOnlineUsers();
 	});

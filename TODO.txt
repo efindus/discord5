@@ -11,8 +11,8 @@ hostname resolution
 
 P3 QoL:
 attachment upload progress bar
-add admins (admin panel) (and user bans)
 consider a scroll-to-bottom button
+add admins (admin panel) (and user bans)
 
 Far Future QoL:
 add replies
