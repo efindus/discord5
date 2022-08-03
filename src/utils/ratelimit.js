@@ -1,7 +1,8 @@
 class Ratelimit {
 	#limit;
 	#duration;
-	#startOffset;
+	#durationToLimit;
+	#nextReset;
 	#points;
 
 	/**
@@ -12,10 +13,10 @@ class Ratelimit {
 	constructor(limit, duration) {
 		this.#limit = limit;
 		this.#duration = duration;
-		this.#points = {};
+		this.#durationToLimit = this.#duration / this.#limit;
 
 		setInterval(() => this.reset(), this.#duration);
-		this.#startOffset = Date.now() % this.#duration;
+		this.reset();
 	}
 
 	/**
@@ -37,6 +38,7 @@ class Ratelimit {
 	 */
 	reset() {
 		this.#points = {};
+		this.#nextReset = Date.now() + this.#duration;
 	}
 
 	/**
@@ -57,7 +59,7 @@ class Ratelimit {
 	 * The time in ms until next reset
 	 */
 	get timeUntilReset() {
-		return (this.#duration - (Date.now() % this.#duration) + this.#startOffset) % this.#duration;
+		return this.#nextReset - Date.now();
 	}
 
 	/**
@@ -66,7 +68,7 @@ class Ratelimit {
 	 * @returns {number}
 	 */
 	retryAfter(key) {
-		return this.timeUntilReset + (this.#points[key] - this.limit - 1) * (this.duration / this.limit);
+		return this.timeUntilReset + (this.#points[key] - this.limit - 1) * this.#durationToLimit;
 	}
 }
 
