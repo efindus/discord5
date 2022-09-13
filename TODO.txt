@@ -1,5 +1,4 @@
 P1:
-focus message input on keydown
 reset shadow message timer when receiving ratelimit packets
 attachment upload/download quota
 ipbans after consistently hitting the rate limit
@@ -16,5 +15,6 @@ consider a scroll-to-bottom button
 add admins (admin panel) (and user bans)
 
 Far Future QoL:
+fix mobile
 add replies
-add mentions <https://stackoverflow.com/questions/4705848/rendering-html-inside-textarea>
+add mentions

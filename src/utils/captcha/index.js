@@ -115,7 +115,7 @@ const createCaptcha = (length, secret) => {
 		id: id,
 		timestamp: timestamp,
 		signature: createHmac('sha256', secret).update(`${id}${timestamp}${solution}`).digest('hex'),
-		content: `<svg class="captcha-image" version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(position)} 64"><path fill="var(--text)" d="${output.join('')}"></path></svg>`,
+		content: `<svg class="captcha-image" version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(position)} 64"><path fill="var(--text-primary)" d="${output.join('')}"></path></svg>`,
 	};
 };
 

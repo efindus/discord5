@@ -14,6 +14,7 @@ const basePath = './src/frontend';
 const attachmentsBasePath = './data';
 const PROTOCOL_VERSION = '1';
 const messagesToLoad = 100;
+const maxMessageLenght = 2000;
 const SERVER_USER_UID = '691657194299387Server';
 
 const endpoints = {};
@@ -194,6 +195,7 @@ const websocket = async (request, socket) => {
 							},
 							serverTime: Date.now(),
 							messagesToLoad: messagesToLoad,
+							maxMessageLenght: maxMessageLenght,
 							protocolVersion: PROTOCOL_VERSION,
 						}));
 
@@ -297,7 +299,7 @@ const websocket = async (request, socket) => {
 					return;
 				}
 
-				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= 2000 &&
+				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= maxMessageLenght &&
 					typeof data.nonce === 'string' && data.nonce.length > 0 && data.nonce.length < 52
 				) {
 					const ts = Date.now();

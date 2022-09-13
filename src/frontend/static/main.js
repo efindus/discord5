@@ -1,14 +1,3 @@
-const svgs = {
-	plus: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" y1="0.5" x2="0.75" y2="0.5" stroke="var(--light-grey)" stroke-width="0.06"></line>
-			<line x1="0.5" y1="0.25" x2="0.5" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06"></line>
-		</svg>`,
-	cross: `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1 1">
-			<line x1="0.25" x2="0.75" stroke="var(--light-grey)" stroke-width="0.06" y1="0.25" y2="0.75"></line>
-			<line y1="0.25" y2="0.75" stroke="var(--light-grey)" stroke-width="0.06" x2="0.25" x1="0.75"></line>
-		</svg>`,
-};
-
 class SocketManager {
 	#app;
 
@@ -22,6 +11,11 @@ class SocketManager {
 	#receiveQueue = {};
 	#protocolVersion = '1';
 	#messagesToLoad = 100;
+	#maxMessageLenght = 2000;
+
+	get maxMessageLenght() {
+		return this.#maxMessageLenght;
+	}
 
 	/**
 	 * @param {App} app
@@ -108,6 +102,29 @@ class SocketManager {
 
 		if (data.pid && this.#receiveQueue[data.pid]) {
 			if (data.type === 'ratelimit') {
+				switch (this.#receiveQueue[data.pid].type) {
+					case 'sendMessage':
+						if (!app.popup.isOpen) {
+							app.popup.create({
+								title: 'Hola, hola! Nie za szybko?',
+								subtitle: 'Wysyłasz zbyt wiele wiadomości!',
+								subtitleColor: 'var(--text-primary)',
+								isTranslucent: true,
+								footer: [
+									{
+										id: 'ratelimit-modal-close',
+										label: 'Wrzuć na luz',
+									},
+								],
+							});
+							document.activeElement.blur();
+							document.getElementById('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
+						}
+						break;
+					default:
+						break;
+				}
+
 				setTimeout(() => {
 					const packet = this.#receiveQueue[data.pid];
 
@@ -130,6 +147,7 @@ class SocketManager {
 
 				this.#app.user = data.user;
 				this.#messagesToLoad = data.messagesToLoad;
+				this.#maxMessageLenght = data.maxMessageLenght;
 				this.#app.timeOffset = Date.now() - data.serverTime;
 
 				this.#propagateUserData();
@@ -316,9 +334,9 @@ class PopupManager {
 		}
 
 		if (data.isTranslucent) {
-			this.#elements.container.style.backgroundColor = 'var(--translucent-background)';
+			this.#elements.container.style.backgroundColor = 'var(--background-translucent)';
 		} else {
-			this.#elements.container.style.backgroundColor = 'var(--background)';
+			this.#elements.container.style.backgroundColor = 'var(--background-secondary)';
 		}
 
 		this.#elements.body.innerHTML = '';
@@ -343,7 +361,7 @@ class PopupManager {
 
 		this.#elements.footer.innerHTML = '';
 		if (data.footer) {
-			this.#elements.body.lastChild.style.marginBottom = '15px';
+			this.#elements.body.style.marginBottom = '15px';
 			for (const button of data.footer) {
 				const buttonElement = document.createElement('div');
 				buttonElement.classList.add('popup-button');
@@ -648,11 +666,11 @@ class MessageManager {
 		generateMessageMeta: (msgData, isContinuation) => {
 			if (isContinuation) return '';
 
-			const messageAuthor = `<div class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.uid)}>${this.#app.users[msgData.uid].nickname}</div>`;
-			const messageDate = `<div class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</div>`;
+			const messageAuthor = `<span class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.uid)}>${this.#app.users[msgData.uid].nickname}</span>`;
+			const messageDate = `<span class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</span>`;
 			let messageFor = '';
 			if (msgData.originalAuthor) {
-				messageFor = `<div style="margin-right: 6px;">dla</div><div class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.originalAuthor)}>${this.#app.users[msgData.originalAuthor].nickname}</div>`;
+				messageFor = `<span style="margin-right: 4px;">dla</span><span class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.originalAuthor)}>${this.#app.users[msgData.originalAuthor].nickname}</span>`;
 			}
 
 			return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
@@ -673,10 +691,10 @@ class MessageManager {
 				msgData.attachment.endsWith('.gif') ||
 				msgData.attachment.endsWith('.webp')
 			)) {
-				messageAttachment = `<img src="/attachments/${msgData.attachment}" ${isNew ? 'onload="app.onAttachmentLoad(this)" ' : ''}onerror="this.remove()"><div>${messageAttachment}</div>`;
+				messageAttachment = `<img src="/attachments/${msgData.attachment}" onload="app.onAttachmentLoad(this, ${isNew ?? false})" onerror="this.remove()"><div>${messageAttachment}</div>`;
 			}
 
-			return `<div class="message-attachment">${messageAttachment}</div>`;
+			return `<div class="message-attachment message-attachment-file">${messageAttachment}</div>`;
 		},
 		messageJoinCheck: (lastMessage, newMessage) => {
 			let isJoined = (lastMessage?.uid === newMessage.uid);
@@ -713,12 +731,25 @@ class MessageManager {
 	constructor(app) {
 		this.#app = app;
 
+		document.addEventListener('keydown', (event) => {
+			if ((event.code.startsWith('Key') || event.code === 'Space') &&
+				document.activeElement === document.body &&
+				!this.#app.popup.isOpen &&
+				!this.#app.dropdown.isOpen &&
+				!this.#app.spinner.isOpen &&
+				!this.#app.tooltip.isOpen &&
+				!event.ctrlKey
+			) {
+				this.#elements.input.focus();
+			}
+		});
+
 		this.#elements.loadMessagesButton.addEventListener('click', () => app.messages.load());
 		this.#elements.input.addEventListener('keydown', (event) => {
 			if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
 				event.preventDefault();
 
-				let value = this.#elements.input.value.trim();
+				let value = this.#elements.input.innerText.trim();
 
 				if (value === '/tableflip') {
 					value = '(╯°□°）╯︵ ┻━┻';
@@ -728,9 +759,9 @@ class MessageManager {
 					value = '¯\\\\_(ツ)_/¯';
 				}
 
-				if (value.length > 0 && value.length <= 2000) {
+				if (value.length > 0 && value.length <= this.#app.socket.maxMessageLenght) {
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
-					this.#elements.input.value = '';
+					this.#elements.input.innerHTML = '<br class="input-last-br">';
 					const nonce = `${crypto.randomUUID()}-${Date.now()}`;
 					this.insert({
 						msgData: {
@@ -762,12 +793,80 @@ class MessageManager {
 						...attachment,
 					});
 				}
+			} else if (this.#elements.input.innerText.length >= this.#app.socket.maxMessageLenght &&
+				!(event.code.startsWith('Arrow') || event.code.startsWith('Delete') || event.code.startsWith('Backspace')) &&
+				(window.getSelection().rangeCount && window.getSelection().getRangeAt(0).collapsed) &&
+				!event.ctrlKey
+			) {
+				event.preventDefault();
+			}
+		});
+
+		this.#elements.input.addEventListener('keyup', (event) => {
+			if (this.#elements.input?.lastChild?.nodeName === 'BR' && !this.#elements.input.lastChild.classList.contains('input-last-br')) {
+				this.#elements.input.lastChild.classList.add('input-last-br');
+			}
+
+			const br = document.querySelector('.input-last-br');
+			if (br?.previousSibling?.nodeName === 'BR') {
+				this.#elements.input.insertBefore(document.createTextNode(''), br);
+			}
+		});
+
+		this.#elements.input.addEventListener('paste', (event) => {
+			event.preventDefault();
+			const paste = (event.clipboardData || window.clipboardData).getData('text');
+			let limit = this.#app.socket.maxMessageLenght;
+
+			const selection = window.getSelection();
+			if (!selection.rangeCount) return;
+			selection.deleteFromDocument();
+			if (this.#elements.input.innerHTML === '') this.#elements.input.innerHTML = '<br class="input-last-br">';
+
+			if (this.#elements.input.innerText.length + paste.length > this.#app.socket.maxMessageLenght) {
+				limit = this.#app.socket.maxMessageLenght - this.#elements.input.innerText.length;
+			}
+
+			let lastNode = null;
+			if (limit > 0) {
+				const input = paste.substring(0, limit).split('\n');
+				let i = 0;
+				for (const frag of input) {
+					if (frag.length > 0) {
+						const textElement = document.createElement('span');
+						textElement.append(this.#app.utils.sanitizeText(frag));
+
+						lastNode = textElement;
+						selection.getRangeAt(0).insertNode(textElement);
+						selection.collapseToEnd();
+					}
+
+					i++;
+					if (i < input.length) {
+						const nl = document.createElement('br');
+
+						lastNode = nl;
+						selection.getRangeAt(0).insertNode(nl);
+						selection.collapseToEnd();
+					}
+				}
+			}
+
+			lastNode?.scrollIntoView({
+				block: 'end',
+			});
+
+			const br = document.querySelector('.input-last-br');
+			if (br !== this.#elements.input?.lastChild) {
+				br?.remove();
+				this.#elements.input.appendChild(document.createElement('br'));
+				this.#elements.input.lastChild.classList.add('input-last-br');
 			}
 		});
 
 		this.#elements.uploadInput.addEventListener('change', () => {
 			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files[0].size <= 11160000) {
-				this.#elements.uploadButton.innerHTML = svgs.cross;
+				this.#elements.uploadButton.firstElementChild.style.transform = 'rotate(45deg)';
 
 				const reader = new FileReader();
 				reader.addEventListener('load', (event) => {
@@ -944,7 +1043,7 @@ class MessageManager {
 	}
 
 	resetUpload() {
-		this.#elements.uploadButton.innerHTML = svgs.plus;
+		this.#elements.uploadButton.firstElementChild.style.transform = 'rotate(0deg)';
 		this.#elements.uploadInput.value = '';
 		this.currentAttachment = null;
 	}
@@ -1303,8 +1402,10 @@ class App {
 		setTimeout(() => this.#updateClock(), 1000 - ((Date.now() - this.timeOffset) % 1000) + 10);
 	}
 
-	onAttachmentLoad(element) {
-		this.elements.messageContainer.scrollTop = this.elements.messageContainer.scrollTop + element.height;
+	onAttachmentLoad(element, isNew) {
+		element.parentElement.classList.remove('message-attachment-file');
+		element.nextElementSibling.remove();
+		if (isNew) this.elements.messageContainer.scrollTop = this.elements.messageContainer.scrollTop + element.height;
 	}
 
 	showUsernameTooltip(element, uid, isSidebar = false) {
@@ -1388,7 +1489,7 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 
 	document.getElementById('popup-button-changeNickname').onclick = changeNicknameFormHandler;
 	nicknameInput.onkeydown = (event) => {
-		if (event.code === 'Enter' || event.keyCode === 13) {
+		if (event.code === 'Enter') {
 			changeNicknameFormHandler();
 		}
 	};
@@ -1452,7 +1553,7 @@ const changePasswordHandler = () => {
 
 	document.getElementById('popup-button-changePassword').onclick = changePasswordFormHandler;
 	document.getElementById('popup-input-password2').onkeydown = (event) => {
-		if (event.code === 'Enter' || event.keyCode === 13) {
+		if (event.code === 'Enter') {
 			changePasswordFormHandler();
 		}
 	};
@@ -1532,7 +1633,7 @@ const loginHandler = () => {
 
 	document.getElementById('popup-button-login').onclick = loginFormHandler;
 	document.getElementById('popup-input-password').onkeydown = (event) => {
-		if (event.code === 'Enter' || event.keyCode === 13) {
+		if (event.code === 'Enter') {
 			loginFormHandler();
 		}
 	};
@@ -1547,7 +1648,7 @@ const loginHandler = () => {
 const registerHandler = () => {
 	app.spinner.hide();
 	let registrationInProgress = false;
-	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border); margin-bottom: 20px;">Nie jestem robotem</div>';
+	const popupCaptchaHTML = '<div id="popup-captcha" class="popup-button" style="background-color: var(--border-secondary); margin-bottom: 20px;">Nie jestem robotem</div>';
 	app.popup.create({
 		title: 'Zarejestruj się',
 		body: [
@@ -1606,7 +1707,7 @@ const registerHandler = () => {
 				captchaData = await response.json();
 				captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
 				document.getElementById('popup-input-captcha').onkeydown = (event) => {
-					if (event.code === 'Enter' || event.keyCode === 13) {
+					if (event.code === 'Enter') {
 						registerFormHandler();
 					}
 				};

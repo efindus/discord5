@@ -13,7 +13,6 @@ ratelimitManager.create('captchaRequest', 5, 60_000); // Each request consumes o
 ratelimitManager.create('registerRequest', 50, 60 * 60_000); // Each request consumes one point, additionally when succeeds consumes 50 points
 ratelimitManager.create('loginRequest', 15, 30_000); // Each request consumes one point, could be 1 per 2s but to save performance on intervals its 15 per 30s
 
-
 /**
  * @param {import('../utils/reqhandler').RequestData} request
  */

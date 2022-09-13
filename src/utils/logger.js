@@ -12,7 +12,7 @@ class Logger {
 				logPrefix += `${bgRedBright(whiteBright(logLevel.toUpperCase()))}`;
 				break;
 			case 'warn':
-				logPrefix += `${bgYellowBright(black(logLevel.toUpperCase()))} `;
+				logPrefix += ` ${bgYellowBright(black(logLevel.toUpperCase()))}`;
 				break;
 			case 'ready':
 				logPrefix += `${bgGreen(black(logLevel.toUpperCase()))}`;
@@ -22,7 +22,7 @@ class Logger {
 				logPrefix += `${green(logLevel.toUpperCase())}`;
 				break;
 			case 'info':
-				logPrefix += `${bgBlue(whiteBright(logLevel.toUpperCase()))} `;
+				logPrefix += ` ${bgBlue(whiteBright(logLevel.toUpperCase()))}`;
 				break;
 			default:
 				throw new Error('Log level must be one of the following: info, warn, error, debug, ready');
