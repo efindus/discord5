@@ -1401,6 +1401,14 @@ class App {
 		this.messages = new MessageManager(this);
 		this.utils = new Utils();
 
+		// Precache fonts to avoid issues
+		const fonts = document.fonts.values();
+		let font = fonts.next();
+		while (!font.done) {
+			font.value.load();
+			font = fonts.next();
+		}
+
 		this.#updateClock();
 	}
 

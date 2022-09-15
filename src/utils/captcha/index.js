@@ -16,6 +16,8 @@ const solved = new Set();
  */
 
 const verifyCaptcha = (id, timestamp, solution, signature, secret) => {
+	solution = solution.toUpperCase();
+
 	if (createHmac('sha256', secret).update(`${id}${timestamp}${solution}`).digest('hex') !== signature)
 		return 'invalidSolution';
 

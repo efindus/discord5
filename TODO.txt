@@ -1,6 +1,10 @@
+P0:
+send messages through http/POST
+attachment upload/download quota
+frontend request ratelimit
+
 P1:
 reset shadow message timer when receiving ratelimit packets
-attachment upload/download quota
 ipbans after consistently hitting the rate limit
 ipbans after some treshold of points over the limit
 username allowlist
