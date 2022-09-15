@@ -1,7 +1,5 @@
 P0:
 send messages through http/POST
-attachment upload/download quota
-frontend request ratelimit
 
 P1:
 reset shadow message timer when receiving ratelimit packets

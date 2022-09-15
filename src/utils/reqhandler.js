@@ -38,6 +38,14 @@ const addEndpoint = (path, method, handler) => {
 	endpoints[path][method] = handler;
 };
 
+// Per IP
+ratelimitManager.create('static', 75, 30_000);
+ratelimitManager.create('failedHTTPRequests', 30, 30_000);
+ratelimitManager.create('attachmentDownload', 1_000_000_000, 90_000);
+
+// Per user
+ratelimitManager.create('attachmentUploads', 45_000_000, 60_000);
+
 /**
  * @typedef RequestData
  * @property {"GET" | "POST" | "HEAD" | "PUT" | "DELETE" | "OPTIONS" | "PATCH"} method
@@ -56,6 +64,11 @@ const addEndpoint = (path, method, handler) => {
  */
 const request = async (request, response) => {
 	const return404 = () => {
+		if (!ratelimitManager.consume('failedHTTPRequests', request.remoteAddress)) {
+			response.writeHead(429);
+			return response.end();
+		}
+
 		response.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
 		createReadStream(`${basePath}/404.html`).pipe(response);
 		return;
@@ -95,9 +108,6 @@ const request = async (request, response) => {
 	}
 
 	if (request.method === 'GET') {
-		if (request.path.includes('..'))
-			return return404();
-
 		let filePath = `${basePath}/index.html`;
 		if (request.path.startsWith('/attachments'))
 			filePath = `${attachmentsBasePath}${request.path}`;
@@ -106,9 +116,20 @@ const request = async (request, response) => {
 		else if (request.path !== '/')
 			return return404();
 
+		if (!request.path.startsWith('/attachments') && !ratelimitManager.consume('static', request.remoteAddress)) {
+			response.writeHead(429);
+			return response.end();
+		}
+
 		try {
 			const res = await lstat(filePath);
+
 			if (res.isFile()) {
+				if (request.path.startsWith('/attachments') && !ratelimitManager.consume('attachmentDownload', request.remoteAddress, res.size)) {
+					response.writeHead(429);
+					return response.end();
+				}
+
 				let contentType = mime.getType(filePath);
 				if (contentType === 'text/html' && request.path !== '/')
 					contentType = 'text/plain';
@@ -145,13 +166,10 @@ const updateOnlineUsers = () => {
 	}
 };
 
-// TODO: attachment quotas
-// TODO: static content quotas
-
 // Per IP
 ratelimitManager.create('authorizePacket', 15, 60_000); // Each request consumes one point, closes WS when limit is reached
 ratelimitManager.create('getUserPacket', 120, 60_000); // Each request consumes one point, ignores packets when limit is reached
-ratelimitManager.create('getMessagesPacket', 50, 60_000); // Each request consumes one point, ignores packets when limit is reached
+ratelimitManager.create('getMessagesPacket', 60, 60_000); // Each request consumes one point, ignores packets when limit is reached
 
 // Per user
 ratelimitManager.create('setNicknamePacket', 15, 60_000); // Each request consumes one point, ignores packets when limit is reached
@@ -304,6 +322,7 @@ const websocket = async (request, socket) => {
 					webSocket.send(JSON.stringify({
 						pid: data.pid,
 						type: 'ratelimit',
+						message: 'message',
 						retryAfter: ratelimitManager.retryAfter('sendMessagePacket', webSocket.data.user.uid),
 					}));
 					return;
@@ -314,7 +333,7 @@ const websocket = async (request, socket) => {
 				) {
 					const ts = Date.now();
 					const message = {
-						id: `${ts}-${randomBytes(8).toString('hex')}`,
+						id: `${ts}-${randomBytes(4).toString('hex')}`,
 						ts,
 						message: data.message,
 						uid: webSocket.data.user.uid,
@@ -322,8 +341,18 @@ const websocket = async (request, socket) => {
 
 					if (typeof data.attachment === 'object' &&
 						typeof data.attachment.fileName === 'string' && data.attachment.fileName.length < 250 && data.attachment.fileName.indexOf('/') === -1 &&
-						typeof data.attachment.data === 'string' && data.attachment.data.length <= 14900000
+						typeof data.attachment.data === 'string' && data.attachment.data.length <= 14_900_000
 					) {
+						if (!ratelimitManager.consume('attachmentUploads', webSocket.data.user.uid, data.attachment.data.length)) {
+							webSocket.send(JSON.stringify({
+								pid: data.pid,
+								type: 'ratelimit',
+								message: 'attachment',
+								retryAfter: ratelimitManager.retryAfter('attachmentUploads', webSocket.data.user.uid),
+							}));
+							return;
+						}
+
 						message.attachment = `${message.id}-${data.attachment.fileName}`;
 						await writeFile(`${attachmentsBasePath}/attachments/${message.attachment}`, Buffer.from(data.attachment.data, 'base64'));
 					}

@@ -105,9 +105,15 @@ class SocketManager {
 				switch (this.#receiveQueue[data.pid].type) {
 					case 'sendMessage':
 						if (!app.popup.isOpen) {
+							let title, subtitle;
+							if (data.message === 'message')
+								title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
+							else if (data.message === 'attachment')
+								title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt potężne załączniki!';
+
 							app.popup.create({
-								title: 'Hola, hola! Nie za szybko?',
-								subtitle: 'Wysyłasz zbyt wiele wiadomości!',
+								title,
+								subtitle,
 								subtitleColor: 'var(--text-primary)',
 								isTranslucent: true,
 								footer: [
@@ -1056,7 +1062,7 @@ class MessageManager {
 	resetUpload() {
 		this.#elements.uploadButton.firstElementChild.style.transform = 'rotate(0deg)';
 		this.#elements.uploadInput.value = '';
-		this.currentAttachment = null;
+		this.#currentAttachment = null;
 	}
 
 	updateNickname(uid) {
