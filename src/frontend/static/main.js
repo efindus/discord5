@@ -143,7 +143,8 @@ class SocketManager {
 			});
 		} else if (data.type === 'authorizeCB') {
 			if (data.message === 'accepted') {
-				if (this.#protocolVersion !== data.protocolVersion) window.location.reload();
+				if (this.#protocolVersion !== data.protocolVersion)
+					window.location.reload();
 
 				this.#app.user = data.user;
 				this.#messagesToLoad = data.messagesToLoad;
@@ -156,9 +157,8 @@ class SocketManager {
 				logOutHandler();
 			}
 		} else if (data.type === 'newMessage') {
-			if (data.nonce) {
+			if (data.nonce)
 				document.getElementById(data.nonce)?.remove();
-			}
 
 			this.#app.messages.insert({
 				msgData: data,
@@ -178,8 +178,11 @@ class SocketManager {
 			}
 
 			this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight - oldHeight + this.#app.elements.messageContainer.scrollTop);
-			if (data.messages.length === this.#messagesToLoad) this.#app.messages.showLoadButton();
-			if (this.#app.messages.count <= this.#messagesToLoad) this.#app.spinner.hide();
+			if (data.messages.length === this.#messagesToLoad)
+				this.#app.messages.showLoadButton();
+
+			if (this.#app.messages.count <= this.#messagesToLoad)
+				this.#app.spinner.hide();
 		} else if (data.type === 'changePasswordCB') {
 			if (data.message === 'success') {
 				this.#reconnect = false;
@@ -272,9 +275,8 @@ class PopupManager {
 
 		this.#elements.popupClose.addEventListener('click', () => this.hide());
 		document.addEventListener('keydown', (event) => {
-			if (event.code === 'Escape' && this.#isCloseable) {
+			if (event.code === 'Escape' && this.#isCloseable)
 				this.hide();
-			}
 		});
 	}
 
@@ -333,11 +335,10 @@ class PopupManager {
 			this.#isCloseable = false;
 		}
 
-		if (data.isTranslucent) {
+		if (data.isTranslucent)
 			this.#elements.container.style.backgroundColor = 'var(--background-translucent)';
-		} else {
+		else
 			this.#elements.container.style.backgroundColor = 'var(--background-secondary)';
-		}
 
 		this.#elements.body.innerHTML = '';
 		if (data.body) {
@@ -346,11 +347,11 @@ class PopupManager {
 			for (const row of data.body) {
 				const rowElement = document.createElement('div');
 				rowElement.classList.add('popup-row');
-				if (row.input) {
+				if (row.input)
 					rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}" ${row.input.limit ? ` maxlength="${row.input.limit}"` : ''}>`;
-				} else {
+				else
 					rowElement.innerHTML = row.html;
-				}
+
 				this.#elements.body.appendChild(rowElement);
 			}
 			this.#elements.body.lastChild.style.marginBottom = '0px';
@@ -612,8 +613,10 @@ class DropdownManager {
 	}
 
 	toggle() {
-		if (!this.#isOpen) this.show();
-		else this.hide();
+		if (!this.#isOpen)
+			this.show();
+		else
+			this.hide();
 	}
 }
 
@@ -625,15 +628,15 @@ class NotificationManager {
 	 */
 	constructor(app) {
 		document.addEventListener('focus', () => {
-			for (const notification of this.#notifications) {
+			for (const notification of this.#notifications)
 				notification.close();
-			}
 
 			this.#notifications = [];
 		});
 
 		app.elements.messageContainer.addEventListener('scroll', () => {
-			if (Notification.permission === 'default') Notification.requestPermission();
+			if (Notification.permission === 'default')
+				Notification.requestPermission();
 		});
 	}
 
@@ -644,7 +647,8 @@ class NotificationManager {
 	 * @param {string} data.body
 	 */
 	create(data) {
-		if (Notification.permission !== 'granted') return;
+		if (Notification.permission !== 'granted')
+			return;
 
 		const notification = new Notification(data.title, {
 			body: data.body,
@@ -664,14 +668,14 @@ class MessageManager {
 
 	#utils = {
 		generateMessageMeta: (msgData, isContinuation) => {
-			if (isContinuation) return '';
+			if (isContinuation)
+				return '';
 
 			const messageAuthor = `<span class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.uid)}>${this.#app.users[msgData.uid].nickname}</span>`;
 			const messageDate = `<span class="message-date">${new Date(msgData.ts).toLocaleString('pl')}</span>`;
 			let messageFor = '';
-			if (msgData.originalAuthor) {
+			if (msgData.originalAuthor)
 				messageFor = `<span style="margin-right: 4px;">dla</span><span class="message-username" ${this.#app.utils.generateUsernameTooltip(msgData.originalAuthor)}>${this.#app.users[msgData.originalAuthor].nickname}</span>`;
-			}
 
 			return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
 		},
@@ -681,7 +685,8 @@ class MessageManager {
 			return `<div class="message-content" ${isContinuation ? this.#app.utils.generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
 		},
 		generateMessageAttachment: (msgData, isNew) => {
-			if (!msgData.attachment) return '';
+			if (!msgData.attachment)
+				return '';
 
 			let messageAttachment = `<a class="message-attachment-name" href="/attachments/${msgData.attachment}" target="_blank">${msgData.attachment}</a>`;
 			if (msgData.attachment && (
@@ -700,9 +705,14 @@ class MessageManager {
 			let isJoined = (lastMessage?.uid === newMessage.uid);
 
 			if (isJoined && lastMessage) {
-				if (lastMessage.originalAuthor !== newMessage.originalAuthor) isJoined = false;
-				if (lastMessage.attachment) isJoined = false;
-				if (newMessage.ts - (20 * 60_000) > lastMessage.ts) isJoined = false;
+				if (lastMessage.originalAuthor !== newMessage.originalAuthor)
+					isJoined = false;
+
+				if (lastMessage.attachment)
+					isJoined = false;
+
+				if (newMessage.ts - (20 * 60_000) > lastMessage.ts)
+					isJoined = false;
 			}
 
 			return isJoined;
@@ -751,13 +761,12 @@ class MessageManager {
 
 				let value = this.#elements.input.innerText.trim();
 
-				if (value === '/tableflip') {
+				if (value === '/tableflip')
 					value = '(╯°□°）╯︵ ┻━┻';
-				} else if (value === '/unflip') {
+				else if (value === '/unflip')
 					value = '┬─┬ ノ( ゜-゜ノ)';
-				} else if (value === '/shrug') {
+				else if (value === '/shrug')
 					value = '¯\\\\_(ツ)_/¯';
-				}
 
 				if (value.length > 0 && value.length <= this.#app.socket.maxMessageLenght) {
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
@@ -803,14 +812,12 @@ class MessageManager {
 		});
 
 		this.#elements.input.addEventListener('keyup', (event) => {
-			if (this.#elements.input?.lastChild?.nodeName === 'BR' && !this.#elements.input.lastChild.classList.contains('input-last-br')) {
+			if (this.#elements.input?.lastChild?.nodeName === 'BR' && !this.#elements.input.lastChild.classList.contains('input-last-br'))
 				this.#elements.input.lastChild.classList.add('input-last-br');
-			}
 
 			const br = document.querySelector('.input-last-br');
-			if (br?.previousSibling?.nodeName === 'BR') {
+			if (br?.previousSibling?.nodeName === 'BR')
 				this.#elements.input.insertBefore(document.createTextNode(''), br);
-			}
 		});
 
 		this.#elements.input.addEventListener('paste', (event) => {
@@ -819,13 +826,15 @@ class MessageManager {
 			let limit = this.#app.socket.maxMessageLenght;
 
 			const selection = window.getSelection();
-			if (!selection.rangeCount) return;
-			selection.deleteFromDocument();
-			if (this.#elements.input.innerHTML === '') this.#elements.input.innerHTML = '<br class="input-last-br">';
+			if (!selection.rangeCount)
+				return;
 
-			if (this.#elements.input.innerText.length + paste.length > this.#app.socket.maxMessageLenght) {
+			selection.deleteFromDocument();
+			if (this.#elements.input.innerHTML === '')
+				this.#elements.input.innerHTML = '<br class="input-last-br">';
+
+			if (this.#elements.input.innerText.length + paste.length > this.#app.socket.maxMessageLenght)
 				limit = this.#app.socket.maxMessageLenght - this.#elements.input.innerText.length;
-			}
 
 			let lastNode = null;
 			if (limit > 0) {
@@ -933,7 +942,8 @@ class MessageManager {
 	 */
 	insert(data) {
 		this.#app.socket.getMissingUserData(data.msgData.uid);
-		if (data.msgData.originalAuthor) this.#app.socket.getMissingUserData(data.msgData.originalAuthor);
+		if (data.msgData.originalAuthor)
+			this.#app.socket.getMissingUserData(data.msgData.originalAuthor);
 
 		if (!data.isNew) {
 			if (data.msgIndex === 0) {
@@ -947,9 +957,8 @@ class MessageManager {
 				);
 
 				const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
-				if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+				if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl'))
 					this.#app.utils.insertAfter(this.#elements.messages, this.#generateDaySeparator(data.msgData.ts), lastMessageElement);
-				}
 			}
 
 			this.#messages.splice(data.msgIndex, 0, data.msgData);
@@ -976,7 +985,8 @@ class MessageManager {
 			} else {
 				let correctIndex = 0;
 				for (let i = this.#messages.length - 1; i >= 0; i--) {
-					if (this.#messages[i].ts > data.msgData.ts) correctIndex++;
+					if (this.#messages[i].ts > data.msgData.ts)
+						correctIndex++;
 				}
 
 				const lastMessage = this.#messages[this.#messages.length - (correctIndex + 1)];
@@ -988,9 +998,8 @@ class MessageManager {
 
 					if (lastMessage && !data.isShadow) {
 						const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
-						if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl')) {
+						if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl'))
 							this.#elements.messages.insertBefore(this.#generateDaySeparator(data.msgData.ts), document.getElementById(data.msgData.id));
-						}
 					}
 				} else {
 					this.#elements.messages.insertBefore(messageElement, document.getElementById(nextMessage.id));
@@ -1004,7 +1013,8 @@ class MessageManager {
 					});
 				}
 
-				if (!data.isShadow) this.#messages.splice(this.#messages.length - correctIndex, 0, data.msgData);
+				if (!data.isShadow)
+					this.#messages.splice(this.#messages.length - correctIndex, 0, data.msgData);
 			}
 
 			if (!data.isShadow && !document.hasFocus()) {
@@ -1024,7 +1034,8 @@ class MessageManager {
 				}
 			}, 20_000);
 
-			if (scroll) this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
+			if (scroll)
+				this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
 		}
 	}
 
@@ -1055,18 +1066,21 @@ class MessageManager {
 			if (msgMeta) {
 				if (msg.uid === uid) {
 					const element = msgMeta.childNodes[0];
-					if (element) element.innerHTML = this.#app.users[uid].nickname;
+					if (element)
+						element.innerHTML = this.#app.users[uid].nickname;
 				}
 
 				if (msg.originalAuthor === uid) {
 					const element = msgMeta.childNodes[2];
-					if (element) element.innerHTML = this.#app.users[uid].nickname;
+					if (element)
+						element.innerHTML = this.#app.users[uid].nickname;
 				}
 			}
 		}
 
 		const sidebarEntry = document.getElementById(`online-${uid}`);
-		if (sidebarEntry) sidebarEntry.innerHTML = this.#app.users[uid].nickname;
+		if (sidebarEntry)
+			sidebarEntry.innerHTML = this.#app.users[uid].nickname;
 	}
 }
 
@@ -1095,16 +1109,16 @@ class Utils {
 
 	#isAtPosition(text, value, position) {
 		for (let i = 0; i < value.length; i++) {
-			if (text[position + i] !== value[i]) {
+			if (text[position + i] !== value[i])
 				return false;
-			}
 		}
 
 		return true;
 	}
 
 	#highlightPart(text) {
-		if (text.length === 0) return '';
+		if (text.length === 0)
+			return '';
 
 		if (this.#mode === 'comment') {
 			const end = text.indexOf('*/');
@@ -1134,15 +1148,15 @@ class Utils {
 			const match = text.match(this.#expressions.string)[0];
 			const end = text.slice(match.length).match(this.#expressions.stringEnd);
 
-			if (end === null) {
+			if (end === null)
 				return `<span class='string'>${text}</span>`;
-			} else {
+			else
 				return `<span class='string'>${match + end[0]}</span>${this.#highlightPart(text.slice(end[0].length + match.length))}`;
-			}
 		} else {
 			let match = text.match(this.#expressions.split)[0];
 
-			if (match.length > 1) match = match.slice(0, match.length - 1);
+			if (match.length > 1)
+				match = match.slice(0, match.length - 1);
 
 			if (match.match(this.#expressions.keyword) !== null) {
 				return `<span class='keyword'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
@@ -1176,9 +1190,8 @@ class Utils {
 		this.#mode = 'default';
 
 		// TODO: maybe remove this
-		for (let i = 0; i < lines.length; i++) {
+		for (let i = 0; i < lines.length; i++)
 			result += `<div class="code-line"><div class="code-line-number">${i + 1}</div><div class="code-line-content">${this.#highlightPart(`${lines[i]}\u200B`)}</div></div>`;
-		}
 
 		return `<div class="code-snippet">${result}</div>`;
 	}
@@ -1187,9 +1200,12 @@ class Utils {
 		let cancel = false;
 
 		for (let i = position; i < text.length; i++) {
-			if (cancel) cancel = false;
-			else if (text[i] === '\\') cancel = true;
-			else if (this.#isAtPosition(text, value, i)) return i;
+			if (cancel)
+				cancel = false;
+			else if (text[i] === '\\')
+				cancel = true;
+			else if (this.#isAtPosition(text, value, i))
+				return i;
 		}
 
 		return -1;
@@ -1201,9 +1217,8 @@ class Utils {
 
 		for (let i = 0; i < text.length; i++) {
 			if (cancel) {
-				if (text[i] !== '*' && text[i] !== '\\' && text[i] !== '_' && text[i] !== '~') {
+				if (text[i] !== '*' && text[i] !== '\\' && text[i] !== '_' && text[i] !== '~')
 					result += '\\';
-				}
 
 				result += text[i];
 				cancel = false;
@@ -1226,9 +1241,8 @@ class Utils {
 						let next = this.#findNext(text, this.#markdown[position][0], i + this.#markdown[position][0].length);
 
 						if (next !== -1) {
-							if (text.slice(i + this.#markdown[position][0].length, next).trim().length === 0) {
+							if (text.slice(i + this.#markdown[position][0].length, next).trim().length === 0)
 								next = this.#findNext(text, this.#markdown[position][0], next + 1);
-							}
 
 							if (next !== -1) {
 								result += `<${this.#markdown[position][1]}>${this.markdownToHTML(text.slice(i + this.#markdown[position][0].length, next))}</${this.#markdown[position][1]}>`;
@@ -1241,7 +1255,8 @@ class Utils {
 					}
 				}
 
-				if (!activated) result += text[i];
+				if (!activated)
+					result += text[i];
 			}
 		}
 
@@ -1304,7 +1319,9 @@ class Utils {
 		const win = element.ownerDocument.defaultView;
 
 		let bottom = rect.bottom + win.pageYOffset, right = rect.right + win.pageXOffset;
-		if (!noOffset) bottom = document.documentElement.clientHeight - bottom, right = document.documentElement.clientWidth - right;
+		if (!noOffset)
+			bottom = document.documentElement.clientHeight - bottom, right = document.documentElement.clientWidth - right;
+
 		return {
 			top: rect.top + win.pageYOffset,
 			left: rect.left + win.pageXOffset,
@@ -1320,16 +1337,17 @@ class Utils {
 	 * @param {Node} referenceChild
 	 */
 	insertAfter(parent, newNode, referenceChild) {
-		if (!referenceChild.nextSibling) {
+		if (!referenceChild.nextSibling)
 			parent.appendChild(newNode);
-		} else {
+		else
 			parent.insertBefore(newNode, referenceChild.nextSibling);
-		}
 	}
 
 	verifyUsername(username) {
-		if (username.length < 3 || username.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(username)) return false;
-		else return true;
+		if (username.length < 3 || username.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(username))
+			return false;
+		else
+			return true;
 	}
 
 	sanitizeText(text) {
@@ -1405,7 +1423,9 @@ class App {
 	onAttachmentLoad(element, isNew) {
 		element.parentElement.classList.remove('message-attachment-file');
 		element.nextElementSibling.remove();
-		if (isNew) this.elements.messageContainer.scrollTop = this.elements.messageContainer.scrollTop + element.height;
+
+		if (isNew)
+			this.elements.messageContainer.scrollTop = this.elements.messageContainer.scrollTop + element.height;
 	}
 
 	showUsernameTooltip(element, uid, isSidebar = false) {
@@ -1489,9 +1509,8 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 
 	document.getElementById('popup-button-changeNickname').onclick = changeNicknameFormHandler;
 	nicknameInput.onkeydown = (event) => {
-		if (event.code === 'Enter') {
+		if (event.code === 'Enter')
 			changeNicknameFormHandler();
-		}
 	};
 
 	nicknameInput.value = startingValue === '' ? app.user.nickname : startingValue;
@@ -1553,9 +1572,8 @@ const changePasswordHandler = () => {
 
 	document.getElementById('popup-button-changePassword').onclick = changePasswordFormHandler;
 	document.getElementById('popup-input-password2').onkeydown = (event) => {
-		if (event.code === 'Enter') {
+		if (event.code === 'Enter')
 			changePasswordFormHandler();
-		}
 	};
 
 	oldPasswordInput.focus();
@@ -1633,9 +1651,8 @@ const loginHandler = () => {
 
 	document.getElementById('popup-button-login').onclick = loginFormHandler;
 	document.getElementById('popup-input-password').onkeydown = (event) => {
-		if (event.code === 'Enter') {
+		if (event.code === 'Enter')
 			loginFormHandler();
-		}
 	};
 
 	document.getElementById('popup-button-register').onclick = () => {
@@ -1695,7 +1712,9 @@ const registerHandler = () => {
 	const captchaRow = document.getElementById('popup-captcha').parentElement;
 	let captchaData = {};
 	const resetCaptcha = () => {
-		if (!captchaRow) return;
+		if (!captchaRow)
+			return;
+
 		captchaRow.innerHTML = popupCaptchaHTML;
 
 		document.getElementById('popup-captcha').onclick = async () => {
@@ -1707,13 +1726,13 @@ const registerHandler = () => {
 				captchaData = await response.json();
 				captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
 				document.getElementById('popup-input-captcha').onkeydown = (event) => {
-					if (event.code === 'Enter') {
+					if (event.code === 'Enter')
 						registerFormHandler();
-					}
 				};
 
 				setTimeout(() => {
-					if (captchaRow) resetCaptcha();
+					if (captchaRow)
+						resetCaptcha();
 				}, 60_000);
 			} else {
 				app.popup.setSubtitle({
@@ -1726,23 +1745,22 @@ const registerHandler = () => {
 	resetCaptcha();
 
 	const registerFormHandler = async () => {
-		if (registrationInProgress) return;
-		else registrationInProgress = true;
+		if (registrationInProgress)
+			return;
+		else
+			registrationInProgress = true;
 
 		let error = '';
 		const captchaInput = document.getElementById('popup-input-captcha');
-		if (!captchaInput){
+		if (!captchaInput)
 			error = 'Musisz potwierdzić że nie jesteś robotem';
-		}
 
-		if (!app.utils.verifyUsername(usernameInput.value)) {
+		if (!app.utils.verifyUsername(usernameInput.value))
 			error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
-		}
 
 		const password = document.getElementById('popup-input-password').value;
-		if (password !== document.getElementById('popup-input-password2').value) {
+		if (password !== document.getElementById('popup-input-password2').value)
 			error = 'Wpisane hasła nie są identyczne';
-		}
 
 		if (error !== '') {
 			app.popup.setSubtitle({

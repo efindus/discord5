@@ -1,12 +1,12 @@
-const EventEmitter = require('events');
 const { URL } = require('url');
+const EventEmitter = require('events');
 const { createServer } = require('http');
 const { createSecureServer } = require('http2');
 
-const { logger } = require('./logger');
-const { green, blue, bold } = require('./colors.js');
 const { ipv6tov4 } = require('./ip');
+const { logger } = require('./logger');
 const { findMany } = require('./database');
+const { green, blue, bold } = require('./colors.js');
 
 let ipBans = {};
 const fetchIPBans = async () => {
@@ -17,6 +17,7 @@ const fetchIPBans = async () => {
 		ipBans[ban.ip] = true;
 	}
 };
+
 fetchIPBans();
 setInterval(() => {
 	fetchIPBans();
@@ -65,13 +66,11 @@ class Server extends EventEmitter {
 
 				let url = request.url;
 
-				if (request.method.length + url.length > 60) {
+				if (request.method.length + url.length > 60)
 					url = `${url.slice(0, 57 - request.method.length)}...`;
-				}
 
-				while (request.method.length + url.length < 60) {
+				while (request.method.length + url.length < 60)
 					url += ' ';
-				}
 
 				logger.info(`${bold(blue(`[${remoteAddress}] `)) }${bold(green(request.method))} ${bold(blue(url))} ${bold(green(`(${Math.round(Number(end - start) / 1000) / 1000} ms)`))}`);
 			});
@@ -109,11 +108,10 @@ class Server extends EventEmitter {
 
 						request.on('end', () => {
 							try {
-								if (request.headers['content-type'] === 'application/json') {
+								if (request.headers['content-type'] === 'application/json')
 									requestData.body = JSON.parse(buffer);
-								} else {
+								else
 									requestData.body = Object.fromEntries(new URLSearchParams(buffer));
-								}
 							} catch (error) {
 								reject();
 							}
@@ -124,7 +122,6 @@ class Server extends EventEmitter {
 				} catch {
 					response.writeHead(400);
 					response.end();
-
 					return;
 				}
 			}

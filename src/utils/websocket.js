@@ -53,18 +53,21 @@ class WebSocket extends EventEmitter {
 
 			try {
 				do {
-					if (inputBuffer.length <= 2) return;
+					if (inputBuffer.length <= 2)
+						return;
 
 					let start = 2;
 					let length = inputBuffer[1] & 0b01111111;
 
 					if (length === 126) {
-						if (inputBuffer.length < 4) return;
+						if (inputBuffer.length < 4)
+							return;
 
 						length = inputBuffer.readUInt16BE(2);
 						start = 4;
 					} else if (length === 127) {
-						if (inputBuffer.length < 10) return;
+						if (inputBuffer.length < 10)
+							return;
 
 						length = inputBuffer.readBigUInt64BE(2);
 						if (length > 15000000) {
@@ -84,14 +87,16 @@ class WebSocket extends EventEmitter {
 						return;
 					}
 
-					if (inputBuffer.length < start + 4) return;
+					if (inputBuffer.length < start + 4)
+						return;
 
 					for (let index = 0; index < 4; index++)
 						mask[index] = inputBuffer[start + index];
 
 					start += 4;
 
-					if (inputBuffer.length < start + length) return;
+					if (inputBuffer.length < start + length)
+						return;
 
 					const message = Buffer.alloc(length);
 
@@ -180,7 +185,9 @@ class WebSocket extends EventEmitter {
 	 * @param {number} code Message code.
 	 */
 	send = (message, code = 1) => {
-		if (this.#closed) return;
+		if (this.#closed)
+			return;
+
 		message = Buffer.from(message);
 		let header;
 

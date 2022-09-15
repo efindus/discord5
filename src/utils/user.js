@@ -5,10 +5,12 @@ const db = require('../utils/database');
 
 const getUser = async (token) => {
 	const payload = decode(token);
-	if (typeof payload.uid !== 'string') return null;
+	if (typeof payload.uid !== 'string')
+		return null;
 
 	const user = await db.findOne('users', { uid: payload.uid });
-	if (!user) return null;
+	if (!user)
+		return null;
 
 	try {
 		verify(token, user.jwtSecret);
@@ -34,7 +36,8 @@ const validateUsername = async (username, checkDB = true) => {
 
 const validateNickname = async (nickname) => {
 	const res = await validateUsername(nickname, false);
-	if (res) return res;
+	if (res)
+		return res;
 
 	return null;
 };
@@ -46,7 +49,8 @@ const regenerateJWTSecret = async (uid) => {
 
 const verifyLogin = (user, password) => {
 	const hash = createHash('sha256').update(`${user.salt}${password}`).digest('base64');
-	if (hash !== user.password) return false;
+	if (hash !== user.password)
+		return false;
 
 	return true;
 };

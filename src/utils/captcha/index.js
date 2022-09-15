@@ -16,13 +16,11 @@ const solved = new Set();
  */
 
 const verifyCaptcha = (id, timestamp, solution, signature, secret) => {
-	if (createHmac('sha256', secret).update(`${id}${timestamp}${solution}`).digest('hex') !== signature) {
+	if (createHmac('sha256', secret).update(`${id}${timestamp}${solution}`).digest('hex') !== signature)
 		return 'invalidSolution';
-	}
 
-	if (timestamp + 60000 < Date.now() || solved.has(id)) {
+	if (timestamp + 60000 < Date.now() || solved.has(id))
 		return 'captchaExpired';
-	}
 
 	solved.add(id);
 

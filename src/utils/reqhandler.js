@@ -1,21 +1,23 @@
+const mime = require('mime');
 const { randomBytes } = require('crypto');
 const { createReadStream } = require('fs');
 const { lstat, writeFile } = require('fs/promises');
-const mime = require('mime');
 
-const { logger } = require('./logger');
-const { bold, green, blue } = require('./colors');
-const { WebSocket } = require('./websocket');
 const db = require('./database');
-const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./user');
+const { logger } = require('./logger');
+const { WebSocket } = require('./websocket');
+const { bold, green, blue } = require('./colors');
 const { ratelimitManager } = require('./ratelimit');
+const { getUser, validateNickname, regenerateJWTSecret, verifyLogin, setPassword } = require('./user');
 
 const basePath = './src/frontend';
 const attachmentsBasePath = './data';
+
 const PROTOCOL_VERSION = '1';
+const SERVER_USER_UID = '691657194299387Server';
+
 const messagesToLoad = 100;
 const maxMessageLenght = 2000;
-const SERVER_USER_UID = '691657194299387Server';
 
 const endpoints = {};
 const webSockets = {};
@@ -30,7 +32,8 @@ global.updateClients = () => {
 };
 
 const addEndpoint = (path, method, handler) => {
-	if (!endpoints[path]) endpoints[path] = {};
+	if (!endpoints[path])
+		endpoints[path] = {};
 
 	endpoints[path][method] = handler;
 };
@@ -92,23 +95,28 @@ const request = async (request, response) => {
 	}
 
 	if (request.method === 'GET') {
-		if (request.path.includes('..')) return return404();
+		if (request.path.includes('..'))
+			return return404();
 
 		let filePath = `${basePath}/index.html`;
-		if (request.path.startsWith('/attachments')) {
+		if (request.path.startsWith('/attachments'))
 			filePath = `${attachmentsBasePath}${request.path}`;
-		} else if (request.path.startsWith('/static') || request.path === '/favicon.ico') {
+		else if (request.path.startsWith('/static') || request.path === '/favicon.ico')
 			filePath = `${basePath}${request.path}`;
-		} else if (request.path !== '/') return return404();
+		else if (request.path !== '/')
+			return return404();
 
 		try {
 			const res = await lstat(filePath);
 			if (res.isFile()) {
 				let contentType = mime.getType(filePath);
-				if (contentType === 'text/html' && request.path !== '/') contentType = 'text/plain';
+				if (contentType === 'text/html' && request.path !== '/')
+					contentType = 'text/plain';
+
 				response.writeHead(200, {
 					'Content-Type': contentType,
 				});
+
 				createReadStream(filePath).pipe(response);
 				return;
 			}
@@ -170,11 +178,13 @@ const websocket = async (request, socket) => {
 
 	webSocket.on('message', async (message) => {
 		const data = JSON.parse(message);
-		if (typeof data.pid !== 'string' && data.type !== 'ping') return;
+		if (typeof data.pid !== 'string' && data.type !== 'ping')
+			return;
 
 		if (!webSocket.data.user) {
 			if (data.type === 'authorize') {
-				if (!ratelimitManager.consume('authorizePacket', webSocket.getIp())) return webSocket.close();
+				if (!ratelimitManager.consume('authorizePacket', webSocket.getIp()))
+					return webSocket.close();
 
 				if (typeof data.token === 'string') {
 					const user = await getUser(data.token);
@@ -385,9 +395,8 @@ const websocket = async (request, socket) => {
 
 				await regenerateJWTSecret(webSocket.data.user.uid);
 				for (const [ _, ws ] of Object.entries(webSockets)) {
-					if (ws.data.user?.uid === webSocket.data.user.uid) {
+					if (ws.data.user?.uid === webSocket.data.user.uid)
 						ws.close();
-					}
 				}
 			} else if (data.type !== 'ping') {
 				webSocket.close();

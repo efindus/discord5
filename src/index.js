@@ -1,9 +1,9 @@
 const { existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync } = require('fs');
 
-const { request, websocket } = require('./utils/reqhandler');
+const db = require('./utils/database');
 const { logger } = require('./utils/logger');
 const { Server } = require('./utils/server');
-const db = require('./utils/database');
+const { request, websocket } = require('./utils/reqhandler');
 
 const main = async () => {
 	logger.info('Connecting to DB...');
@@ -12,7 +12,8 @@ const main = async () => {
 
 	logger.info('Loading modules...');
 	for (const module of readdirSync(`${__dirname}/modules`)) {
-		if (module.endsWith('.js')) require(`./modules/${module}`);
+		if (module.endsWith('.js'))
+			require(`./modules/${module}`);
 	}
 	logger.info('Loaded modules!');
 
@@ -25,7 +26,12 @@ const main = async () => {
 	logger.ready('Discord5 initialized!');
 };
 
-if (!existsSync('data/errors')) mkdirSync('data/errors', { recursive: true });
+if (!existsSync('data/attachments'))
+	mkdirSync('data/attachments', { recursive: true });
+
+if (!existsSync('data/errors'))
+	mkdirSync('data/errors', { recursive: true });
+
 process.on('uncaughtException', error => {
 	logger.error(`Error: ${error.stack}`);
 	writeFileSync(`./data/errors/error-${Date.now()}.txt`, error.stack);

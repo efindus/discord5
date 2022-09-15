@@ -26,11 +26,15 @@ class Ratelimit {
 	 * @returns {boolean} Whether the request was within the limit or not
 	 */
 	consume(key, points = 1) {
-		if (!this.#points[key]) this.#points[key] = 0;
+		if (!this.#points[key])
+			this.#points[key] = 0;
+
 		this.#points[key] += points;
 
-		if (this.#points[key] <= this.#limit) return true;
-		else return false;
+		if (this.#points[key] <= this.#limit)
+			return true;
+		else
+			return false;
 	}
 
 	/**
@@ -85,7 +89,8 @@ class RatelimitManager {
 	 * @param {number} duration - Time in miliseconds between resets
 	 */
 	create(id, limit, duration) {
-		if (this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] ID already in use: ${id}`);
+		if (this.#ratelimits[id])
+			throw new Error(`[Ratelimit Manager] ID already in use: ${id}`);
 
 		this.#ratelimits[id] = new Ratelimit(limit, duration);
 	}
@@ -98,7 +103,8 @@ class RatelimitManager {
 	 * @returns {boolean} Whether the request was within the limit or not
 	 */
 	consume(id, key, points = 1) {
-		if (!this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
+		if (!this.#ratelimits[id])
+			throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
 
 		return this.#ratelimits[id].consume(key, points);
 	}
@@ -108,7 +114,8 @@ class RatelimitManager {
 	 * @param {string} id - Id of the ratelimit instance to reset
 	 */
 	reset(id) {
-		if (!this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
+		if (!this.#ratelimits[id])
+			throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
 
 		this.#ratelimits[id].reset();
 	}
@@ -120,7 +127,8 @@ class RatelimitManager {
 	 * @returns {number}
 	 */
 	retryAfter(id, key) {
-		if (!this.#ratelimits[id]) throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
+		if (!this.#ratelimits[id])
+			throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
 
 		return this.#ratelimits[id].retryAfter(key);
 	}

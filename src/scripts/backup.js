@@ -1,4 +1,5 @@
 const { writeFileSync } = require('fs');
+
 const db = require('../utils/database');
 
 const main = async () => {

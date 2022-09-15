@@ -1,11 +1,11 @@
-const { createHash, randomBytes } = require('crypto');
 const { sign } = require('jsonwebtoken');
+const { createHash, randomBytes } = require('crypto');
 
-const { addEndpoint } = require('../utils/reqhandler');
-const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 const db = require('../utils/database');
 const { validateUsername } = require('../utils/user');
+const { addEndpoint } = require('../utils/reqhandler');
 const { ratelimitManager } = require('../utils/ratelimit');
+const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 
 const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 
@@ -17,7 +17,8 @@ ratelimitManager.create('loginRequest', 15, 30_000); // Each request consumes on
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const captchaHandler = async (request) => {
-	if (!ratelimitManager.consume('captchaRequest', request.remoteAddress)) return { status: 429 };
+	if (!ratelimitManager.consume('captchaRequest', request.remoteAddress))
+		return { status: 429 };
 
 	const captcha = createCaptcha(8, CAPTCHA_SECRET);
 	return {
@@ -30,7 +31,8 @@ const captchaHandler = async (request) => {
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const registerHandler = async (request) => {
-	if (!ratelimitManager.consume('registerRequest', request.remoteAddress)) return { status: 429 };
+	if (!ratelimitManager.consume('registerRequest', request.remoteAddress))
+		return { status: 429 };
 
 	const data = request.body;
 	if (!(
@@ -95,7 +97,8 @@ const registerHandler = async (request) => {
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const loginHandler = async (request) => {
-	if (!ratelimitManager.consume('loginRequest', request.remoteAddress)) return { status: 429 };
+	if (!ratelimitManager.consume('loginRequest', request.remoteAddress))
+		return { status: 429 };
 
 	const data = request.body;
 	if (!(
