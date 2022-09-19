@@ -44,7 +44,7 @@ class SocketManager {
 	send(type, message) {
 		let pid;
 		do {
-			pid = `${crypto.randomUUID()}-${Date.now()}`;
+			pid = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
 		} while (this.#receiveQueue[pid]);
 
 		const packet = {
@@ -84,7 +84,7 @@ class SocketManager {
 			this.#socket.send(JSON.stringify({
 				type: 'ping',
 			}));
-		}, 20_000);
+		}, 50_000);
 	}
 
 	#onClose() {
@@ -444,6 +444,7 @@ class TooltipManager {
 	constructor(app) {
 		this.#app = app;
 		this.#elements.container.addEventListener('click', () => this.hide());
+		this.#elements.tooltip.addEventListener('click', (event) => event.stopPropagation());
 	}
 
 	get isOpen() {
@@ -585,6 +586,7 @@ class SpinnerManager {
 }
 
 class DropdownManager {
+	#app;
 	#elements = {
 		usernameContainer: document.getElementById('username-container'),
 		dropdown: document.querySelector('.dropdown'),
@@ -593,9 +595,14 @@ class DropdownManager {
 
 	#isOpen = false;
 
-	constructor() {
+	/**
+	 * @param {App} app
+	 */
+	constructor(app) {
+		this.#app = app;
 		this.#elements.usernameContainer.addEventListener('click', () => this.toggle());
 		this.#elements.dropdownClose.addEventListener('click', () => this.toggle());
+		this.#app.elements.userData.addEventListener('click', (event) => event.stopPropagation());
 	}
 
 	get isOpen() {
@@ -686,7 +693,7 @@ class MessageManager {
 			return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
 		},
 		generateMessageContent: (msgData, isContinuation) => {
-			const messageContent = this.#app.utils.markdownToHTML(this.#app.utils.sanitizeText(msgData.message)).split('\n').join('<br>');
+			const messageContent = this.#app.utils.markdownToHTML(msgData.message).split('\n').join('<br>');
 
 			return `<div class="message-content" ${isContinuation ? this.#app.utils.generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
 		},
@@ -777,7 +784,7 @@ class MessageManager {
 				if (value.length > 0 && value.length <= this.#app.socket.maxMessageLenght) {
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
 					this.#elements.input.innerHTML = '<br class="input-last-br">';
-					const nonce = `${crypto.randomUUID()}-${Date.now()}`;
+					const nonce = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
 					this.insert({
 						msgData: {
 							id: nonce,
@@ -849,7 +856,7 @@ class MessageManager {
 				for (const frag of input) {
 					if (frag.length > 0) {
 						const textElement = document.createElement('span');
-						textElement.append(this.#app.utils.sanitizeText(frag));
+						textElement.append(frag);
 
 						lastNode = textElement;
 						selection.getRangeAt(0).insertNode(textElement);
@@ -880,7 +887,7 @@ class MessageManager {
 		});
 
 		this.#elements.uploadInput.addEventListener('change', () => {
-			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files[0].size <= 11160000) {
+			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files[0].size <= 11_160_000) {
 				this.#elements.uploadButton.firstElementChild.style.transform = 'rotate(45deg)';
 
 				const reader = new FileReader();
@@ -1139,7 +1146,7 @@ class Utils {
 			const match = text.match(this.#expressions.multilineComment)[0];
 			this.#mode = 'comment';
 
-			return `<span class='comment'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			return `<span class='comment'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 		} else if (text.match(this.#expressions.comment) !== null) {
 			return `<span class='comment'>${text}</span>`;
 		} else if (text.match(this.#expressions.include) !== null) {
@@ -1149,15 +1156,15 @@ class Utils {
 			return `<span class='preprocessor'>${text.slice(0, index)}</span><span class='string-special'>&lt;</span><span class='string'>${text.slice(index + 1, match.length - 1)}</span><span class='string-special'>></span>${this.#highlightPart(text.slice(match.length))}`;
 		} else if (text.match(this.#expressions.preprocessor) !== null) {
 			const match = text.match(this.#expressions.preprocessor)[0];
-			return `<span class='preprocessor'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+			return `<span class='preprocessor'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 		} else if (text.match(this.#expressions.string) !== null) {
 			const match = text.match(this.#expressions.string)[0];
 			const end = text.slice(match.length).match(this.#expressions.stringEnd);
 
 			if (end === null)
-				return `<span class='string'>${text}</span>`;
+				return `<span class='string'>${this.sanitizeText(text)}</span>`;
 			else
-				return `<span class='string'>${match + end[0]}</span>${this.#highlightPart(text.slice(end[0].length + match.length))}`;
+				return `<span class='string'>${this.sanitizeText(match + end[0])}</span>${this.#highlightPart(text.slice(end[0].length + match.length))}`;
 		} else {
 			let match = text.match(this.#expressions.split)[0];
 
@@ -1165,33 +1172,36 @@ class Utils {
 				match = match.slice(0, match.length - 1);
 
 			if (match.match(this.#expressions.keyword) !== null) {
-				return `<span class='keyword'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='keyword'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.instruction) !== null) {
-				return `<span class='instruction'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='instruction'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.operator) !== null) {
-				return `<span class='operator'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='operator'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.number) !== null) {
-				return `<span class='number'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='number'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (text.match(this.#expressions.function) !== null) {
 				let match2 = text.match(this.#expressions.function)[0];
 				match2 = match2.slice(0, match2.length - 1);
 
-				return `<span class='function'>${match2}</span>${this.#highlightPart(text.slice(match2.length))}`;
+				return `<span class='function'>${this.sanitizeText(match2)}</span>${this.#highlightPart(text.slice(match2.length))}`;
 			} else if (match.match(this.#expressions.definition) !== null) {
-				return `<span class='definition'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='definition'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.white) !== null) {
-				return `<span class='white'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='white'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.builtIn) !== null) {
-				return `<span class='builtin'>${match}</span>${this.#highlightPart(text.slice(match.length))}`;
+				return `<span class='builtin'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else {
-				return `<span class='other'>${match}</span>${(text.length > match.length ? this.#highlightPart(text.slice(match.length)) : '')}`;
+				return `<span class='other'>${this.sanitizeText(match)}</span>${(text.length > match.length ? this.#highlightPart(text.slice(match.length)) : '')}`;
 			}
 		}
 	}
 
 	#highlight(text) {
+		if (text.startsWith('\n')) text = text.slice(1);
+		if (text.endsWith('\n')) text = text.slice(0, -1);
+
 		let result = '';
-		const lines = text.split('&lt;').join('<').trim().split('\n');
+		const lines = text.split('\n');
 
 		this.#mode = 'default';
 
@@ -1218,6 +1228,7 @@ class Utils {
 	}
 
 	markdownToHTML(text) {
+		text = text.split('\r').join('');
 		let result = '';
 		let cancel = false;
 
@@ -1226,7 +1237,7 @@ class Utils {
 				if (text[i] !== '*' && text[i] !== '\\' && text[i] !== '_' && text[i] !== '~')
 					result += '\\';
 
-				result += text[i];
+				result += this.sanitizeText(text[i]);
 				cancel = false;
 			} else if (text[i] === '\\') {
 				cancel = true;
@@ -1237,7 +1248,7 @@ class Utils {
 					result += this.#highlight(text.slice(i + 3, end));
 					i = end + 2;
 				} else {
-					result += text[i];
+					result += this.sanitizeText(text[i]);
 				}
 			} else {
 				let activated = false;
@@ -1262,7 +1273,7 @@ class Utils {
 				}
 
 				if (!activated)
-					result += text[i];
+					result += this.sanitizeText(text[i]);
 			}
 		}
 
@@ -1402,7 +1413,7 @@ class App {
 		this.popup = new PopupManager();
 		this.tooltip = new TooltipManager(this);
 		this.spinner = new SpinnerManager();
-		this.dropdown = new DropdownManager();
+		this.dropdown = new DropdownManager(this);
 		this.notifications = new NotificationManager(this);
 		this.messages = new MessageManager(this);
 		this.utils = new Utils();

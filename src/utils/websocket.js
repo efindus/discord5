@@ -38,7 +38,7 @@ class WebSocket extends EventEmitter {
 			'',
 		].join('\r\n'));
 
-		socket.setTimeout(40000);
+		socket.setTimeout(2 * 60_000);
 
 		let inputBuffer = Buffer.alloc(0);
 		let messageBuffer = Buffer.alloc(0);
@@ -70,7 +70,7 @@ class WebSocket extends EventEmitter {
 							return;
 
 						length = inputBuffer.readBigUInt64BE(2);
-						if (length > 15000000) {
+						if (length > 15_000_000) {
 							this.close();
 							return;
 						} else {

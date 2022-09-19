@@ -21,14 +21,14 @@ const verifyCaptcha = (id, timestamp, solution, signature, secret) => {
 	if (createHmac('sha256', secret).update(`${id}${timestamp}${solution}`).digest('hex') !== signature)
 		return 'invalidSolution';
 
-	if (timestamp + 60000 < Date.now() || solved.has(id))
+	if (timestamp + 60_000 < Date.now() || solved.has(id))
 		return 'captchaExpired';
 
 	solved.add(id);
 
 	setTimeout(() => {
 		solved.delete(id);
-	}, timestamp + 60000 - Date.now());
+	}, timestamp + 60_000 - Date.now());
 
 	return true;
 };

@@ -44,7 +44,7 @@ ratelimitManager.create('failedHTTPRequests', 30, 30_000);
 ratelimitManager.create('attachmentDownload', 1_000_000_000, 90_000);
 
 // Per user
-ratelimitManager.create('attachmentUploads', 45_000_000, 60_000);
+ratelimitManager.create('attachmentUploads', 45_000_000, 10 * 60_000);
 
 /**
  * @typedef RequestData
@@ -195,7 +195,14 @@ const websocket = async (request, socket) => {
 	logger.info(`${bold(blue(`[${webSocket.getIp()}] (${webSocket.id}):`))} ${bold(green('Socket connected'))}`);
 
 	webSocket.on('message', async (message) => {
-		const data = JSON.parse(message);
+		let parsed;
+		try {
+			parsed = JSON.parse(message);
+		} catch {
+			return webSocket.close();
+		}
+
+		const data = parsed;
 		if (typeof data.pid !== 'string' && data.type !== 'ping')
 			return;
 
@@ -447,5 +454,14 @@ const websocket = async (request, socket) => {
 		if (!webSocket.data.user) webSocket.close();
 	}, 10_000);
 };
+
+/**
+ * @param {import('../utils/reqhandler').RequestData} request
+ */
+const sendMessageHandler = async (request) => {
+	return { status: 418 };
+};
+
+addEndpoint('/api/message', 'POST', sendMessageHandler);
 
 module.exports = { request, websocket, addEndpoint };

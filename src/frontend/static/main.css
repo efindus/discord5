@@ -236,6 +236,8 @@ html, body {
 }
 
 #user-data {
+	user-select: text;
+	cursor: default;
 	margin-bottom: 14px;
 	font-size: 16px;
 	text-align: center;
