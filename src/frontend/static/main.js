@@ -1108,12 +1108,12 @@ class Utils {
 		number: /^(\s)*(([1-9][0-9]*)|(0[bB][01]+)|(0[0-8]*)|(0[xX][0-9A-Fa-f]+))$/,
 		function: /^(\s)*[A-Za-z0-9_]+(\s)*\(/g,
 		builtIn: /^(\s)*(ios_base|string|wstring|stringstream|istringstream|ostringstream|auto_ptr|deque|list|queue|stack|vector|map|set|pair|bitset|multiset|multimap|unordered_set|unordered_map|unordered_multiset|unordered_multimap|priority_queue|array|shared_ptr)$/g,
-		white: /^(\s)*(std|cin|cout|cerr|clog|endl)$/g,
+		std: /^(\s)*(std|cin|cout|cerr|clog|endl)$/g,
 		definition: /^(\s)*(stdin|stdout|stderr|NULL)$/g,
 		include: /^(\s)*#(\s)*include(\s)*<[^>]*>/g,
 		preprocessor: /^(\s)*#(\s)*(ifdef|elif|ifndef|line|else|error|include|define|endif|if|undef)[^A-Za-z0-9_]/g,
 		string: /^(\s)*"/g,
-		stringEnd: /^(.*[^\\](\\\\)*)?"/g,
+		stringEnd: /^(.*?[^\\](\\\\)*)?"/g,
 	};
 
 	#markdown = [ [ '**', 'b' ], [ '*', 'i' ], [ '__', 'u' ], [ '~~', 'strike' ] ];
@@ -1186,8 +1186,8 @@ class Utils {
 				return `<span class='function'>${this.sanitizeText(match2)}</span>${this.#highlightPart(text.slice(match2.length))}`;
 			} else if (match.match(this.#expressions.definition) !== null) {
 				return `<span class='definition'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
-			} else if (match.match(this.#expressions.white) !== null) {
-				return `<span class='white'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
+			} else if (match.match(this.#expressions.std) !== null) {
+				return `<span class='std'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.builtIn) !== null) {
 				return `<span class='builtin'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else {
@@ -1835,6 +1835,8 @@ const registerHandler = () => {
 			}
 		} else if (response.status === 429) {
 			error = 'Zbyt wiele prób rejestracji. Spróbuj ponownie później';
+		} else if (response.status === 418) {
+			error = 'Rejestracja jest obecnie niedostępna. Spróbuj ponownie później';
 		} else {
 			error = 'Nieznany błąd. Spróbuj ponownie później';
 		}

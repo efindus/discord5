@@ -9,6 +9,7 @@ const { verifyCaptcha, createCaptcha } = require('../utils/captcha');
 
 const CAPTCHA_SECRET = randomBytes(96).toString('hex');
 const CAPTCHA_LENGTH = 8;
+const REGISTRATION_ENABLED = true;
 
 ratelimitManager.create('captchaRequest', 5, 60_000); // Each request consumes one point, can be restored by solving
 ratelimitManager.create('registerRequest', 50, 60 * 60_000); // Each request consumes one point, additionally when succeeds consumes 50 points
@@ -32,6 +33,9 @@ const captchaHandler = async (request) => {
  * @param {import('../utils/reqhandler').RequestData} request
  */
 const registerHandler = async (request) => {
+	if (!REGISTRATION_ENABLED)
+		return { status: 418 };
+
 	if (!ratelimitManager.consume('registerRequest', request.remoteAddress))
 		return { status: 429 };
 
