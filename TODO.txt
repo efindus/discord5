@@ -8,15 +8,16 @@ ipbans after some treshold of points over the limit
 username allowlist
 
 P2:
-hostname resolution
-
-P3 QoL:
 more user feedback on ws ratelimits (and sending attachments etc)
 attachment upload progress bar
 consider a scroll-to-bottom button
+pasteable attachments
 add admins (admin panel) (and user bans)
+hostname resolution
+improve online bar
 
-Far Future QoL:
+P3:
 fix mobile
+add avatars
 add replies
 add mentions
