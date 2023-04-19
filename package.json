@@ -13,9 +13,9 @@
   "author": "efindus",
   "license": "GPL-3.0",
   "dependencies": {
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "mime": "^3.0.0",
-    "mongodb": "^4.7.0"
+    "mongodb": "^5.3.0"
   },
   "devDependencies": {
     "eslint": "^8.18.0"
