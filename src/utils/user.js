@@ -9,7 +9,7 @@ const getUser = async (token) => {
 		return null;
 
 	const user = await db.findOne('users', { uid: payload.uid });
-	if (!user)
+	if (!user || user.jwtSecret === '')
 		return null;
 
 	try {
