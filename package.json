@@ -11,8 +11,7 @@
     "backup": "node ./src/scripts/backup"
   },
   "author": "efindus",
-  "license": "UNLICENSED",
-  "private": true,
+  "license": "GPL-3.0",
   "dependencies": {
     "jsonwebtoken": "^8.5.1",
     "mime": "^3.0.0",
