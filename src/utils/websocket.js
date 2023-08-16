@@ -185,7 +185,7 @@ class WebSocket extends EventEmitter {
 	 * @param {number} code Message code.
 	 */
 	send = (message, code = 1) => {
-		if (this.#closed)
+		if (this.#closed || !this.#socket.writable)
 			return;
 
 		message = Buffer.from(message);

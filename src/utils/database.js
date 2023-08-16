@@ -1,7 +1,7 @@
 const { MongoClient } = require('mongodb');
 
 const DATABASE_NAME = 'discord5';
-const client = new MongoClient('mongodb://127.0.0.1:27017');
+const client = new MongoClient('mongodb://127.0.0.1:27017', { forceServerObjectId: true });
 
 const connect = () => {
 	return client.connect();

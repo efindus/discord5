@@ -17,7 +17,7 @@ const PROTOCOL_VERSION = '1';
 const SERVER_USER_UID = '691657194299387Server';
 
 const messagesToLoad = 100;
-const maxMessageLenght = 2000;
+const maxMessageLength = 2000;
 
 const endpoints = {};
 const webSockets = {};
@@ -230,7 +230,7 @@ const websocket = async (request, socket) => {
 							},
 							serverTime: Date.now(),
 							messagesToLoad: messagesToLoad,
-							maxMessageLenght: maxMessageLenght,
+							maxMessageLength: maxMessageLength,
 							protocolVersion: PROTOCOL_VERSION,
 						}));
 
@@ -335,7 +335,7 @@ const websocket = async (request, socket) => {
 					return;
 				}
 
-				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= maxMessageLenght &&
+				if (typeof data.message === 'string' && data.message.length > 0 && data.message.length <= maxMessageLength &&
 					typeof data.nonce === 'string' && data.nonce.length > 0 && data.nonce.length < 52
 				) {
 					const ts = Date.now();

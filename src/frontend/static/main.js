@@ -11,10 +11,10 @@ class SocketManager {
 	#receiveQueue = {};
 	#protocolVersion = '1';
 	#messagesToLoad = 100;
-	#maxMessageLenght = 2000;
+	#maxMessageLength = 2000;
 
-	get maxMessageLenght() {
-		return this.#maxMessageLenght;
+	get maxMessageLength() {
+		return this.#maxMessageLength;
 	}
 
 	/**
@@ -154,7 +154,7 @@ class SocketManager {
 
 				this.#app.user = data.user;
 				this.#messagesToLoad = data.messagesToLoad;
-				this.#maxMessageLenght = data.maxMessageLenght;
+				this.#maxMessageLength = data.maxMessageLength;
 				this.#app.timeOffset = Date.now() - data.serverTime;
 
 				this.#propagateUserData();
@@ -781,7 +781,7 @@ class MessageManager {
 				else if (value === '/shrug')
 					value = '¯\\\\_(ツ)_/¯';
 
-				if (value.length > 0 && value.length <= this.#app.socket.maxMessageLenght) {
+				if (value.length > 0 && value.length <= this.#app.socket.maxMessageLength) {
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
 					this.#elements.input.innerHTML = '<br class="input-last-br">';
 					const nonce = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
@@ -815,7 +815,7 @@ class MessageManager {
 						...attachment,
 					});
 				}
-			} else if (this.#elements.input.innerText.length >= this.#app.socket.maxMessageLenght &&
+			} else if (this.#elements.input.innerText.length >= this.#app.socket.maxMessageLength &&
 				!(event.code.startsWith('Arrow') || event.code.startsWith('Delete') || event.code.startsWith('Backspace')) &&
 				(window.getSelection().rangeCount && window.getSelection().getRangeAt(0).collapsed) &&
 				!event.ctrlKey
@@ -836,7 +836,7 @@ class MessageManager {
 		this.#elements.input.addEventListener('paste', (event) => {
 			event.preventDefault();
 			const paste = (event.clipboardData || window.clipboardData).getData('text');
-			let limit = this.#app.socket.maxMessageLenght;
+			let limit = this.#app.socket.maxMessageLength;
 
 			const selection = window.getSelection();
 			if (!selection.rangeCount)
@@ -846,8 +846,8 @@ class MessageManager {
 			if (this.#elements.input.innerHTML === '')
 				this.#elements.input.innerHTML = '<br class="input-last-br">';
 
-			if (this.#elements.input.innerText.length + paste.length > this.#app.socket.maxMessageLenght)
-				limit = this.#app.socket.maxMessageLenght - this.#elements.input.innerText.length;
+			if (this.#elements.input.innerText.length + paste.length > this.#app.socket.maxMessageLength)
+				limit = this.#app.socket.maxMessageLength - this.#elements.input.innerText.length;
 
 			let lastNode = null;
 			if (limit > 0) {
