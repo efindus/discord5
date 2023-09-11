@@ -1,20 +1,272 @@
+/**
+ * @type {import('../types').getElementById}
+ */
+const getElementP = (id, type, isNullable) => {
+	const res = /** @type {any} */ (document.getElementById(id));
+	if (!isNullable && !res)
+		throw new Error(`Element with id: ${id} is missing!`);
+
+	return res;
+};
+
+const getElement = {
+	div: (/** @type {string} */ id) => getElementP(id, 'div', false),
+	input: (/** @type {string} */ id) => getElementP(id, 'input', false),
+	br: (/** @type {string} */ id) => getElementP(id, 'br', false),
+};
+
+class ApiManager {
+	#app;
+
+	/**
+	 * @param {App} app
+	 */
+	constructor(app) {
+		this.#app = app;
+	}
+
+	/**
+	 * @param {string} path
+	 * @param {RequestInit} options
+	 * @returns {Promise<any>}
+	 */
+	async #makeRequest(path, options = {}) {
+		/** @type {Response} */
+		let response;
+		let result;
+
+		try {
+			response = await fetch(path, options);
+
+			if (response.headers.get('content-type') === 'application/json')
+				result = await response.json();
+		} catch {
+			throw new Error('serverError');
+		}
+
+		if (response.status !== 200) {
+			if (typeof result?.message === 'string')
+				throw new Error(result.message);
+
+			throw new Error(response.status.toString());
+		}
+
+		return result;
+	}
+
+	/**
+	 * @param {string} username
+	 * @param {string} password
+	 */
+	async login(username, password) {
+		try {
+			return (await this.#makeRequest('/api/login', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+				},
+				body: JSON.stringify({
+					username,
+					password,
+				}),
+			})).message;
+		} catch (err) {
+			// TODO: handle server fails
+			return /** @type {any} */ (err).message;
+		}
+	}
+
+	/**
+	 * @param {string} username
+	 * @param {string} password
+	 * @param {any} captcha
+	 */
+	async register(username, password, captcha) {
+		try {
+			return (await this.#makeRequest('/api/register', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+				},
+				body: JSON.stringify({
+					username,
+					password,
+					captcha,
+				}),
+			})).message;
+		} catch (err) {
+			// TODO: handle server fails
+			return /** @type {any} */ (err).message;
+		}
+	}
+
+	async getCaptcha() {
+		try {
+			return await this.#makeRequest('/api/captcha', {
+				method: 'POST',
+			});
+		} catch (err) {
+			// TODO: handle server fails
+			return /** @type {any} */ (err).message;
+		}
+	}
+
+	/**
+	 * @returns {Promise<({ uid: string } & UserData)?>}
+	 */
+	async getMe() {
+		try {
+			return await this.#makeRequest('/api/me');
+		} catch (err) {
+			if (/** @type {Error} */ (err).message === 'serverError')
+				throw new Error();
+
+			return null;
+		}
+	}
+
+	/**
+	 * @param {number} limit
+	 * @param {string | undefined} before
+	 * @param {string | undefined} after
+	 * @returns {Promise<MessageData[]>}
+	 */
+	async getMessages(limit, before = undefined, after = undefined) {
+		const params = new URLSearchParams({ limit: `${limit}` });
+		if (before)
+			params.set('before', before);
+
+		if (after)
+			params.set('after', after);
+
+		try {
+			return await this.#makeRequest(`/api/messages?${params.toString()}`);
+		} catch (err) {
+			// TODO: handle server fails
+			throw new Error();
+		}
+	}
+
+	/**
+	 * @param {string} message
+	 * @param {string} nonce
+	 * @param {{ fileName: string, data: string } | undefined} attachment
+	 * @returns {Promise<'success' | 'attachmentLimit' | '429' | '400'>}
+	 */
+	async sendMessage(message, nonce, attachment = undefined) {
+		try {
+			return (await this.#makeRequest('/api/messages', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+				},
+				body: JSON.stringify({
+					message,
+					nonce,
+					attachment,
+				}),
+			})).message;
+		} catch (err) {
+			// TODO: handle server fails
+			return /** @type {any} */ (err).message;
+		}
+	}
+
+	/**
+	 * @param {string} currentPassword
+	 * @param {string} password
+	 * @returns {Promise<'success' | 'invalidLogin'>}
+	 */
+	async changePassword(currentPassword, password) {
+		try {
+			return (await this.#makeRequest('/api/user/password', {
+				method: 'PUT',
+				headers: {
+					'content-type': 'application/json',
+				},
+				body: JSON.stringify({
+					currentPassword,
+					password,
+				}),
+			})).message;
+		} catch (err) {
+			// TODO: handle server fails
+			return /** @type {any} */ (err).message;
+		}
+	}
+
+	/**
+	 * @param {string} nickname
+	 * @returns {Promise<'success' | 'usernameInvalidLength' | 'usernameInvalidFormat'>}
+	 */
+	async changeNickname(nickname) {
+		try {
+			return (await this.#makeRequest('/api/user/nickname', {
+				method: 'PUT',
+				headers: {
+					'content-type': 'application/json',
+				},
+				body: JSON.stringify({
+					nickname,
+				}),
+			})).message;
+		} catch (err) {
+			// TODO: handle server fails
+			return /** @type {any} */ (err).message;
+		}
+	}
+
+	/**
+	 * @param {string} uid
+	 * @returns {Promise<UserData?>}
+	 */
+	async getUser(uid) {
+		try {
+			return await this.#makeRequest(`/api/users/${uid}`);
+		} catch (err) {
+			throw new Error();
+		}
+	}
+
+	async logOut() {
+		try {
+			await this.#makeRequest('/api/log-out', { method: 'POST' });
+		} catch {}
+	}
+
+	/**
+	 * @returns {Promise<boolean>}
+	 */
+	async logOutEverywhere() {
+		try {
+			await this.#makeRequest('/api/log-out-everywhere', { method: 'POST' });
+			return true;
+		} catch {
+			return false;
+		}
+	}
+}
+
 class SocketManager {
 	#app;
 
 	/**
-	 * @type {WebSocket}
+	 * @type {WebSocket | undefined}
 	 */
-	#socket;
-	#pinger;
+	#socket = undefined;
+	/**
+	 * @type {NodeJS.Timeout | undefined}
+	 */
+	#pinger = undefined;
 
 	#reconnect = true;
-	#receiveQueue = {};
 	#protocolVersion = '1';
-	#messagesToLoad = 100;
-	#maxMessageLength = 2000;
 
-	get maxMessageLength() {
-		return this.#maxMessageLength;
+	/**
+	 * @param {boolean} newVal
+	 */
+	set reconnect(newVal) {
+		this.#reconnect = newVal;
 	}
 
 	/**
@@ -24,12 +276,24 @@ class SocketManager {
 		this.#app = app;
 	}
 
-	connect() {
-		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
+	async connect() {
 		this.#reconnect = true;
 
 		this.#app.spinner.show();
 		this.#app.popup.hide();
+
+		try {
+			this.#app.user = await this.#app.api.getMe();
+			if (this.#app.user === null) {
+				loginHandler();
+				return;
+			}
+		} catch {
+			this.#onClose();
+			return;
+		}
+
+		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
 
 		this.#socket.addEventListener('open', () => this.#setupPinger());
 		this.#socket.addEventListener('message', (event) => this.#onMessage(event));
@@ -38,52 +302,12 @@ class SocketManager {
 
 	disconnect() {
 		this.#reconnect = false;
-		this.#socket.close();
-	}
-
-	send(type, message) {
-		let pid;
-		do {
-			pid = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
-		} while (this.#receiveQueue[pid]);
-
-		const packet = {
-			pid: pid,
-			type: type,
-			...message,
-		};
-
-		this.#socket.send(JSON.stringify(packet));
-		this.#receiveQueue[pid] = {
-			type: type,
-			message: message,
-		};
-	}
-
-
-	#propagateUserData() {
-		this.#app.elements.usernameDisplay.innerText = this.#app.user.username;
-		this.#app.elements.userData.innerHTML = `ID: ${this.#app.user.uid}<br>Pseudonim: ${this.#app.user.nickname}`;
-	}
-
-	getMissingUserData(uid) {
-		if (!this.#app.users[uid]) {
-			this.#app.users[uid] = {
-				username: 'Ładowanie...',
-				nickname: 'Ładowanie...',
-			};
-
-			this.send('getUser', {
-				uid: uid,
-			});
-		}
+		this.#socket?.close();
 	}
 
 	#setupPinger() {
 		this.#pinger = setInterval(() => {
-			this.#socket.send(JSON.stringify({
-				type: 'ping',
-			}));
+			this.#socket?.send('ping');
 		}, 50_000);
 	}
 
@@ -93,165 +317,59 @@ class SocketManager {
 
 		if (this.#reconnect) {
 			this.#app.spinner.show();
-			setTimeout(() => this.connect(), 1000);
+			setTimeout(() => this.connect(), 2500);
 		}
 	}
 
+	/**
+	 * @param {MessageEvent<any>} event
+	 */
 	async #onMessage(event) {
+		if (!this.#app.user)
+			return;
+
 		const data = JSON.parse(event.data);
+		if (data.packet === 'ready') {
+			if (this.#protocolVersion !== data.protocolVersion)
+				window.location.reload();
 
-		if (data.pid && this.#receiveQueue[data.pid]) {
-			if (data.type === 'ratelimit') {
-				switch (this.#receiveQueue[data.pid].type) {
-					case 'sendMessage':
-						if (!app.popup.isOpen) {
-							let title, subtitle;
-							if (data.message === 'message')
-								title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
-							else if (data.message === 'attachment')
-								title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt potężne załączniki!';
+			this.#app.messagesToLoad = data.messagesToLoad;
+			this.#app.maxMessageLength = data.maxMessageLength;
+			this.#app.timeOffset = Date.now() - data.serverTime;
 
-							app.popup.create({
-								title,
-								subtitle,
-								subtitleColor: 'var(--text-primary)',
-								isTranslucent: true,
-								footer: [
-									{
-										id: 'ratelimit-modal-close',
-										label: 'Wrzuć na luz',
-									},
-								],
-							});
-							document.activeElement.blur();
-							document.getElementById('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
-						}
-						break;
-					default:
-						break;
-				}
-
-				setTimeout(() => {
-					const packet = this.#receiveQueue[data.pid];
-
-					this.send(packet.type, packet.message);
-					delete this.#receiveQueue[data.pid];
-				}, data.retryAfter + 100);
-				return;
-			} else {
-				delete this.#receiveQueue[data.pid];
-			}
-		}
-
-		if (data.type === 'connectionReady') {
-			this.send('authorize', {
-				token: localStorage.getItem('token'),
-			});
-		} else if (data.type === 'authorizeCB') {
-			if (data.message === 'accepted') {
-				if (this.#protocolVersion !== data.protocolVersion)
-					window.location.reload();
-
-				this.#app.user = data.user;
-				this.#messagesToLoad = data.messagesToLoad;
-				this.#maxMessageLength = data.maxMessageLength;
-				this.#app.timeOffset = Date.now() - data.serverTime;
-
-				this.#propagateUserData();
-				this.#app.messages.load();
-			} else if (data.message === 'invalidLogin') {
-				logOutHandler();
-			}
-		} else if (data.type === 'newMessage') {
+			this.#app.propagateUserData();
+			this.#app.messages.load();
+		} else if (data.packet === 'newMessage') {
 			if (data.nonce)
-				document.getElementById(data.nonce)?.remove();
+				getElementP(data.nonce, 'div', true)?.remove();
 
 			this.#app.messages.insert({
 				msgData: data,
 				isNew: true,
 			});
-		} else if (data.type === 'loadMessages') {
-			const oldHeight = this.#app.elements.messageContainer.scrollHeight;
-
-			data.messages.reverse();
-			for (let i = 0; i < data.messages.length; i++) {
-				this.#app.messages.insert({
-					msgData: data.messages[i],
-					msgIndex: i,
-					isLastNew: (i + 1 === data.messages.length),
-					scrollAttachment: this.#app.messages.count < this.#messagesToLoad,
-				});
-			}
-
-			this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight - oldHeight + this.#app.elements.messageContainer.scrollTop);
-			if (data.messages.length === this.#messagesToLoad)
-				this.#app.messages.showLoadButton();
-
-			if (this.#app.messages.count <= this.#messagesToLoad)
-				this.#app.spinner.hide();
-		} else if (data.type === 'changePasswordCB') {
-			if (data.message === 'success') {
-				this.#reconnect = false;
-				this.#app.popup.setSubtitle({
-					subtitle: 'Hasło zostało zmienione pomyślnie',
-					subtitleColor: 'var(--green)',
-				});
-				setTimeout(() => {
-					localStorage.removeItem('token');
-					this.#app.main();
-				}, 1000);
-			} else {
-				this.#app.popup.hideSpinner();
-				this.#app.popup.setSubtitle({
-					subtitle: 'Niepoprawne stare hasło',
-				});
-				this.#app.popup.shake();
-			}
-		} else if (data.type === 'updateNickname') {
+		} else if (data.packet === 'updateUser') {
 			if (data.uid === this.#app.user.uid) {
-				if (data.nickname) {
-					this.#app.user.nickname = data.nickname;
-					this.#propagateUserData();
-					this.#app.popup.hide();
-					this.#app.spinner.hide();
-				} else {
-					let error = '';
-					switch (data.message) {
-						case 'usernameInvalidFormat':
-						case 'usernameInvalidLength':
-							error = 'Pseudonim powinien mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
-							break;
-						default:
-							break;
-					}
-
-					this.#app.popup.setSubtitle({
-						subtitle: error,
-					});
-					this.#app.popup.shake();
-				}
-			}
-
-			if (data.nickname.length !== 0) {
-				this.#app.users[data.uid].nickname = data.nickname;
-
-				this.#app.messages.updateNickname(data.uid);
-			}
-		} else if (data.type === 'updateUser') {
-			if (data.username.length !== 0) {
-				this.#app.users[data.uid] = {
-					username: data.username,
-					nickname: data.nickname,
+				this.#app.user = {
+					...this.#app.user,
+					...data,
 				};
 
-				this.#app.messages.updateNickname(data.uid);
+				this.#app.propagateUserData();
 			}
-		} else if (data.type === 'reload') {
+
+			this.#app.users[data.uid] = {
+				username: data.username,
+				nickname: data.nickname,
+				type: data.type,
+			};
+
+			this.#app.messages.updateNickname(data.uid);
+		} else if (data.packet === 'reload') {
 			window.location.reload();
-		} else if (data.type === 'clientsOnline') {
+		} else if (data.packet === 'clientsOnline') {
 			this.#app.elements.onlineSidebar.innerHTML = '';
 			for (const client of data.clients) {
-				this.getMissingUserData(client);
+				this.#app.getMissingUserData(client);
 				this.#app.elements.onlineSidebar.innerHTML += `<div class="online-entry" id="online-${client}" ${this.#app.utils.generateUsernameTooltip(client, true)}>${this.#app.users[client].nickname}</div>`;
 			}
 		}
@@ -260,15 +378,15 @@ class SocketManager {
 
 class PopupManager {
 	#elements = {
-		container: document.getElementById('popup-container'),
-		popup: document.getElementById('popup'),
-		popupClose: document.getElementById('popup-close'),
-		header: document.getElementById('popup-header'),
-		title: document.getElementById('popup-title'),
-		subtitle: document.getElementById('popup-subtitle'),
-		body: document.getElementById('popup-body'),
-		footer: document.getElementById('popup-footer'),
-		spinner: document.getElementById('popup-spinner'),
+		container: getElement.div('popup-container'),
+		popup: getElement.div('popup'),
+		popupClose: getElement.div('popup-close'),
+		header: getElement.div('popup-header'),
+		title: getElement.div('popup-title'),
+		subtitle: getElement.div('popup-subtitle'),
+		body: getElement.div('popup-body'),
+		footer: getElement.div('popup-footer'),
+		spinner: getElement.div('popup-spinner'),
 	};
 
 	#isOpen = false;
@@ -295,31 +413,23 @@ class PopupManager {
 	}
 
 	/**
-	 * @typedef Row
-	 * @property {string} label Label of the row
-	 * @property {object} input
-	 * @property {string} input.id ID of the input
-	 * @property {string} input.type Type of the input
-	 * @property {number?} input.limit Max length of inputed text
+	 * @typedef SubtitleData
+	 * @property {string} subtitle
+	 * @property {string} subtitleColor
 	 */
 
 	/**
-	 * @typedef FooterButton
-	 * @property {string} label Label of the button
-	 * @property {string} id ID of the button
-	 * @property {string} color Color of the button
+	 * @typedef PopupData
+	 * @property {string} title
+	 * @property {boolean} isTranslucent
+	 * @property {boolean} closeable
+	 * @property {({ label: string, input: { id: string, type: string } & { limit?: number } } | { html: string })[]} body
+	 * @property {({ label: string, id: string } & { color?: string })[]} footer
 	 */
 
 	/**
 	 * Create a modal
-	 * @param {object} data Parameters used to construct the modal
-	 * @param {string} data.title Popup title
-	 * @param {string} data.subtitle Popup subtitle
-	 * @param {string} data.subtitleColor Popup subtitle color
-	 * @param {boolean} data.isTranslucent
-	 * @param {boolean} data.closeable Allow closing the popup?
-	 * @param {Record<number, Row>} data.body Popup body
-	 * @param {Record<number, FooterButton>} data.footer Popup footer
+	 * @param {{ title: string } & Partial<PopupData> & Partial<SubtitleData>} data Parameters used to construct the modal
 	 */
 	create(data) {
 		this.#elements.container.style.visibility = 'visible';
@@ -353,14 +463,15 @@ class PopupManager {
 			for (const row of data.body) {
 				const rowElement = document.createElement('div');
 				rowElement.classList.add('popup-row');
-				if (row.input)
+				if ('input' in row)
 					rowElement.innerHTML = `<div class="popup-row-label">${row.label}</div><input id="${row.input.id}" class="popup-row-input" type="${row.input.type}" ${row.input.limit ? ` maxlength="${row.input.limit}"` : ''}>`;
 				else
 					rowElement.innerHTML = row.html;
 
 				this.#elements.body.appendChild(rowElement);
 			}
-			this.#elements.body.lastChild.style.marginBottom = '0px';
+
+			/** @type {HTMLDivElement} */ (this.#elements.body.lastChild).style.marginBottom = '0px';
 		} else {
 			this.#elements.header.style.margin = '0px';
 			this.#elements.title.style.margin = '0px';
@@ -377,18 +488,16 @@ class PopupManager {
 				buttonElement.style.backgroundColor = button.color ?? 'var(--blue)';
 				this.#elements.footer.appendChild(buttonElement);
 			}
-			this.#elements.footer.lastChild.style.marginBottom = '0px';
+			/** @type {HTMLDivElement} */ (this.#elements.footer.lastChild).style.marginBottom = '0px';
 		}
 	}
 
 	/**
 	 * Set the subtitle
-	 * @param {object} data
-	 * @param {string} data.subtitle Popup subtitle (if empty hides the subtitle)
-	 * @param {string} data.subtitleColor Popup subtitle color [default: var(--orange)]
+	 * @param {Partial<SubtitleData>} data - Empty to hide; default color: var(--orange)
 	 */
 	setSubtitle(data) {
-		if (data.subtitle?.length > 0) {
+		if (data.subtitle && data.subtitle.length > 0) {
 			this.#elements.subtitle.style.display = '';
 			this.#elements.subtitle.innerHTML = data.subtitle;
 			this.#elements.subtitle.style.color = data.subtitleColor ?? 'var(--orange)';
@@ -432,8 +541,8 @@ class TooltipManager {
 	#app;
 
 	#elements = {
-		container: document.querySelector('.tooltip-container'),
-		tooltip: document.getElementById('tooltip'),
+		container: getElement.div('tooltip-container'),
+		tooltip: getElement.div('tooltip'),
 	};
 
 	#isOpen = false;
@@ -557,7 +666,7 @@ class TooltipManager {
 
 class SpinnerManager {
 	#elements = {
-		spinner: document.getElementById('spinner'),
+		spinner: getElement.div('spinner'),
 	};
 
 	#isOpen = false;
@@ -588,9 +697,9 @@ class SpinnerManager {
 class DropdownManager {
 	#app;
 	#elements = {
-		usernameContainer: document.getElementById('username-container'),
-		dropdown: document.querySelector('.dropdown'),
-		dropdownClose: document.getElementById('dropdown-close'),
+		usernameContainer: getElement.div('username-container'),
+		dropdown: getElement.div('dropdown'),
+		dropdownClose: getElement.div('dropdown-close'),
 	};
 
 	#isOpen = false;
@@ -634,6 +743,9 @@ class DropdownManager {
 }
 
 class NotificationManager {
+	/**
+	 * @type {Notification[]}
+	 */
 	#notifications = [];
 
 	/**
@@ -680,6 +792,10 @@ class MessageManager {
 	#app;
 
 	#utils = {
+		/**
+		 * @param {MessageData} msgData
+		 * @param {boolean} isContinuation
+		 */
 		generateMessageMeta: (msgData, isContinuation) => {
 			if (isContinuation)
 				return '';
@@ -692,11 +808,19 @@ class MessageManager {
 
 			return `<div class="message-meta">${messageAuthor}${messageFor}${messageDate}</div>`;
 		},
+		/**
+		 * @param {MessageData} msgData
+		 * @param {boolean} isContinuation
+		 */
 		generateMessageContent: (msgData, isContinuation) => {
 			const messageContent = this.#app.utils.markdownToHTML(msgData.message).split('\n').join('<br>');
 
 			return `<div class="message-content" ${isContinuation ? this.#app.utils.generateDateTooltip(msgData.ts) : ''}>${messageContent}</div>`;
 		},
+		/**
+		 * @param {MessageData} msgData
+		 * @param {boolean} isNew
+		 */
 		generateMessageAttachment: (msgData, isNew) => {
 			if (!msgData.attachment)
 				return '';
@@ -714,6 +838,10 @@ class MessageManager {
 
 			return `<div class="message-attachment message-attachment-file">${messageAttachment}</div>`;
 		},
+		/**
+		 * @param {MessageData | undefined} lastMessage
+		 * @param {MessageData} newMessage
+		 */
 		messageJoinCheck: (lastMessage, newMessage) => {
 			let isJoined = (lastMessage?.uid === newMessage.uid);
 
@@ -724,7 +852,7 @@ class MessageManager {
 				if (lastMessage.attachment)
 					isJoined = false;
 
-				if (newMessage.ts - (20 * 60_000) > lastMessage.ts)
+				if (newMessage.ts - (8 * 60_000) > lastMessage.ts)
 					isJoined = false;
 			}
 
@@ -733,15 +861,22 @@ class MessageManager {
 	};
 
 	#elements = {
-		messages: document.getElementById('messages'),
-		loadMessagesButton: document.getElementById('load-messages-button'),
+		messages: getElement.div('messages'),
+		loadMessagesButton: getElement.div('load-messages-button'),
 
-		input: document.getElementById('input'),
-		uploadInput: document.getElementById('upload-input'),
-		uploadButton: document.getElementById('upload-button'),
+		input: getElement.input('input'),
+		uploadInput: getElement.input('upload-input'),
+		uploadButton: getElement.input('upload-button'),
+		uploadButtonIcon: getElement.div('upload-button-icon'),
 	};
 
+	/**
+	 * @type {MessageData[]}
+	 */
 	#messages = [];
+	/**
+	 * @type {string?}
+	 */
 	#currentAttachment = null;
 
 	get count() {
@@ -768,7 +903,10 @@ class MessageManager {
 		});
 
 		this.#elements.loadMessagesButton.addEventListener('click', () => app.messages.load());
-		this.#elements.input.addEventListener('keydown', (event) => {
+		this.#elements.input.addEventListener('keydown', async (event) => {
+			if (!this.#app.user)
+				return;
+
 			if ((event.code === 'Enter' || event.keyCode === 13) && !event.shiftKey) {
 				event.preventDefault();
 
@@ -781,9 +919,10 @@ class MessageManager {
 				else if (value === '/shrug')
 					value = '¯\\\\_(ツ)_/¯';
 
-				if (value.length > 0 && value.length <= this.#app.socket.maxMessageLength) {
+				if (value.length > 0 && value.length <= this.#app.maxMessageLength) {
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
-					this.#elements.input.innerHTML = '<br class="input-last-br">';
+					this.#elements.input.innerHTML = '<br id="input-last-br">';
+
 					const nonce = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
 					this.insert({
 						msgData: {
@@ -797,27 +936,51 @@ class MessageManager {
 						afterElement: this.#elements.messages.lastChild,
 					});
 
-					let attachment = {};
-					if (this.#currentAttachment) {
+					let attachment = undefined;
+					if (this.#currentAttachment && this.#elements.uploadInput.files) {
 						attachment = {
-							attachment: {
-								fileName: this.#elements.uploadInput.files[0].name,
-								data: this.#currentAttachment,
-							},
+							fileName: this.#elements.uploadInput.files[0].name,
+							data: this.#currentAttachment,
 						};
 
 						this.resetUpload();
 					}
 
-					this.#app.socket.send('sendMessage', {
-						message: value,
-						nonce: nonce,
-						...attachment,
-					});
+					const res = await this.#app.api.sendMessage(value, nonce, attachment);
+					switch (res) {
+						case '429':
+						case 'attachmentLimit':
+							if (!app.popup.isOpen) {
+								let title = '', subtitle;
+								if (res === '429')
+									title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
+								else
+									title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt potężne załączniki!';
+
+								app.popup.create({
+									title,
+									subtitle,
+									subtitleColor: 'var(--text-primary)',
+									isTranslucent: true,
+									footer: [
+										{
+											id: 'ratelimit-modal-close',
+											label: 'Wrzuć na luz',
+										},
+									],
+								});
+
+								/** @type {HTMLInputElement} */(document.activeElement)?.blur();
+								getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
+							}
+							break;
+						default:
+							break;
+					}
 				}
-			} else if (this.#elements.input.innerText.length >= this.#app.socket.maxMessageLength &&
+			} else if (this.#elements.input.innerText.length >= this.#app.maxMessageLength &&
 				!(event.code.startsWith('Arrow') || event.code.startsWith('Delete') || event.code.startsWith('Backspace')) &&
-				(window.getSelection().rangeCount && window.getSelection().getRangeAt(0).collapsed) &&
+				(window.getSelection()?.rangeCount && window.getSelection()?.getRangeAt(0).collapsed) &&
 				!event.ctrlKey
 			) {
 				event.preventDefault();
@@ -825,29 +988,30 @@ class MessageManager {
 		});
 
 		this.#elements.input.addEventListener('keyup', (event) => {
-			if (this.#elements.input?.lastChild?.nodeName === 'BR' && !this.#elements.input.lastChild.classList.contains('input-last-br'))
-				this.#elements.input.lastChild.classList.add('input-last-br');
+			const x = this.#elements.input?.lastChild;
+			if (x?.nodeName === 'BR' && (x instanceof HTMLBRElement) && x.id !== 'input-last-br')
+				x.id = 'input-last-br';
 
-			const br = document.querySelector('.input-last-br');
+			const br = getElementP('input-last-br', 'br', true);
 			if (br?.previousSibling?.nodeName === 'BR')
 				this.#elements.input.insertBefore(document.createTextNode(''), br);
 		});
 
 		this.#elements.input.addEventListener('paste', (event) => {
 			event.preventDefault();
-			const paste = (event.clipboardData || window.clipboardData).getData('text');
-			let limit = this.#app.socket.maxMessageLength;
+			const paste = event.clipboardData?.getData('text');
+			let limit = this.#app.maxMessageLength;
 
 			const selection = window.getSelection();
-			if (!selection.rangeCount)
+			if (!selection?.rangeCount || !paste)
 				return;
 
 			selection.deleteFromDocument();
 			if (this.#elements.input.innerHTML === '')
-				this.#elements.input.innerHTML = '<br class="input-last-br">';
+				this.#elements.input.innerHTML = '<br id="input-last-br">';
 
-			if (this.#elements.input.innerText.length + paste.length > this.#app.socket.maxMessageLength)
-				limit = this.#app.socket.maxMessageLength - this.#elements.input.innerText.length;
+			if (this.#elements.input.innerText.length + paste.length > this.#app.maxMessageLength)
+				limit = this.#app.maxMessageLength - this.#elements.input.innerText.length;
 
 			let lastNode = null;
 			if (limit > 0) {
@@ -878,20 +1042,23 @@ class MessageManager {
 				block: 'end',
 			});
 
-			const br = document.querySelector('.input-last-br');
+			const br = getElementP('input-last-br', 'br', true);
 			if (br !== this.#elements.input?.lastChild) {
 				br?.remove();
-				this.#elements.input.appendChild(document.createElement('br'));
-				this.#elements.input.lastChild.classList.add('input-last-br');
+				const x = this.#elements.input.appendChild(document.createElement('br'));
+				x.id = 'input-last-br';
 			}
 		});
 
 		this.#elements.uploadInput.addEventListener('change', () => {
-			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files[0].size <= 11_160_000) {
-				this.#elements.uploadButton.firstElementChild.style.transform = 'rotate(45deg)';
+			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files && this.#elements.uploadInput.files[0].size <= 11_160_000) {
+				this.#elements.uploadButtonIcon.style.transform = 'rotate(45deg)';
 
 				const reader = new FileReader();
 				reader.addEventListener('load', (event) => {
+					if (!event.target?.result || !(event.target.result instanceof ArrayBuffer))
+						return;
+
 					this.#currentAttachment = this.#app.utils.fromArrayBufferToBase64(event.target.result);
 				});
 
@@ -909,6 +1076,12 @@ class MessageManager {
 		});
 	}
 
+	/**
+	 * @param {MessageData} msgData
+	 * @param {boolean} isContinuation
+	 * @param {boolean} isShadow
+	 * @param {boolean} isNew
+	 */
 	#generateMessage(msgData, isContinuation = false, isShadow = false, isNew = false) {
 		const message = document.createElement('div');
 		message.id = msgData.id;
@@ -922,6 +1095,9 @@ class MessageManager {
 		return message;
 	}
 
+	/**
+	 * @param {number} timestamp
+	 */
 	#generateDaySeparator(timestamp) {
 		const separator = document.createElement('div');
 		separator.classList.add('day-separator');
@@ -931,38 +1107,37 @@ class MessageManager {
 
 	/**
 	 * @typedef MessageData
-	 * @property {string} id
-	 * @property {number} ts
-	 * @property {string} message
-	 * @property {string} uid
-	 * @property {string?} originalAuthor
-	 * @property {string?} attachment
-	 * @property {string?} nonce
+	 * @type {{ id: string, ts: number, message: string, uid: string } & Partial<{ originalAuthor: string, attachment: string, nonce: string }>}
 	 */
 
 	/**
 	 * Insert a message into the website
-	 * @param {object} data
-	 * @param {MessageData} data.msgData
-	 * @param {number} data.msgIndex
-	 * @param {boolean} data.isLastNew
-	 * @param {boolean} data.isNew
-	 * @param {boolean} data.continuation
-	 * @param {boolean} data.scrollAttachment
-	 * @param {boolean} data.isShadow
-	 * @param {Node} data.afterElement
-	 * @param {MessageData} data.lastMessage
+	 * @param {{
+	 * 	msgData: MessageData,
+	 * } & Partial<{
+	 * 	msgIndex: number,
+	 * 	isLastNew: boolean,
+	 * 	isNew: boolean,
+	 * 	continuation: boolean,
+	 * 	scrollAttachment: boolean,
+	 * 	isShadow: boolean,
+	 * 	afterElement: Node?,
+	 * 	lastMessage: MessageData
+	 * }>} data
 	 */
 	insert(data) {
-		this.#app.socket.getMissingUserData(data.msgData.uid);
+		this.#app.getMissingUserData(data.msgData.uid);
 		if (data.msgData.originalAuthor)
-			this.#app.socket.getMissingUserData(data.msgData.originalAuthor);
+			this.#app.getMissingUserData(data.msgData.originalAuthor);
 
 		if (!data.isNew) {
+			if (typeof data.msgIndex === 'undefined')
+				throw new Error();
+
 			if (data.msgIndex === 0) {
 				this.#elements.messages.insertBefore(this.#generateMessage(data.msgData, false, false, data.scrollAttachment), this.#elements.messages.firstChild);
 			} else {
-				const lastMessage = this.#messages[data.msgIndex - 1], lastMessageElement = document.getElementById(lastMessage.id);
+				const lastMessage = this.#messages[data.msgIndex - 1], lastMessageElement = getElement.div(lastMessage.id);
 				this.#app.utils.insertAfter(
 					this.#elements.messages,
 					this.#generateMessage(data.msgData, this.#utils.messageJoinCheck(lastMessage, data.msgData), false, data.scrollAttachment),
@@ -978,7 +1153,7 @@ class MessageManager {
 
 			const nextMessage = this.#messages[data.msgIndex + 1];
 			if (data.isLastNew && nextMessage && this.#utils.messageJoinCheck(data.msgData, nextMessage)) {
-				document.getElementById(nextMessage.id).remove();
+				getElement.div(nextMessage.id).remove();
 				this.insert({
 					msgData: nextMessage,
 					msgIndex: data.msgIndex + 1,
@@ -1007,22 +1182,22 @@ class MessageManager {
 				const messageElement = this.#generateMessage(data.msgData, this.#utils.messageJoinCheck(lastMessage, data.msgData), data.isShadow, data.isNew);
 
 				if (correctIndex === 0) {
-					this.#app.utils.insertAfter(this.#elements.messages, messageElement, document.getElementById(lastMessage.id));
+					this.#app.utils.insertAfter(this.#elements.messages, messageElement, getElement.div(lastMessage.id));
 
 					if (lastMessage && !data.isShadow) {
 						const oldDate = new Date(lastMessage.ts), newDate = new Date(data.msgData.ts);
 						if (oldDate.toLocaleDateString('pl') !== newDate.toLocaleDateString('pl'))
-							this.#elements.messages.insertBefore(this.#generateDaySeparator(data.msgData.ts), document.getElementById(data.msgData.id));
+							this.#elements.messages.insertBefore(this.#generateDaySeparator(data.msgData.ts), getElement.div(data.msgData.id));
 					}
 				} else {
-					this.#elements.messages.insertBefore(messageElement, document.getElementById(nextMessage.id));
+					this.#elements.messages.insertBefore(messageElement, getElement.div(nextMessage.id));
 
-					document.getElementById(nextMessage.id).remove();
+					getElement.div(nextMessage.id).remove();
 					this.insert({
 						msgData: nextMessage,
 						isNew: true,
 						lastMessage: data.msgData,
-						afterElement: document.getElementById(data.msgData.id),
+						afterElement: getElement.div(data.msgData.id),
 					});
 				}
 
@@ -1038,11 +1213,11 @@ class MessageManager {
 			}
 
 			if (data.isShadow) setTimeout(() => {
-				const msgElement = document.getElementById(data.msgData.id);
+				const msgElement = getElementP(data.msgData.id, 'div', true);
 				if (msgElement) {
 					msgElement.style.color = 'var(--red)';
 					setTimeout(() => {
-						document.getElementById(data.msgData.id)?.remove();
+						getElementP(data.msgData.id, 'div', true)?.remove();
 					}, 1_500);
 				}
 			}, 20_000);
@@ -1057,9 +1232,28 @@ class MessageManager {
 		this.#messages = [];
 	}
 
-	load() {
+	async load() {
 		this.#elements.loadMessagesButton.style.display = 'none';
-		this.#app.socket.send('getMessages');
+		const messages = await this.#app.api.getMessages(this.#app.messagesToLoad, this.#messages[0]?.id ?? undefined);
+
+		const oldHeight = this.#app.elements.messageContainer.scrollHeight;
+
+		messages.reverse();
+		for (let i = 0; i < messages.length; i++) {
+			this.#app.messages.insert({
+				msgData: messages[i],
+				msgIndex: i,
+				isLastNew: (i + 1 === messages.length),
+				scrollAttachment: this.#app.messages.count < this.#app.messagesToLoad,
+			});
+		}
+
+		this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight - oldHeight + this.#app.elements.messageContainer.scrollTop);
+		if (messages.length === this.#app.messagesToLoad)
+			this.#app.messages.showLoadButton();
+
+		if (this.#app.messages.count <= this.#app.messagesToLoad)
+			this.#app.spinner.hide();
 	}
 
 	showLoadButton() {
@@ -1067,31 +1261,37 @@ class MessageManager {
 	}
 
 	resetUpload() {
-		this.#elements.uploadButton.firstElementChild.style.transform = 'rotate(0deg)';
+		this.#elements.uploadButtonIcon.style.transform = 'rotate(0deg)';
 		this.#elements.uploadInput.value = '';
 		this.#currentAttachment = null;
 	}
 
+	/**
+	 * @param {string} uid
+	 */
 	updateNickname(uid) {
 		for (const msg of this.#messages) {
-			const msgMeta = document.getElementById(msg.id).querySelector('.message-meta');
+			if (![ msg.uid, msg.originalAuthor ].includes(uid))
+				continue;
+
+			const msgMeta = getElement.div(msg.id).querySelector('.message-meta');
 
 			if (msgMeta) {
 				if (msg.uid === uid) {
-					const element = msgMeta.childNodes[0];
+					const element = msgMeta.children[0];
 					if (element)
 						element.innerHTML = this.#app.users[uid].nickname;
 				}
 
 				if (msg.originalAuthor === uid) {
-					const element = msgMeta.childNodes[2];
+					const element = msgMeta.children[2];
 					if (element)
 						element.innerHTML = this.#app.users[uid].nickname;
 				}
 			}
 		}
 
-		const sidebarEntry = document.getElementById(`online-${uid}`);
+		const sidebarEntry = getElementP(`online-${uid}`, 'div', true);
 		if (sidebarEntry)
 			sidebarEntry.innerHTML = this.#app.users[uid].nickname;
 	}
@@ -1118,8 +1318,13 @@ class Utils {
 
 	#markdown = [ [ '**', 'b' ], [ '*', 'i' ], [ '__', 'u' ], [ '~~', 'strike' ] ];
 
-	#mode;
+	#mode = 'default';
 
+	/**
+	 * @param {string} text
+	 * @param {string} value
+	 * @param {number} position
+	 */
 	#isAtPosition(text, value, position) {
 		for (let i = 0; i < value.length; i++) {
 			if (text[position + i] !== value[i])
@@ -1129,10 +1334,15 @@ class Utils {
 		return true;
 	}
 
+	/**
+	 * @param {string} text
+	 * @returns {string}
+	 */
 	#highlightPart(text) {
 		if (text.length === 0)
 			return '';
 
+		let x;
 		if (this.#mode === 'comment') {
 			const end = text.indexOf('*/');
 
@@ -1142,23 +1352,23 @@ class Utils {
 				this.#mode = 'default';
 				return `<span class='comment'>${text.slice(0, end + 2)}</span>${this.#highlightPart(text.slice(end + 2))}`;
 			}
-		} else if (text.match(this.#expressions.multilineComment) !== null) {
-			const match = text.match(this.#expressions.multilineComment)[0];
+		} else if ((x = text.match(this.#expressions.multilineComment)) !== null) {
+			const match = x[0];
 			this.#mode = 'comment';
 
 			return `<span class='comment'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 		} else if (text.match(this.#expressions.comment) !== null) {
 			return `<span class='comment'>${text}</span>`;
-		} else if (text.match(this.#expressions.include) !== null) {
-			const match = text.match(this.#expressions.include)[0];
+		} else if ((x = text.match(this.#expressions.include)) !== null) {
+			const match = x[0];
 			const index = match.indexOf('<');
 
 			return `<span class='preprocessor'>${text.slice(0, index)}</span><span class='string-special'>&lt;</span><span class='string'>${text.slice(index + 1, match.length - 1)}</span><span class='string-special'>></span>${this.#highlightPart(text.slice(match.length))}`;
-		} else if (text.match(this.#expressions.preprocessor) !== null) {
-			const match = text.match(this.#expressions.preprocessor)[0];
+		} else if ((x = text.match(this.#expressions.preprocessor)) !== null) {
+			const match = x[0];
 			return `<span class='preprocessor'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
-		} else if (text.match(this.#expressions.string) !== null) {
-			const match = text.match(this.#expressions.string)[0];
+		} else if ((x = text.match(this.#expressions.string)) !== null) {
+			const match = x[0];
 			const end = text.slice(match.length).match(this.#expressions.stringEnd);
 
 			if (end === null)
@@ -1166,6 +1376,7 @@ class Utils {
 			else
 				return `<span class='string'>${this.sanitizeText(match + end[0])}</span>${this.#highlightPart(text.slice(end[0].length + match.length))}`;
 		} else {
+			// @ts-ignore
 			let match = text.match(this.#expressions.split)[0];
 
 			if (match.length > 1)
@@ -1179,8 +1390,8 @@ class Utils {
 				return `<span class='operator'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
 			} else if (match.match(this.#expressions.number) !== null) {
 				return `<span class='number'>${this.sanitizeText(match)}</span>${this.#highlightPart(text.slice(match.length))}`;
-			} else if (text.match(this.#expressions.function) !== null) {
-				let match2 = text.match(this.#expressions.function)[0];
+			} else if ((x = text.match(this.#expressions.function)) !== null) {
+				let match2 = x[0];
 				match2 = match2.slice(0, match2.length - 1);
 
 				return `<span class='function'>${this.sanitizeText(match2)}</span>${this.#highlightPart(text.slice(match2.length))}`;
@@ -1196,6 +1407,9 @@ class Utils {
 		}
 	}
 
+	/**
+	 * @param {string} text
+	 */
 	#highlight(text) {
 		if (text.startsWith('\n')) text = text.slice(1);
 		if (text.endsWith('\n')) text = text.slice(0, -1);
@@ -1212,6 +1426,11 @@ class Utils {
 		return `<div class="code-snippet">${result}</div>`;
 	}
 
+	/**
+	 * @param {string} text
+	 * @param {string} value
+	 * @param {number} position
+	 */
 	#findNext(text, value, position) {
 		let cancel = false;
 
@@ -1227,6 +1446,9 @@ class Utils {
 		return -1;
 	}
 
+	/**
+	 * @param {string} text
+	 */
 	markdownToHTML(text) {
 		text = text.split('\r').join('');
 		let result = '';
@@ -1280,6 +1502,9 @@ class Utils {
 		return result;
 	}
 
+	/**
+	 * @param {string} message
+	 */
 	async sha256(message) {
 		const msgBuffer = new TextEncoder().encode(message);
 		const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -1288,6 +1513,9 @@ class Utils {
 		return hashHex;
 	}
 
+	/**
+	 * @param {ArrayBuffer} arrayBuffer
+	 */
 	fromArrayBufferToBase64(arrayBuffer) {
 		let base64 = '';
 		const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -1331,17 +1559,19 @@ class Utils {
 		return base64;
 	}
 
+	/**
+	 * @param {Element} element
+	 */
 	getElementPosition(element, noOffset = false) {
 		const rect = element.getBoundingClientRect();
-		const win = element.ownerDocument.defaultView;
 
-		let bottom = rect.bottom + win.pageYOffset, right = rect.right + win.pageXOffset;
+		let bottom = rect.bottom + window.scrollY, right = rect.right + window.scrollX;
 		if (!noOffset)
 			bottom = document.documentElement.clientHeight - bottom, right = document.documentElement.clientWidth - right;
 
 		return {
-			top: rect.top + win.pageYOffset,
-			left: rect.left + win.pageXOffset,
+			top: rect.top + window.scrollY,
+			left: rect.left + window.scrollX,
 			bottom,
 			right,
 		};
@@ -1360,6 +1590,9 @@ class Utils {
 			parent.insertBefore(newNode, referenceChild.nextSibling);
 	}
 
+	/**
+	 * @param {string} username
+	 */
 	verifyUsername(username) {
 		if (username.length < 3 || username.length > 32 || !/^[A-Za-z0-9\-_]*$/.test(username))
 			return false;
@@ -1367,22 +1600,32 @@ class Utils {
 			return true;
 	}
 
+	/**
+	 * @param {string} text
+	 */
 	sanitizeText(text) {
 		text = text.split('&').join('&amp;');
 		text = text.split('<').join('&lt;');
 		return text;
 	}
 
+	/**
+	 * @param {string} uid
+	 */
 	generateUsernameTooltip(uid, isSidebar = false) {
 		return `onclick="app.showUsernameTooltip(this, '${uid}', ${isSidebar})"`;
 	}
 
+	/**
+	 * @param {number} timestamp
+	 */
 	generateDateTooltip(timestamp) {
 		return `ondblclick="app.showDateTooltip(this, ${timestamp})"`;
 	}
 }
 
 class App {
+	api;
 	socket;
 	popup;
 	tooltip;
@@ -1392,23 +1635,37 @@ class App {
 	messages;
 	utils;
 
-	user = {};
+	/**
+	 * @typedef UserData
+	 * @type {{ username: string, nickname: string, type: 'normal' | 'admin' }}
+	 */
+
+	/**
+	 * @type {{ uid: string } & UserData | null}
+	 */
+	user = null;
+	/**
+	 * @type {Record<string, UserData>}
+	 */
 	users = {};
 
 	timeOffset = 0;
+	messagesToLoad = 100;
+	maxMessageLength = 2000;
 
 	elements = {
-		onlineSidebar: document.querySelector('.online-sidebar'),
+		onlineSidebar: getElement.div('online-sidebar'),
 
-		usernameDisplay: document.getElementById('username-display'),
-		userData: document.getElementById('user-data'),
+		usernameDisplay: getElement.div('username-display'),
+		userData: getElement.div('user-data'),
 
-		messageContainer: document.getElementById('message-container'),
+		messageContainer: getElement.div('message-container'),
 
-		clock: document.getElementById('clock'),
+		clock: getElement.div('clock'),
 	};
 
 	constructor() {
+		this.api = new ApiManager(this);
 		this.socket = new SocketManager(this);
 		this.popup = new PopupManager();
 		this.tooltip = new TooltipManager(this);
@@ -1430,11 +1687,8 @@ class App {
 	}
 
 	async main() {
-		const token = localStorage.getItem('token');
-		if (!token) {
-			loginHandler();
-			return;
-		}
+		if (location.href !== '/')
+			history.replaceState({}, '', '/');
 
 		this.socket.connect();
 	}
@@ -1445,14 +1699,22 @@ class App {
 		setTimeout(() => this.#updateClock(), 1000 - ((Date.now() - this.timeOffset) % 1000) + 10);
 	}
 
+	/**
+	 * @param {HTMLImageElement} element
+	 * @param {boolean} isNew
+	 */
 	onAttachmentLoad(element, isNew) {
-		element.parentElement.classList.remove('message-attachment-file');
-		element.nextElementSibling.remove();
+		element.parentElement?.classList.remove('message-attachment-file');
+		element.nextElementSibling?.remove();
 
 		if (isNew)
 			this.elements.messageContainer.scrollTop = this.elements.messageContainer.scrollTop + element.height;
 	}
 
+	/**
+	 * @param {HTMLDivElement | HTMLSpanElement} element
+	 * @param {string} uid
+	 */
 	showUsernameTooltip(element, uid, isSidebar = false) {
 		const position = this.utils.getElementPosition(element, true);
 		this.tooltip.show({
@@ -1464,6 +1726,10 @@ class App {
 		});
 	}
 
+	/**
+	 * @param {HTMLDivElement} element
+	 * @param {number} timestamp
+	 */
 	showDateTooltip(element, timestamp) {
 		const position = this.utils.getElementPosition(element, true);
 		this.tooltip.show({
@@ -1474,17 +1740,48 @@ class App {
 			withArrow: true,
 		});
 	}
+
+	propagateUserData() {
+		if (!this.user)
+			return;
+
+		this.elements.usernameDisplay.innerText = this.user.username;
+		this.elements.userData.innerHTML = `ID: ${this.user.uid}<br>Pseudonim: ${this.user.nickname}`;
+	}
+
+	/**
+	 * @param {string} uid
+	 */
+	getMissingUserData(uid) {
+		if (!this.users[uid]) {
+			this.users[uid] = {
+				username: 'Ładowanie...',
+				nickname: 'Ładowanie...',
+				type: 'normal',
+			};
+
+			this.api.getUser(uid).then(res => {
+				if (res) {
+					this.users[uid] = res;
+					this.messages.updateNickname(uid);
+				}
+			});
+		}
+	}
 }
 
 const app = new App();
 
-const logOutEverywhereHandler = () => {
-	app.socket.send('logOutEverywhere');
+const logOutEverywhereHandler = async () => {
+	app.spinner.show();
+	// TODO: handle ratelimits
+	await app.api.logOutEverywhere();
 };
 
-const logOutHandler = () => {
-	localStorage.removeItem('token');
+const logOutHandler = async () => {
+	app.spinner.show();
 	app.socket.disconnect();
+	await app.api.logOut();
 	app.main();
 };
 
@@ -1511,8 +1808,8 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 		],
 	});
 
-	const nicknameInput = document.getElementById('popup-input-username');
-	const changeNicknameFormHandler = () => {
+	const nicknameInput = getElement.input('popup-input-username');
+	const changeNicknameFormHandler = async () => {
 		const value = nicknameInput.value.trim();
 
 		if (!app.utils.verifyUsername(value)) {
@@ -1521,24 +1818,32 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 			});
 			app.popup.shake();
 		} else {
-			if (value !== app.user.nickname) {
+			if (value !== app.user?.nickname) {
 				app.popup.showSpinner();
-				app.socket.send('setNickname', {
-					nickname: value,
-				});
+				const res = await app.api.changeNickname(value);
+				if (res === 'success') {
+					if (app.user)
+						app.user.nickname = value;
+
+					app.propagateUserData();
+					app.popup.hide();
+					app.spinner.hide();
+				} else {
+					app.popup.shake();
+				}
 			} else {
 				app.popup.hide();
 			}
 		}
 	};
 
-	document.getElementById('popup-button-changeNickname').onclick = changeNicknameFormHandler;
+	getElement.div('popup-button-changeNickname').onclick = changeNicknameFormHandler;
 	nicknameInput.onkeydown = (event) => {
 		if (event.code === 'Enter')
 			changeNicknameFormHandler();
 	};
 
-	nicknameInput.value = startingValue === '' ? app.user.nickname : startingValue;
+	nicknameInput.value = startingValue === '' ? app.user?.nickname ?? '' : startingValue;
 	nicknameInput.focus();
 };
 
@@ -1550,7 +1855,7 @@ const changePasswordHandler = () => {
 			{
 				label: 'Stare hasło',
 				input: {
-					id: 'popup-input-oldPassword',
+					id: 'popup-input-currentPassword',
 					type: 'password',
 				},
 			},
@@ -1577,10 +1882,10 @@ const changePasswordHandler = () => {
 		],
 	});
 
-	const oldPasswordInput = document.getElementById('popup-input-oldPassword');
+	const currentPasswordInput = getElement.input('popup-input-currentPassword');
 	const changePasswordFormHandler = async () => {
-		const newPassword = document.getElementById('popup-input-password').value;
-		if (newPassword !== document.getElementById('popup-input-password2').value) {
+		const newPassword = getElement.input('popup-input-password').value;
+		if (newPassword !== getElement.input('popup-input-password2').value) {
 			app.popup.setSubtitle({
 				subtitle: 'Podane nowe hasła nie są identyczne',
 			});
@@ -1589,19 +1894,35 @@ const changePasswordHandler = () => {
 		}
 
 		app.popup.showSpinner();
-		app.socket.send('changePassword', {
-			oldPassword: await app.utils.sha256(oldPasswordInput.value),
-			password: await app.utils.sha256(document.getElementById('popup-input-password').value),
-		});
+		app.socket.reconnect = false;
+
+		const res = await app.api.changePassword(await app.utils.sha256(currentPasswordInput.value), await app.utils.sha256(getElement.input('popup-input-password').value));
+		if (res === 'success') {
+			app.popup.setSubtitle({
+				subtitle: 'Hasło zostało zmienione pomyślnie',
+				subtitleColor: 'var(--green)',
+			});
+
+			setTimeout(() => {
+				app.main();
+			}, 1000);
+		} else {
+			app.socket.reconnect = true;
+			app.popup.hideSpinner();
+			app.popup.setSubtitle({
+				subtitle: 'Niepoprawne stare hasło',
+			});
+			app.popup.shake();
+		}
 	};
 
-	document.getElementById('popup-button-changePassword').onclick = changePasswordFormHandler;
-	document.getElementById('popup-input-password2').onkeydown = (event) => {
+	getElement.div('popup-button-changePassword').onclick = changePasswordFormHandler;
+	getElement.input('popup-input-password2').onkeydown = (event) => {
 		if (event.code === 'Enter')
 			changePasswordFormHandler();
 	};
 
-	oldPasswordInput.focus();
+	currentPasswordInput.focus();
 };
 
 const loginHandler = () => {
@@ -1638,49 +1959,44 @@ const loginHandler = () => {
 		],
 	});
 
-	const usernameInput = document.getElementById('popup-input-username');
+	const usernameInput = getElement.input('popup-input-username');
 
 	const loginFormHandler = async () => {
 		app.popup.showSpinner();
-		const response = await fetch('/api/login', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				username: usernameInput.value,
-				password: await app.utils.sha256(document.getElementById('popup-input-password').value),
-			}),
-		});
+		const response = await app.api.login(usernameInput.value, await app.utils.sha256(getElement.input('popup-input-password').value));
 
-		let error = 'Nieznany błąd. Spróbuj ponownie później';
-		if (response.status === 200 || response.status === 400) {
-			const data = await response.json();
-			if (data.message === 'invalidLogin') {
+		let error = '';
+		switch (response) {
+			case 'success':
+				break;
+			case 'invalidLogin':
 				error = 'Niepoprawny login lub hasło';
-			} else if (data.message === 'success') {
-				localStorage.setItem('token', data.token);
-				app.main();
-				return;
-			}
-		} else if (response.status === 429) {
-			error = 'Zbyt wiele nieudanych prób logowania. Spróbuj ponownie później';
+				break;
+			case '429':
+				error = 'Zbyt wiele nieudanych prób logowania. Spróbuj ponownie później';
+				break;
+			default:
+				error = 'Wystąpił nieznany błąd. Spróbuj ponownie później';
 		}
 
-		app.popup.setSubtitle({
-			subtitle: error,
-		});
-		app.popup.shake();
-		app.popup.hideSpinner();
+		if (error === '') {
+			app.main();
+		} else {
+			app.popup.setSubtitle({
+				subtitle: error,
+			});
+			app.popup.shake();
+			app.popup.hideSpinner();
+		}
 	};
 
-	document.getElementById('popup-button-login').onclick = loginFormHandler;
-	document.getElementById('popup-input-password').onkeydown = (event) => {
+	getElement.div('popup-button-login').onclick = loginFormHandler;
+	getElement.input('popup-input-password').onkeydown = (event) => {
 		if (event.code === 'Enter')
 			loginFormHandler();
 	};
 
-	document.getElementById('popup-button-register').onclick = () => {
+	getElement.div('popup-button-register').onclick = () => {
 		registerHandler();
 	};
 
@@ -1733,35 +2049,35 @@ const registerHandler = () => {
 		],
 	});
 
-	const usernameInput = document.getElementById('popup-input-username');
-	const captchaRow = document.getElementById('popup-captcha').parentElement;
-	let captchaData = {};
+	const usernameInput = getElement.input('popup-input-username');
+	const captchaRow = getElement.div('popup-captcha').parentElement;
+	/**
+	 * @type {{ id: string, content: string, timestamp: number, signature: string }}
+	 */
+	let captchaData;
 	const resetCaptcha = () => {
-		if (!captchaRow)
+		if (!captchaRow?.parentElement)
 			return;
 
 		captchaRow.innerHTML = popupCaptchaHTML;
 
-		document.getElementById('popup-captcha').onclick = async () => {
-			const response = await fetch('/api/captcha', {
-				method: 'POST',
-			});
+		getElement.div('popup-captcha').onclick = async () => {
+			const response = await app.api.getCaptcha();
 
-			if (response.status === 200) {
-				captchaData = await response.json();
+			if (typeof response === 'object') {
+				captchaData = response;
 				captchaRow.innerHTML = `<div class="popup-row-label">Przepisz tekst z obrazka</div>${captchaData.content}<input id="popup-input-captcha" class="popup-row-input" type="text">`;
-				document.getElementById('popup-input-captcha').onkeydown = (event) => {
+				getElement.input('popup-input-captcha').onkeydown = (event) => {
 					if (event.code === 'Enter')
 						registerFormHandler();
 				};
 
 				setTimeout(() => {
-					if (captchaRow)
-						resetCaptcha();
+					resetCaptcha();
 				}, 60_000);
 			} else {
 				app.popup.setSubtitle({
-					subtitle: 'Zbyt wiele nieudanych prób rozwiązania CAPTCHy. Spróbuj ponownie później',
+					subtitle: 'Zbyt wiele nieudanych prób rozwiązania CAPTCHA. Spróbuj ponownie później',
 				});
 				app.popup.shake();
 			}
@@ -1776,15 +2092,15 @@ const registerHandler = () => {
 			registrationInProgress = true;
 
 		let error = '';
-		const captchaInput = document.getElementById('popup-input-captcha');
+		const captchaInput = getElement.input('popup-input-captcha');
 		if (!captchaInput)
 			error = 'Musisz potwierdzić że nie jesteś robotem';
 
 		if (!app.utils.verifyUsername(usernameInput.value))
 			error = 'Nazwa użytkownika powinna mieć od 3 do 32 znaków i zawierać tylko litery, cyfry, - i _';
 
-		const password = document.getElementById('popup-input-password').value;
-		if (password !== document.getElementById('popup-input-password2').value)
+		const password = getElement.input('popup-input-password').value;
+		if (password !== getElement.input('popup-input-password2').value)
 			error = 'Wpisane hasła nie są identyczne';
 
 		if (error !== '') {
@@ -1797,48 +2113,36 @@ const registerHandler = () => {
 		}
 
 		app.popup.showSpinner();
-		const response = await fetch('/api/register', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				username: usernameInput.value,
-				password: await app.utils.sha256(password),
-				captcha: {
-					id: captchaData.id,
-					timestamp: captchaData.timestamp,
-					signature: captchaData.signature,
-					solution: captchaInput.value,
-				},
-			}),
+		const response = await app.api.register(usernameInput.value, await app.utils.sha256(password), {
+			id: captchaData.id,
+			timestamp: captchaData.timestamp,
+			signature: captchaData.signature,
+			solution: captchaInput.value,
 		});
 
-		if (response.status === 200 || response.status === 400) {
-			const data = await response.json();
-			switch (data.message) {
-				case 'success':
-					break;
-				case 'usernameAlreadyInUse':
-					error = 'Ta nazwa użytkownika jest już zajęta';
-					resetCaptcha();
-					break;
-				case 'invalidSolution':
-					error = 'Wpisany tekst nie jest poprawnym rozwiązaniem CAPTCHy';
-					break;
-				case 'captchaExpired':
-					error = 'CAPTCHA wygasła';
-					resetCaptcha();
-					break;
-				default:
-					error = 'Wystąpił nieznany błąd';
-			}
-		} else if (response.status === 429) {
-			error = 'Zbyt wiele prób rejestracji. Spróbuj ponownie później';
-		} else if (response.status === 418) {
-			error = 'Rejestracja jest obecnie niedostępna. Spróbuj ponownie później';
-		} else {
-			error = 'Nieznany błąd. Spróbuj ponownie później';
+		switch (response) {
+			case 'success':
+				break;
+			case 'usernameAlreadyInUse':
+				error = 'Ta nazwa użytkownika jest już zajęta';
+				resetCaptcha();
+				break;
+			case '400':
+			case 'invalidSolution':
+				error = 'Wpisany tekst nie jest poprawnym rozwiązaniem CAPTCHy';
+				break;
+			case 'captchaExpired':
+				error = 'CAPTCHA wygasła';
+				resetCaptcha();
+				break;
+			case '429':
+				error = 'Zbyt wiele prób rejestracji. Spróbuj ponownie później';
+				break;
+			case '418':
+				error = 'Rejestracja jest obecnie niedostępna. Spróbuj ponownie później';
+				break;
+			default:
+				error = 'Wystąpił nieznany błąd. Spróbuj ponownie później';
 		}
 
 		if (error === '') {
@@ -1846,8 +2150,9 @@ const registerHandler = () => {
 				subtitle: 'Zarejestrowano pomyślnie!',
 				subtitleColor: 'var(--green)',
 			});
+
 			setTimeout(() => {
-				loginHandler();
+				app.main();
 			}, 1000);
 		} else {
 			app.popup.hideSpinner();
@@ -1859,9 +2164,9 @@ const registerHandler = () => {
 		}
 	};
 
-	document.getElementById('popup-button-register').onclick = registerFormHandler;
+	getElement.div('popup-button-register').onclick = registerFormHandler;
 
-	document.getElementById('popup-button-login').onclick = () => {
+	getElement.div('popup-button-login').onclick = () => {
 		loginHandler();
 	};
 

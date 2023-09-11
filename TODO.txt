@@ -1,7 +1,11 @@
 P0:
-send messages through http/POST
+migrate user IDs to UUIDs
+migrate server user UID to 'server'
+migrate message IDs to 'timestamp-index'
+add types to users
 
 P1:
+retry (and generally handle) ratelimits
 reset shadow message timer when receiving ratelimit packets
 ipbans after consistently hitting the rate limit
 ipbans after some treshold of points over the limit

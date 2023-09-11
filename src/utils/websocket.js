@@ -2,8 +2,11 @@ const EventEmitter = require('events');
 const { createHash, randomBytes } = require('crypto');
 
 const { ipv6tov4 } = require('./ip');
+const { PROTOCOL_VERSION, MAX_MESSAGE_LENGTH, MESSAGES_TO_LOAD } = require('../config');
+const { blue, bold, green } = require('./colors');
+const { logger } = require('./logger');
 
-class WebSocket extends EventEmitter {
+module.exports.WebSocket = class extends EventEmitter {
 	/**
 	 * @type {import('net').Socket}
 	 */
@@ -24,7 +27,7 @@ class WebSocket extends EventEmitter {
 		this.#socket = socket;
 		this.#id = randomBytes(8).toString('base64');
 
-		socket.on('error', (error) => {
+		socket.on('error', (/** @type {any} */error) => {
 			if (![ 'ETIMEDOUT', 'EPIPE', 'ECONNRESET', 'EHOSTUNREACH' ].includes(error.code))
 				console.log(error);
 		});
@@ -69,12 +72,12 @@ class WebSocket extends EventEmitter {
 						if (inputBuffer.length < 10)
 							return;
 
-						length = inputBuffer.readBigUInt64BE(2);
-						if (length > 15_000_000) {
+						const len = inputBuffer.readBigUInt64BE(2);
+						if (len > 15_000_000) {
 							this.close();
 							return;
 						} else {
-							length = +length.toString();
+							length = +len.toString();
 						}
 
 						start = 10;
@@ -162,7 +165,7 @@ class WebSocket extends EventEmitter {
 						}
 					}
 
-					inputBuffer = Uint8Array.prototype.slice.call(inputBuffer, start + length);
+					inputBuffer = Buffer.from(Uint8Array.prototype.slice.call(inputBuffer, start + length));
 				} while (inputBuffer.length > 0);
 			} catch (error) {
 				console.log(error);
@@ -188,24 +191,24 @@ class WebSocket extends EventEmitter {
 		if (this.#closed || !this.#socket.writable)
 			return;
 
-		message = Buffer.from(message);
+		const buf = Buffer.from(message);
 		let header;
 
-		if (message.length <= 125) {
+		if (buf.length <= 125) {
 			header = Buffer.alloc(2);
-			header[1] = message.length;
-		} else if (message.length < 65536) {
+			header[1] = buf.length;
+		} else if (buf.length < 65536) {
 			header = Buffer.alloc(4);
 			header[1] = 126;
-			header.writeUInt16BE(message.length, 2);
+			header.writeUInt16BE(buf.length, 2);
 		} else {
 			header = Buffer.alloc(10);
 			header[1] = 127;
-			header.writeBigUInt64BE(BigInt(message.length), 2);
+			header.writeBigUInt64BE(BigInt(buf.length), 2);
 		}
 
 		header[0] = 0b10000000 | code;
-		this.#socket.write(Buffer.concat([ header, message ]));
+		this.#socket.write(Buffer.concat([ header, buf ]));
 	};
 
 	/**
@@ -215,6 +218,10 @@ class WebSocket extends EventEmitter {
 		return this.#id;
 	}
 
+	get ip() {
+		return ipv6tov4(this.#socket.remoteAddress);
+	}
+
 	/**
 	 * Close the socket
 	 */
@@ -222,14 +229,126 @@ class WebSocket extends EventEmitter {
 		this.#closed = true;
 		this.#socket.destroy();
 	};
+};
+
+class WebSocketManager {
+	/**
+	 * @type {Record<string, import('./websocket').WebSocket>}
+	 */
+	#webSockets = {};
 
 	/**
-	 * IP address of the client
-	 * @returns {string} IP address
+	 * @type {Record<string, { uid: string, token: string }>}
 	 */
-	getIp = () => {
-		return ipv6tov4(this.#socket.remoteAddress);
+	#webSocketData = {};
+
+	/**
+	 * @param {import('net').Socket} socket
+	 * @param {string} secSocketKey
+	 * @param {string} uid
+	 * @param {string} token
+	 * @param {() => any} onClose
+	 */
+	create(socket, secSocketKey, uid, token, onClose) {
+		const ws = new module.exports.WebSocket(socket, secSocketKey);
+		logger.info(`${bold(blue(`[${ws.ip}] (${ws.id}):`))} ${bold(green('Socket logged in:'))} ${bold(blue(uid))}`);
+
+		this.#webSockets[ws.id] = ws;
+		this.#webSocketData[ws.id] = { uid, token };
+
+		ws.on('message', (message) => {
+			if (message !== 'ping')
+				ws.close();
+		});
+
+		ws.on('close', () => {
+			delete this.#webSockets[ws.id];
+			delete this.#webSocketData[ws.id];
+
+			logger.info(`${bold(blue(`[${ws.ip}] (${ws.id}):`))} ${bold(green('Socket disconnected:'))} ${bold(blue(uid))}`);
+			onClose();
+		});
+
+		ws.send(JSON.stringify({
+			packet: 'ready',
+			serverTime: Date.now(),
+			messagesToLoad: MESSAGES_TO_LOAD,
+			maxMessageLength: MAX_MESSAGE_LENGTH,
+			protocolVersion: PROTOCOL_VERSION,
+		}));
+	}
+
+	/**
+	 * @param {string} uid
+	 */
+	close(uid) {
+		for (const key in this.#webSocketData) {
+			if (this.#webSocketData[key].uid === uid)
+				this.#webSockets[key].close();
+		}
+	}
+
+	/**
+	 * @param {string} token
+	 */
+	closeToken(token) {
+		for (const key in this.#webSocketData) {
+			if (this.#webSocketData[key].token === token)
+				this.#webSockets[key].close();
+		}
+	}
+
+	/**
+	 * @param {string} payload
+	 */
+	#sendAll(payload) {
+		for (const key in this.#webSockets)
+			this.#webSockets[key].send(payload);
+	}
+
+	send = {
+		reload: () => {
+			this.#sendAll(JSON.stringify({
+				packet: 'reload',
+			}));
+		},
+		updateOnline: () => {
+			/**
+			 * @type {Record<string, boolean>}
+			 */
+			const onlineUsers = {};
+			for (const key in this.#webSocketData)
+				onlineUsers[this.#webSocketData[key].uid] = true;
+
+			this.#sendAll(JSON.stringify({
+				packet: 'clientsOnline',
+				clients: Object.keys(onlineUsers),
+			}));
+		},
+		/**
+		 * @param {import('../database/users').DBUser} user
+		 */
+		updateUser: (user) => {
+			this.#sendAll(JSON.stringify({
+				packet: 'updateUser',
+				uid: user.uid,
+				username: user.username,
+				nickname: user.nickname,
+				type: user.type,
+			}));
+		},
+		/**
+		 * @param {import('../database/messages').DBMessage} message
+		 * @param {string} nonce
+		 */
+		newMessage: (message, nonce) => {
+			this.#sendAll(JSON.stringify({
+				packet: 'newMessage',
+				nonce,
+				...message,
+			}));
+		},
 	};
 }
 
-module.exports = { WebSocket };
+module.exports.webSocketManager = new WebSocketManager();

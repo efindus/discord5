@@ -1,5 +1,8 @@
 const { randomBytes, createHmac } = require('crypto');
 
+/**
+ * @type {Record<string, any[][]>}
+ */
 const font = require('./captcha.json');
 const letters = Object.keys(font);
 
@@ -12,10 +15,10 @@ const solved = new Set();
  * @param {string} solution - Solution to test.
  * @param {string} signature - Captcha signature.
  * @param {string} secret - Secret that was used to sign the captcha.
- * @returns {string|boolean} Returns true if captcha was solved correctly. Else the error message is provided.
+ * @returns {string | boolean} Returns true if captcha was solved correctly. Else the error message is provided.
  */
 
-const verifyCaptcha = (id, timestamp, solution, signature, secret) => {
+module.exports.verifyCaptcha = (id, timestamp, solution, signature, secret) => {
 	solution = solution.toUpperCase();
 
 	if (createHmac('sha256', secret).update(`${id}${timestamp}${solution}`).digest('hex') !== signature)
@@ -49,9 +52,12 @@ const verifyCaptcha = (id, timestamp, solution, signature, secret) => {
  * @returns {CaptchaData} Captcha data
  */
 
-const createCaptcha = (length, secret) => {
+module.exports.createCaptcha = (length, secret) => {
 	let solution = '';
 	let position = -10;
+	/**
+	 * @type {string[]}
+	 */
 	const output = [];
 
 	while (length--) {
@@ -118,5 +124,3 @@ const createCaptcha = (length, secret) => {
 		content: `<svg class="captcha-image" version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(position)} 64"><path fill="var(--text-primary)" d="${output.join('')}"></path></svg>`,
 	};
 };
-
-module.exports = { createCaptcha, verifyCaptcha };

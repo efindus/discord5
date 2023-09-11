@@ -6,7 +6,7 @@
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-		<link rel="stylesheet" href="static/main.css">
+		<link rel="stylesheet" href="main.css">
 	</head>
 
 	<body>
@@ -19,7 +19,7 @@
 					<div id="dropdown-trigger">
 						<span id="username-display"></span><i class="dropdown-arrow"></i>
 					</div>
-					<div class="dropdown">
+					<div id="dropdown">
 						<div id="user-data">ID: 694202137<br>Nickname: Server</div>
 						<div class="dropdown-entry" onclick="changeNicknameHandler()">Zmień pseudonim</div>
 						<div class="dropdown-entry" onclick="changePasswordHandler()">Zmień hasło</div>
@@ -37,15 +37,15 @@
 				<div class="input-container">
 					<input id="upload-input" type="file">
 					<label id="upload-button" for="upload-input">
-						<svg width="24" height="24" viewBox="0 0 24 24">
-							<path class="attachButtonPlus-3IYelE" fill="currentColor" d="M12 2.00098C6.486 2.00098 2 6.48698 2 12.001C2 17.515 6.486 22.001 12 22.001C17.514 22.001 22 17.515 22 12.001C22 6.48698 17.514 2.00098 12 2.00098ZM17 13.001H13V17.001H11V13.001H7V11.001H11V7.00098H13V11.001H17V13.001Z"></path>
+						<svg id="upload-button-icon" width="24" height="24" viewBox="0 0 24 24">
+							<path fill="currentColor" d="M12 2.00098C6.486 2.00098 2 6.48698 2 12.001C2 17.515 6.486 22.001 12 22.001C17.514 22.001 22 17.515 22 12.001C22 6.48698 17.514 2.00098 12 2.00098ZM17 13.001H13V17.001H11V13.001H7V11.001H11V7.00098H13V11.001H17V13.001Z"></path>
 						</svg>
 					</label>
 					<div id="input" contenteditable="true" spellcheck="false"><br class="input-last-br"></div>
 				</div>
 			</div>
 
-			<div class="online-sidebar"></div>
+			<div id="online-sidebar"></div>
 		</div>
 
 		<div id="popup-container">
@@ -61,7 +61,7 @@
 			</div>
 		</div>
 
-		<div class="tooltip-container">
+		<div id="tooltip-container">
 			<div id="tooltip">Tooltip</div>
 		</div>
 
@@ -69,6 +69,6 @@
 			<div class="spinner"></div>
 		</div>
 
-		<script src="static/main.js"></script>
+		<script src="main.js"></script>
 	</body>
 </html>

@@ -1,3 +1,4 @@
+const { IS_DEV } = require('../config');
 const { bgBlue, bgGreen, bgYellowBright, bgRedBright, whiteBright, black, green } = require('./colors');
 
 class Logger {
@@ -18,7 +19,9 @@ class Logger {
 				logPrefix += `${bgGreen(black(logLevel.toUpperCase()))}`;
 				break;
 			case 'debug':
-				if (process.env['NODE_ENV'] !== 'development') return;
+				if (!IS_DEV)
+					return;
+
 				logPrefix += `${green(logLevel.toUpperCase())}`;
 				break;
 			case 'info':
@@ -28,30 +31,43 @@ class Logger {
 				throw new Error('Log level must be one of the following: info, warn, error, debug, ready');
 		}
 
-		console.log(`${logPrefix} ${message.replace(/\n/g, `\n${logPrefix} `)}`);
+		console.log(`${logPrefix} ${message.toString().replace(/\n/g, `\n${logPrefix} `)}`);
 	}
 
+	/**
+	 * @param {string} message
+	 */
 	info(message) {
 		this.log('info', message);
 	}
 
+	/**
+	 * @param {string} message
+	 */
 	error(message) {
 		this.log('error', message);
 	}
 
+	/**
+	 * @param {string} message
+	 */
 	warn(message) {
 		this.log('warn', message);
 	}
 
+	/**
+	 * @param {string} message
+	 */
 	debug(message) {
 		this.log('debug', message);
 	}
 
+	/**
+	 * @param {string} message
+	 */
 	ready(message) {
 		this.log('ready', message);
 	}
 }
 
-const logger = new Logger();
-
-module.exports = { logger };
+module.exports.logger = new Logger();

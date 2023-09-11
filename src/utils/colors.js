@@ -52,15 +52,22 @@ const createANSIEscape = (num) => {
 	return `\x1b[${num}m`;
 };
 
+/**
+ * @typedef {keyof styles | keyof colors['fg'] | keyof colors['bg']} StyleName
+ */
+
+/** @type {Record<StyleName, (string: string) => string>} */
+module.exports = /** @type {any} */ ({});
+
 for (const [ styleName, style ] of Object.entries(styles)) {
-	exports[styleName] = (string) => {
+	module.exports[/** @type {StyleName} */ (styleName)] = (string) => {
 		return `${createANSIEscape(style[0])}${string}${createANSIEscape(style[1])}`;
 	};
 }
 
 for (const [ typeName, type ] of Object.entries(colors)) {
 	for (const [ colorName, color ] of Object.entries(type)) {
-		exports[colorName] = (string) => {
+		module.exports[/** @type {StyleName} */ (colorName)] = (string) => {
 			return `${createANSIEscape(color)}${string}${createANSIEscape(typeName === 'fg' ? 39 : 49)}`;
 		};
 	}

@@ -6,4 +6,3 @@ server.cert
 server.key
 server.cert.old
 server.key.old
-.VSCodeCounter

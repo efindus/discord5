@@ -1,57 +1,66 @@
 const { MongoClient } = require('mongodb');
 
-const DATABASE_NAME = 'discord5';
+const { DATABASE_NAME } = require('../config');
+
 const client = new MongoClient('mongodb://127.0.0.1:27017', { forceServerObjectId: true });
 
-const connect = () => {
+module.exports.connect = () => {
 	return client.connect();
 };
 
-const insertOne = async (collection, document) => {
+/** @type {import("../types").insertOne} */
+module.exports.insertOne = async (collection, document) => {
 	await client.db(DATABASE_NAME).collection(collection).insertOne(document);
 };
 
-const insertMany = async (collection, documents) => {
+/** @type {import("../types").insertMany} */
+module.exports.insertMany = async (collection, documents) => {
 	await client.db(DATABASE_NAME).collection(collection).insertMany(documents);
 };
 
-const collectionLength = (collection) => {
+/** @type {import("../types").collectionLength} */
+module.exports.collectionLength = (collection) => {
 	return client.db(DATABASE_NAME).collection(collection).countDocuments();
 };
 
-const findOne = (collection, filter = {}, withDocumentID = false) => {
-	return client.db(DATABASE_NAME).collection(collection).findOne(filter, {
-		projection: withDocumentID ? {} : { _id: 0 },
-	});
+/** @type {import("../types").findOne} */
+module.exports.findOne = (collection, filter = {}, withDocumentID = false, customProjection = {}) => {
+	return /** @type {any} */ (client.db(DATABASE_NAME).collection(collection).findOne(filter, {
+		projection: withDocumentID ? customProjection : { _id: 0, ...customProjection },
+	}));
 };
 
-const findMany = (collection, filter = {}, sort = {}, limit = null, skip = 0, withDocumentID = false) => {
-	return client.db(DATABASE_NAME).collection(collection).find(filter, {
-		sort: sort,
-		limit: limit,
-		skip: skip,
-		projection: withDocumentID ? {} : { _id: 0 },
-	}).toArray();
+/** @type {import("../types").findMany} */
+module.exports.findMany = (collection, filter = {}, sort = {}, limit = undefined, skip = 0, withDocumentID = false, customProjection = {}) => {
+	return /** @type {any} */ (client.db(DATABASE_NAME).collection(collection).find(filter, {
+		sort: /** @type {any} */ (sort),
+		limit,
+		skip,
+		projection: withDocumentID ? customProjection : { _id: 0, ...customProjection },
+	}).toArray());
 };
 
-const updateOne = async (collection, filter, changes) => {
-	await client.db(DATABASE_NAME).collection(collection).updateOne(filter, { $set: changes });
+/** @type {import("../types").updateOne} */
+module.exports.updateOne = async (collection, filter, changes, options = {}, customUpdate = {}) => {
+	await client.db(DATABASE_NAME).collection(collection).updateOne(filter, { $set: changes, ...customUpdate }, options);
 };
 
-const updateMany = async (collection, filter, changes) => {
-	await client.db(DATABASE_NAME).collection(collection).updateMany(filter, { $set: changes });
+/** @type {import("../types").updateMany} */
+module.exports.updateMany = async (collection, filter, changes, options = {}, customUpdate = {}) => {
+	await client.db(DATABASE_NAME).collection(collection).updateMany(filter, { $set: changes, ...customUpdate }, options);
 };
 
-const removeOne = async (collection, filter) => {
+/** @type {import("../types").removeOne} */
+module.exports.removeOne = async (collection, filter) => {
 	await client.db(DATABASE_NAME).collection(collection).deleteOne(filter);
 };
 
-const removeMany = (collection, filter) => {
-	return client.db(DATABASE_NAME).collection(collection).deleteMany(filter);
+/** @type {import("../types").removeMany} */
+module.exports.removeMany = async (collection, filter) => {
+	await client.db(DATABASE_NAME).collection(collection).deleteMany(filter);
 };
 
-const createIndex = (collection, index) => {
-	return client.db(DATABASE_NAME).collection(collection).createIndex(index);
+/** @type {import("../types").createIndex} */
+module.exports.createIndex = async (collection, index) => {
+	await client.db(DATABASE_NAME).collection(collection).createIndex(/** @type {any} */ (index));
 };
-
-module.exports = { connect, insertOne, insertMany, collectionLength, findOne, findMany, updateOne, updateMany, removeOne, removeMany, createIndex };
