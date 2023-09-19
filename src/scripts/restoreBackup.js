@@ -1,18 +1,18 @@
-const db = require('../utils/database');
 const backup = require('../../data/backup.json');
 
+const { connect, removeMany, insertMany } = require('../utils/database');
+
 const main = async () => {
-	await db.connect();
+	await connect();
 
-	await db.removeMany('users');
-	await db.removeMany('messages');
-	await db.removeMany('ipBans');
+	await removeMany('users');
+	await removeMany('messages');
+	await removeMany('ipBans');
 
-	await db.insertMany('users', backup.users);
-	await db.insertMany('messages', backup.messages);
-	await db.insertMany('ipBans', backup.ipBans.map(ip => {
-		return { ip: ip };
-	}));
+	// @ts-ignore
+	await insertMany('users', backup.users);
+	await insertMany('messages', backup.messages);
+	await insertMany('ipBans', backup.ipBans);
 
 	process.exit();
 };

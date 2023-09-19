@@ -1,14 +1,13 @@
 {
   "name": "discord5",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "start": "node .",
-    "seed": "node ./src/scripts/seed",
-    "generateIndexes": "node ./src/scripts/generateIndexes",
+		"start": "node .",
+    "backup": "node ./src/scripts/backup",
     "restoreBackup": "node ./src/scripts/restoreBackup",
-    "backup": "node ./src/scripts/backup"
+    "migrateDB": "node ./src/scripts/migrateDB"
   },
   "author": "efindus",
   "license": "GPL-3.0",
