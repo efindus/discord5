@@ -1,6 +1,9 @@
 const { randomUUID } = require('crypto');
+const { rename, mkdir } = require('fs/promises');
 
+const { ATTACHMENT_BASE_PATH, SERVER_USER_UID } = require('../config');
 const { connect, findOne, findMany, updateOne, updateMany } = require('../utils/database');
+const { existsSync } = require('fs');
 
 const main = async () => {
 	await connect();
@@ -9,7 +12,7 @@ const main = async () => {
 	for (const user of users) {
 		let uid;
 		if (user.username === '[Server]') {
-			uid = 'server';
+			uid = SERVER_USER_UID;
 		} else {
 			do {
 				uid = randomUUID();
@@ -40,6 +43,14 @@ const main = async () => {
 
 		idsTaken[newId] = true;
 		await updateOne('messages', { id: message.id }, { id: newId });
+
+		const oldPath = `${ATTACHMENT_BASE_PATH}/attachments/${message.attachment}`;
+		if (message.attachment && existsSync(oldPath)) {
+			const filename = message.attachment.split('-').slice(2).join('-'), basePath = `${ATTACHMENT_BASE_PATH}/attachments/${newId}`;
+			await mkdir(basePath, { recursive: true });
+			await rename(oldPath, `${basePath}/${filename}`);
+			await updateOne('messages', { id: newId }, { attachment: filename });
+		}
 	}
 
 	process.exit(0);

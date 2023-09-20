@@ -37,10 +37,10 @@ module.exports.insertMessage = async (message, uid, originalAuthor = undefined, 
 
 	let attachmentName = undefined;
 	if (attachment) {
-		attachmentName = `${id}/${attachment.fileName}`;
-		const attachmentPath = `${ATTACHMENT_BASE_PATH}/attachments/${attachmentName}`;
+		attachmentName = attachment.fileName;
+		const attachmentPath = `${ATTACHMENT_BASE_PATH}/attachments/${id}/${attachmentName}`;
 		await mkdir(attachmentPath.slice(0, attachmentPath.lastIndexOf('/')));
-		await writeFile(`${ATTACHMENT_BASE_PATH}/attachments/${attachmentName}`, attachment.data);
+		await writeFile(`${ATTACHMENT_BASE_PATH}/attachments/${id}/${attachmentName}`, attachment.data);
 	}
 
 	const msgData = {

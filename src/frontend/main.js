@@ -833,7 +833,7 @@ class MessageManager {
 				msgData.attachment.endsWith('.gif') ||
 				msgData.attachment.endsWith('.webp')
 			)) {
-				messageAttachment = `<img src="/attachments/${msgData.attachment}" onload="app.onAttachmentLoad(this, ${isNew ?? false})" onerror="this.remove()"><div>${messageAttachment}</div>`;
+				messageAttachment = `<img src="/attachments/${msgData.id}/${msgData.attachment}" onload="app.onAttachmentLoad(this, ${isNew ?? false})" onerror="this.remove()"><div>${messageAttachment}</div>`;
 			}
 
 			return `<div class="message-attachment message-attachment-file">${messageAttachment}</div>`;
