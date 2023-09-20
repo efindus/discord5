@@ -151,7 +151,7 @@ class ApiManager {
 	 * @param {string} message
 	 * @param {string} nonce
 	 * @param {{ fileName: string, data: string } | undefined} attachment
-	 * @returns {Promise<'success' | 'attachmentLimit' | '429' | '400'>}
+	 * @returns {Promise<'success' | 'attachmentLimit' | 'newlineLimit' | '429' | '400'>}
 	 */
 	async sendMessage(message, nonce, attachment = undefined) {
 		try {
@@ -1043,6 +1043,7 @@ class MessageManager {
 					const res = await this.#app.api.sendMessage(value, nonce, attachment);
 					switch (res) {
 						case '429':
+						case 'newlineLimit':
 						case 'attachmentLimit':
 							// TODO: retry automagically
 							getElementP(nonce, 'div', true)?.remove();
@@ -1050,6 +1051,8 @@ class MessageManager {
 								let title = '', subtitle;
 								if (res === '429')
 									title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
+								else if (res === 'newlineLimit')
+									title = 'Hola, hola! Nie za wiele?', subtitle = 'Wysyłasz zbyt długie wiadomości!';
 								else
 									title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt wiele załączników!';
 

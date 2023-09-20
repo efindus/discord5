@@ -14,15 +14,22 @@ addEndpoint('GET', '/api/messages', async (req) => {
 }, { auth: 'user' });
 
 ratelimitManager.create('messages:15S', 20, 15 * 1000);
+ratelimitManager.create('messages;newlines:3S', 550, 3 * 1000);
+ratelimitManager.create('messages;newlines:1M', 580, MINUTE);
 ratelimitManager.create('attachmentUploads', 45_000_000, 10 * MINUTE);
 addEndpoint('POST', '/api/messages', async (req) => {
 	const { message, nonce } = req.body;
 
-	if (!(message.length > 0 && message.length <= MAX_MESSAGE_LENGTH && nonce.length > 0 && nonce.length <= 54))
+	const trimmedMessage = message.trim();
+	if (!(trimmedMessage.length > 0 && trimmedMessage.length <= MAX_MESSAGE_LENGTH && nonce.length > 0 && nonce.length <= 54))
 		return { status: 400 };
 
+	const nlCount = trimmedMessage.split('\n').length;
+	if (!(+ratelimitManager.consume('messages;newlines:3S', req.user.uid, nlCount) & +ratelimitManager.consume('messages;newlines:1M', req.user.uid, nlCount)))
+		return { status: 429, body: { message: 'newlineLimit' } };
+
 	const rawMsg = {
-		message,
+		message: message.trim(),
 		uid: req.user.uid,
 		originalAuthor: /** @type {string | undefined} */ (undefined),
 		attachment: /** @type {{ fileName: string, data: Buffer } | undefined} */ (undefined),
