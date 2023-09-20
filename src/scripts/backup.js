@@ -13,7 +13,7 @@ const main = async () => {
 
 	writeFileSync('./data/backup.json', JSON.stringify(dbBackup, null, 2));
 
-	process.exit();
+	process.exit(0);
 };
 
 main();

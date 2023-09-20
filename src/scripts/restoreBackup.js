@@ -14,7 +14,7 @@ const main = async () => {
 	await insertMany('messages', backup.messages);
 	await insertMany('ipBans', backup.ipBans);
 
-	process.exit();
+	process.exit(0);
 };
 
 main();
