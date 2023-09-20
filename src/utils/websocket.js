@@ -312,6 +312,23 @@ class WebSocketManager {
 				packet: 'reload',
 			}));
 		},
+		/**
+		 * @param {string} ip
+		 */
+		reloadIp: (ip) => {
+			const payload = JSON.stringify({
+				packet: 'reload',
+			});
+
+			for (const key in this.#webSockets) {
+				if (this.#webSockets[key].ip === ip) {
+					this.#webSockets[key].send(payload);
+					setTimeout(() => {
+						this.#webSockets[key]?.close();
+					}, 400);
+				}
+			}
+		},
 		updateOnline: () => {
 			/**
 			 * @type {Record<string, boolean>}

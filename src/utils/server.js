@@ -47,11 +47,27 @@ module.exports.addEndpoint = (method, path, handler, requirements = {}) => {
  */
 let ipBans = {};
 const fetchIPBans = async () => {
-	const bans = await findMany('ipBans');
-	ipBans = {};
+	const bans = (await findMany('ipBans')).map(v => v.ip).sort();
+	const cBans = Object.keys(ipBans).sort();
 
-	for (const ban of bans)
-		ipBans[ban.ip] = true;
+	if (bans.length === cBans.length) {
+		let changed = false;
+		for (let i = 0; i < bans.length; i++) {
+			if (bans[i] !== cBans[i] && (changed = true))
+				break;
+		}
+
+		if (!changed)
+			return;
+	}
+
+	logger.warn(`Banned IPs changed! Updating...\nList: ${bans.join(', ')}`);
+
+	ipBans = {};
+	for (const ip of bans) {
+		ipBans[ip] = true;
+		webSocketManager.send.reloadIp(ip);
+	}
 };
 
 fetchIPBans();
