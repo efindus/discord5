@@ -14,7 +14,7 @@ const { parseCookieHeader } = require('./cookies');
 const { ratelimitManager } = require('./ratelimit');
 const { webSocketManager } = require('./websocket');
 const { verifyToken } = require('../database/users');
-const { FRONTEND_BASE_PATH, ATTACHMENT_BASE_PATH, TOKEN_COOKIE_NAME } = require('../config');
+const { FRONTEND_BASE_PATH, ATTACHMENT_BASE_PATH, TOKEN_COOKIE_NAME, MAX_HTTP_BUFFER_SIZE } = require('../config');
 
 // Per IP
 ratelimitManager.create('static', 75, 30 * 1000);
@@ -115,7 +115,7 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 				return;
 			}
 
-			if (len && +len > 14_900_000) {
+			if (len && +len > MAX_HTTP_BUFFER_SIZE) {
 				res.writeHead(413); // Content Too Large
 				res.end();
 				return;
@@ -160,7 +160,7 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 			requestData.user = await verifyToken(requestData.cookies[TOKEN_COOKIE_NAME]);
 
 		if (req.headers.connection?.toLowerCase().includes('upgrade') && req.headers.upgrade?.toLowerCase() === 'websocket') {
-			if (requestData.path !== '/ws') {
+			if (requestData.path !== '/gateway') {
 				res.writeHead(404);
 				res.end();
 				return;

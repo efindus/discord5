@@ -361,7 +361,7 @@ class SocketManager {
 			return;
 		}
 
-		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/ws/`);
+		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/gateway`);
 
 		this.#socket.addEventListener('open', () => this.#setupPinger());
 		this.#socket.addEventListener('message', (event) => this.#onMessage(event));

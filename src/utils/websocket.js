@@ -2,9 +2,9 @@ const EventEmitter = require('events');
 const { createHash, randomBytes } = require('crypto');
 
 const { ipv6tov4 } = require('./ip');
-const { PROTOCOL_VERSION, MAX_MESSAGE_LENGTH, MESSAGES_TO_LOAD } = require('../config');
-const { blue, bold, green } = require('./colors');
 const { logger } = require('./logger');
+const { blue, bold, green } = require('./colors');
+const { PROTOCOL_VERSION, MAX_MESSAGE_LENGTH, MESSAGES_TO_LOAD, MAX_WS_BUFFER_SIZE } = require('../config');
 
 module.exports.WebSocket = class extends EventEmitter {
 	/**
@@ -49,7 +49,7 @@ module.exports.WebSocket = class extends EventEmitter {
 
 		socket.on('data', data => {
 			inputBuffer = Buffer.concat([ inputBuffer, data ]);
-			if (inputBuffer.length > 15_000_000) {
+			if (inputBuffer.length > MAX_WS_BUFFER_SIZE) {
 				this.close();
 				return;
 			}

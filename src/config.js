@@ -15,6 +15,9 @@ module.exports.SERVER_USER_UID = 'server';
 module.exports.MESSAGES_TO_LOAD = 100;
 module.exports.MAX_MESSAGE_LENGTH = 2000;
 
+module.exports.MAX_WS_BUFFER_SIZE = 100;
+module.exports.MAX_HTTP_BUFFER_SIZE = 14_900_000;
+
 module.exports.CAPTCHA_SECRET = randomBytes(96).toString('hex');
 module.exports.CAPTCHA_LENGTH = 8;
 
