@@ -1,5 +1,6 @@
 P1:
 retry (and generally handle) ratelimits
+allow cancelling ratelimited messages queued for resend
 reset shadow message timer when receiving ratelimit packets
 ipbans after consistently hitting the rate limit
 ipbans after some treshold of points over the limit
@@ -7,8 +8,8 @@ username allowlist
 
 P2:
 more user feedback on ws ratelimits (and sending attachments etc)
-attachment upload progress bar
 consider a scroll-to-bottom button
+restore scrollheight on reconnects (using the new parameters for the /api/messages endpoint)
 pasteable attachments
 add admins (admin panel) (and user bans)
 hostname resolution

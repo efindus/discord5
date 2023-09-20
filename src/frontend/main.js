@@ -155,17 +155,85 @@ class ApiManager {
 	 */
 	async sendMessage(message, nonce, attachment = undefined) {
 		try {
-			return (await this.#makeRequest('/api/messages', {
-				method: 'POST',
-				headers: {
-					'content-type': 'application/json',
-				},
-				body: JSON.stringify({
-					message,
-					nonce,
-					attachment,
-				}),
-			})).message;
+			const reqBody = JSON.stringify({
+				message,
+				nonce,
+				attachment,
+			});
+
+			if (attachment) {
+				return await new Promise((resolve, reject) => {
+					const req = new XMLHttpRequest(), srvrError = new Error('serverError');
+					this.#app.elements.progressBar.classList.remove('loading');
+					this.#app.elements.progressBar.style.width = '0%';
+					setTimeout(() => {
+						this.#app.elements.progressBar.classList.add('loading');
+					});
+
+					let uploadSuccess = false;
+					req.upload.addEventListener('load', (ev) => {
+						uploadSuccess = true;
+					});
+
+					req.upload.addEventListener('timeout', (ev) => {
+						this.#app.elements.progressBar.style.width = '0%';
+						reject(srvrError);
+					});
+
+					req.upload.addEventListener('progress', (ev) => {
+						const progress = ev.loaded / ev.total * 100;
+						this.#app.elements.progressBar.style.width = `${progress}%`;
+					});
+
+					req.upload.addEventListener('loadend', (ev) => {
+						this.#app.elements.progressBar.style.width = '0%';
+						if (uploadSuccess) {
+							this.#app.elements.progressBar.classList.remove('loading');
+							return;
+						}
+
+						reject(srvrError);
+					});
+
+					let downloadSuccess = false;
+					req.addEventListener('load', (ev) => {
+						downloadSuccess = true;
+
+						const result = JSON.parse(req.responseText);
+						if (req.status !== 200) {
+							if (typeof result?.message === 'string')
+								reject(new Error(result.message));
+
+							reject(new Error(req.status.toString()));
+						} else {
+							resolve(result.message);
+						}
+					});
+
+					req.addEventListener('timeout', (ev) => {
+						reject(srvrError);
+					});
+
+					req.addEventListener('loadend', (ev) => {
+						if (downloadSuccess)
+							return;
+
+						reject(srvrError);
+					});
+
+					req.open('POST', '/api/messages');
+					req.setRequestHeader('content-type', 'application/json');
+					req.send(reqBody);
+				});
+			} else {
+				return (await this.#makeRequest('/api/messages', {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json',
+					},
+					body: reqBody,
+				})).message;
+			}
 		} catch (err) {
 			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
@@ -870,6 +938,8 @@ class MessageManager {
 		uploadButtonIcon: getElement.div('upload-button-icon'),
 	};
 
+	#sendingMessage = false;
+
 	/**
 	 * @type {MessageData[]}
 	 */
@@ -919,7 +989,31 @@ class MessageManager {
 				else if (value === '/shrug')
 					value = '¯\\\\_(ツ)_/¯';
 
+				if (this.#sendingMessage) {
+					if (!app.popup.isOpen) {
+						app.popup.create({
+							title: 'Hola, hola! Nie za szybko?',
+							subtitle: 'Twoja poprzednia wiadomość jest jeszcze wysyłana!',
+							subtitleColor: 'var(--text-primary)',
+							isTranslucent: true,
+							footer: [
+								{
+									id: 'ratelimit-modal-close',
+									label: 'Wrzuć na luz',
+								},
+							],
+						});
+
+						/** @type {HTMLInputElement} */(document.activeElement)?.blur();
+						getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
+					}
+
+					return;
+				}
+
 				if (value.length > 0 && value.length <= this.#app.maxMessageLength) {
+					this.#sendingMessage = true;
+
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
 					this.#elements.input.innerHTML = '<br id="input-last-br">';
 
@@ -950,12 +1044,14 @@ class MessageManager {
 					switch (res) {
 						case '429':
 						case 'attachmentLimit':
+							// TODO: retry automagically
+							getElementP(nonce, 'div', true)?.remove();
 							if (!app.popup.isOpen) {
 								let title = '', subtitle;
 								if (res === '429')
 									title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
 								else
-									title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt potężne załączniki!';
+									title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt wiele załączników!';
 
 								app.popup.create({
 									title,
@@ -977,6 +1073,8 @@ class MessageManager {
 						default:
 							break;
 					}
+
+					this.#sendingMessage = false;
 				}
 			} else if (this.#elements.input.innerText.length >= this.#app.maxMessageLength &&
 				!(event.code.startsWith('Arrow') || event.code.startsWith('Delete') || event.code.startsWith('Backspace')) &&
@@ -1051,18 +1149,40 @@ class MessageManager {
 		});
 
 		this.#elements.uploadInput.addEventListener('change', () => {
-			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files && this.#elements.uploadInput.files[0].size <= 11_160_000) {
-				this.#elements.uploadButtonIcon.style.transform = 'rotate(45deg)';
+			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files) {
+				if (this.#elements.uploadInput.files[0].size <= 11_160_000) {
+					this.#elements.uploadButtonIcon.style.transform = 'rotate(45deg)';
 
-				const reader = new FileReader();
-				reader.addEventListener('load', (event) => {
-					if (!event.target?.result || !(event.target.result instanceof ArrayBuffer))
-						return;
+					const reader = new FileReader();
+					reader.addEventListener('load', (event) => {
+						if (!event.target?.result || !(event.target.result instanceof ArrayBuffer))
+							return;
 
-					this.#currentAttachment = this.#app.utils.fromArrayBufferToBase64(event.target.result);
-				});
+						this.#currentAttachment = this.#app.utils.fromArrayBufferToBase64(event.target.result);
+					});
 
-				reader.readAsArrayBuffer(this.#elements.uploadInput.files[0]);
+					reader.readAsArrayBuffer(this.#elements.uploadInput.files[0]);
+				} else {
+					if (!app.popup.isOpen) {
+						app.popup.create({
+							title: 'Hola, hola! Nie za dużo?',
+							subtitle: 'Wybrany przez Ciebie załącznik jest zbyt duży!',
+							subtitleColor: 'var(--text-primary)',
+							isTranslucent: true,
+							footer: [
+								{
+									id: 'ratelimit-modal-close',
+									label: 'Wrzuć na luz',
+								},
+							],
+						});
+
+						/** @type {HTMLInputElement} */(document.activeElement)?.blur();
+						getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
+					}
+
+					this.#elements.uploadInput.value = '';
+				}
 			} else {
 				this.#elements.uploadInput.value = '';
 			}
@@ -1654,6 +1774,8 @@ class App {
 	maxMessageLength = 2000;
 
 	elements = {
+		progressBar: getElement.div('progress-bar'),
+
 		onlineSidebar: getElement.div('online-sidebar'),
 
 		usernameDisplay: getElement.div('username-display'),
