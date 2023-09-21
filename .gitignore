@@ -1,8 +1,5 @@
+.vscode/
 node_modules/
 data/
-htmls/
-documentation.txt
 server.cert
 server.key
-server.cert.old
-server.key.old
