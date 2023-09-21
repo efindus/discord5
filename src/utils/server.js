@@ -141,20 +141,25 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 		if (/** @type {Array<any>} */ ([ 'application/json', 'application/x-www-form-urlencoded' ]).includes(req.headers['content-type'])) {
 			try {
 				await new Promise((resolve, reject) => {
-					let buffer = Buffer.alloc(0);
+					/**
+					 * @type {Buffer[]}
+					 */
+					const buffers = [];
 
 					req.on('data', (/** @type {Buffer} */ data) => {
-						buffer = Buffer.concat([ buffer, data ]);
+						buffers.push(data);
 					});
 
 					req.on('error', reject);
 
 					req.on('end', () => {
+						const buffer = Buffer.concat(buffers).toString();
+
 						try {
 							if (req.headers['content-type'] === 'application/json')
-								requestData.body = JSON.parse(buffer.toString());
+								requestData.body = JSON.parse(buffer);
 							else
-								requestData.body = Object.fromEntries(new URLSearchParams(buffer.toString()));
+								requestData.body = Object.fromEntries(new URLSearchParams(buffer));
 						} catch {
 							reject();
 						}
