@@ -11,7 +11,7 @@ const { checkObject } = require('./objects');
 const { handleError } = require('./errorHandler');
 const { green, blue, bold } = require('./colors');
 const { parseCookieHeader } = require('./cookies');
-const { ratelimitManager } = require('./ratelimit');
+const { ratelimitManager, HOUR, WEEK } = require('./ratelimit');
 const { webSocketManager } = require('./websocket');
 const { verifyToken } = require('../database/users');
 const { FRONTEND_BASE_PATH, ATTACHMENT_BASE_PATH, TOKEN_COOKIE_NAME, MAX_HTTP_BUFFER_SIZE } = require('../config');
@@ -227,6 +227,12 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 				if (!targetFile.isFile())
 					throw new Error();
 
+				const cacheHeaders = {};
+				if (requestData.path.startsWith('/attachments'))
+					cacheHeaders['Cache-Control'] = `max-age=${HOUR / 1000}`;
+				else if (requestData.path.endsWith('.woff2') || requestData.path.endsWith('.ico'))
+					cacheHeaders['Cache-Control'] = `max-age=${WEEK / 1000}`;
+
 				if (req.method === 'GET' && requestData.path.startsWith('/attachments') && !ratelimitManager.consume('attachmentDownload', requestData.ip, targetFile.size)) {
 					res.writeHead(429);
 					return res.end();
@@ -238,6 +244,7 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 
 				res.writeHead(200, {
 					'Content-Type': contentType || 'text/plain',
+					...cacheHeaders,
 				});
 
 				if (req.method === 'GET')
