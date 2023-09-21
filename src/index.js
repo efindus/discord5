@@ -16,8 +16,7 @@ const main = async () => {
 	logger.info('Loading modules...');
 	await createIndex('users', { uid: 'hashed' });
 	await createIndex('users', { username: 'hashed' });
-	await createIndex('messages', { ts: -1 });
-	await createIndex('ipBans', { ip: 'hashed' });
+	await createIndex('messages', { id: -1 });
 
 	let serverDocument = await findOne('servers', {});
 	if (!serverDocument) {
