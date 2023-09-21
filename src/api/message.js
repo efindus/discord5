@@ -15,7 +15,7 @@ addEndpoint('GET', '/api/messages', async (req) => {
 }, { auth: 'user', ratelimits: { ids: [ 'GET/messages:M' ] } });
 
 ratelimitManager.create('messages:15S', 20, 15 * 1000);
-ratelimitManager.create('messages;newlines:3S', 550, 3 * 1000);
+ratelimitManager.create('messages;newlines:3S', 300, 3 * 1000);
 ratelimitManager.create('messages;newlines:M', 580, MINUTE);
 ratelimitManager.create('attachmentUploads', 45_000_000, 10 * MINUTE);
 addEndpoint('POST', '/api/messages', async (req) => {
@@ -26,8 +26,10 @@ addEndpoint('POST', '/api/messages', async (req) => {
 		return { status: 400 };
 
 	const nlCount = trimmedMessage.split('\n').length;
-	if (!(+ratelimitManager.consume('messages;newlines:3S', req.user.uid, nlCount) & +ratelimitManager.consume('messages;newlines:M', req.user.uid, nlCount)))
-		return { status: 429, body: { message: 'newlineLimit' } };
+
+	const retryAfter = ratelimitManager.consume2([ 'messages;newlines:3S', 'messages;newlines:M' ], req.user.uid, req.user.type === 'admin', nlCount);
+	if (retryAfter)
+		return { status: 429, body: { message: 'newlineLimit' }, headers: { 'Retry-After': `${Math.ceil(retryAfter / 1000)}` } };
 
 	const rawMsg = {
 		message: message.trim(),
@@ -52,7 +54,7 @@ addEndpoint('POST', '/api/messages', async (req) => {
 		};
 
 		if (!ratelimitManager.consume('attachmentUploads', req.user.uid, rawMsg.attachment.data.length))
-			return { status: 429, body: { message: 'attachmentLimit' } };
+			return { status: 429, body: { message: 'attachmentLimit' }, headers: { 'Retry-After': `${Math.ceil(ratelimitManager.retryAfter('attachmentUploads', req.user.uid) / 1000)}` } };
 	}
 
 	if (message === '/ile') {

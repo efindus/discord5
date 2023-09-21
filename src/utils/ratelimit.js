@@ -73,6 +73,9 @@ module.exports.Ratelimit = class {
 	 * @returns {number}
 	 */
 	retryAfter(key) {
+		if (this.#points[key] <= this.limit)
+			return 0;
+
 		return this.timeUntilReset + (this.#points[key] - this.limit - 1) * this.#durationToLimit;
 	}
 };
@@ -116,17 +119,25 @@ class RatelimitManager {
 	 * @param {string} key - The key to take the points from
 	 * @param {boolean} isAdmin - Makes the function return true immediately if set to true
 	 * @param {number} points - The number of points to take [default: 1]
-	 * @returns {boolean} Whether the request was within the limit or not
+	 * @returns {number} 0 if the request was within all limits, otherwise a number of miliseconds to retry after
 	 */
 	consume2(ids, key, isAdmin = false, points = 1) {
 		if (isAdmin)
-			return true;
+			return 0;
 
 		let result = 1;
 		for (const id of ids)
 			result &= +this.consume(id, key, points);
 
-		return !!result;
+		if (!result) {
+			let retryAfter = 0;
+			for (const id of ids)
+				retryAfter = Math.max(retryAfter, this.retryAfter(id, key));
+
+			return retryAfter;
+		}
+
+		return 0;
 	}
 
 	/**

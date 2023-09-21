@@ -48,7 +48,7 @@ class ApiManager {
 			if (typeof result?.message === 'string')
 				throw new Error(result.message);
 
-			throw new Error(response.status.toString());
+			throw { message: response.status.toString(), retryAfter: response.status === 429 ? response.headers.get('retry-after') : null };
 		}
 
 		return result;
@@ -149,10 +149,9 @@ class ApiManager {
 	 * @param {string} message
 	 * @param {string} nonce
 	 * @param {{ fileName: string, data: string } | undefined} attachment
-	 * @returns {Promise<'success' | 'attachmentLimit' | 'newlineLimit' | '429' | '400'>}
+	 * @returns {Promise<'success' | 'invalidAttachment' | { message: 'attachmentLimit' | 'newlineLimit' | '429', retryAfter: string }>}
 	 */
 	async sendMessage(message, nonce, attachment = undefined) {
-		// TODO: automagically retry
 		try {
 			const reqBody = JSON.stringify({
 				message,
@@ -200,10 +199,14 @@ class ApiManager {
 
 						const result = JSON.parse(req.responseText);
 						if (req.status !== 200) {
+							let message = req.status.toString();
 							if (typeof result?.message === 'string')
-								reject(new Error(result.message));
+								message = result.message;
 
-							reject(new Error(req.status.toString()));
+							if (req.status === 429)
+								reject({ message, retryAfter: req.getResponseHeader('retry-after') });
+							else
+								reject(new Error(message));
 						} else {
 							resolve(result.message);
 						}
@@ -234,7 +237,7 @@ class ApiManager {
 				})).message;
 			}
 		} catch (err) {
-			return /** @type {any} */ (err).message;
+			return /** @type {any} */ (err);
 		}
 	}
 
@@ -285,10 +288,19 @@ class ApiManager {
 	 * @returns {Promise<UserData?>}
 	 */
 	async getUser(uid) {
-		// TODO: automagically retry
 		try {
 			return await this.#makeRequest(`/api/users/${uid}`);
 		} catch (err) {
+			const x = /** @type {any} */ (err);
+			if (x.message === '429' && x.retryAfter !== null) {
+				const retryAfter = +x.retryAfter;
+				return await new Promise((resolve) => {
+					setTimeout(() => {
+						resolve(this.getUser(uid));
+					}, retryAfter * 1000 + 50);
+				});
+			}
+
 			throw new Error();
 		}
 	}
@@ -893,7 +905,7 @@ class MessageManager {
 			if (!msgData.attachment)
 				return '';
 
-			let messageAttachment = `<a class="message-attachment-name" href="/attachments/${msgData.attachment}" target="_blank">${msgData.attachment}</a>`;
+			let messageAttachment = `<a class="message-attachment-name" href="/attachments/${msgData.id}/${msgData.attachment}" target="_blank">${msgData.attachment}</a>`;
 			if (msgData.attachment && (
 				msgData.attachment.endsWith('.png') ||
 				msgData.attachment.endsWith('.jpg') ||
@@ -938,7 +950,10 @@ class MessageManager {
 		uploadButtonIcon: getElement.div('upload-button-icon'),
 	};
 
-	#sendingMessage = false;
+	/**
+	 * @type {MessageData[]}
+	 */
+	#messageQueue = [];
 
 	/**
 	 * @type {MessageData[]}
@@ -989,29 +1004,9 @@ class MessageManager {
 				else if (value === '/shrug')
 					value = '¯\\\\_(ツ)_/¯';
 
-				if (this.#sendingMessage) {
-					app.showRatelimitModal('Hola, hola! Nie za szybko?', 'Twoja poprzednia wiadomość jest jeszcze wysyłana!');
-					return;
-				}
-
 				if (value.length > 0 && value.length <= this.#app.maxMessageLength) {
-					this.#sendingMessage = true;
-
 					this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
 					this.#elements.input.innerHTML = '<br id="input-last-br">';
-
-					const nonce = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
-					this.insert({
-						msgData: {
-							id: nonce,
-							ts: Date.now() - this.#app.timeOffset,
-							uid: this.#app.user.uid,
-							message: value,
-						},
-						isNew: true,
-						isShadow: true,
-						afterElement: this.#elements.messages.lastChild,
-					});
 
 					let attachment = undefined;
 					if (this.#currentAttachment && this.#elements.uploadInput.files) {
@@ -1023,30 +1018,15 @@ class MessageManager {
 						this.resetUpload();
 					}
 
-					const res = await this.#app.api.sendMessage(value, nonce, attachment);
-					switch (res) {
-						case '429':
-						case 'newlineLimit':
-						case 'attachmentLimit':
-							// TODO: retry automagically
-							getElementP(nonce, 'div', true)?.remove();
-							if (!app.popup.isOpen) {
-								let title = '', subtitle;
-								if (res === '429')
-									title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
-								else if (res === 'newlineLimit')
-									title = 'Hola, hola! Nie za wiele?', subtitle = 'Wysyłasz zbyt długie wiadomości!';
-								else
-									title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt wiele załączników!';
-
-								app.showRatelimitModal(title, subtitle);
-							}
-							break;
-						default:
-							break;
-					}
-
-					this.#sendingMessage = false;
+					const nonce = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
+					this.queueMessage({
+						id: nonce,
+						ts: Date.now() - this.#app.timeOffset,
+						uid: this.#app.user.uid,
+						message: value,
+						rawAttachment: attachment,
+						nonce,
+					});
 				}
 			} else if (this.#elements.input.innerText.length >= this.#app.maxMessageLength &&
 				!(event.code.startsWith('Arrow') || event.code.startsWith('Delete') || event.code.startsWith('Backspace')) &&
@@ -1122,7 +1102,10 @@ class MessageManager {
 
 		this.#elements.uploadInput.addEventListener('change', () => {
 			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files) {
-				if (this.#elements.uploadInput.files[0].size <= 11_160_000) {
+				if (this.#elements.uploadInput.files[0].name.length >= 250 || this.#elements.uploadInput.files[0].name.includes('/')) {
+					app.showRatelimitModal('Hola, hola! Nie nadążam', 'Wybrany przez Ciebie załącznik ma zbyt długą nazwę (lub zawiera ona znak "/")!');
+					this.#elements.uploadInput.value = '';
+				} else if (this.#elements.uploadInput.files[0].size <= 11_160_000) {
 					this.#elements.uploadButtonIcon.style.transform = 'rotate(45deg)';
 
 					const reader = new FileReader();
@@ -1166,7 +1149,7 @@ class MessageManager {
 			isContinuation = false;
 		}
 
-		message.innerHTML = `${this.#utils.generateMessageMeta(msgData, isContinuation)}${this.#utils.generateMessageContent(msgData, isContinuation)}${this.#utils.generateMessageAttachment(msgData, isNew)}`;
+		message.innerHTML = `${this.#utils.generateMessageMeta(msgData, isContinuation)}${this.#utils.generateMessageContent(msgData, isContinuation)}${this.#utils.generateMessageAttachment(msgData, isNew)}${isShadow ? `<div onclick="app.removeQueuedMessage('${msgData.id}')">×</div>` : ''}`;
 		return message;
 	}
 
@@ -1182,7 +1165,7 @@ class MessageManager {
 
 	/**
 	 * @typedef MessageData
-	 * @type {{ id: string, ts: number, message: string, uid: string } & Partial<{ originalAuthor: string, attachment: string, nonce: string }>}
+	 * @type {{ id: string, ts: number, message: string, uid: string } & Partial<{ originalAuthor: string, attachment: string, nonce: string, rawAttachment: { fileName: string, data: string } }>}
 	 */
 
 	/**
@@ -1287,24 +1270,92 @@ class MessageManager {
 				});
 			}
 
-			if (data.isShadow) setTimeout(() => {
-				const msgElement = getElementP(data.msgData.id, 'div', true);
-				if (msgElement) {
-					msgElement.style.color = 'var(--red)';
-					setTimeout(() => {
-						getElementP(data.msgData.id, 'div', true)?.remove();
-					}, 1_500);
-				}
-			}, 20_000);
-
 			if (scroll)
 				this.#app.elements.messageContainer.scrollTo(0, this.#app.elements.messageContainer.scrollHeight);
 		}
 	}
 
+	/**
+	 * @param {MessageData} msgData
+	 */
+	queueMessage(msgData) {
+		this.#messageQueue.push(msgData);
+
+		this.insert({
+			msgData: {
+				...msgData,
+				attachment: msgData.rawAttachment?.fileName,
+			},
+			isNew: true,
+			isShadow: true,
+			afterElement: this.#elements.messages.lastChild,
+		});
+
+		if (this.#messageQueue.length === 1)
+			this.#processMessageQueue();
+		else if (this.#messageQueue.length > 2)
+			app.showRatelimitModal('Hola, hola! Nie nadążam', 'Wysyłasz wiadomości zbyt szybko!');
+	}
+
+	/**
+	 * @param {string} id
+	 */
+	dequeueMessage(id) {
+		for (let i = 0; i < this.#messageQueue.length; i++) {
+			if (this.#messageQueue[i].id === id) {
+				this.#messageQueue.splice(i, 1);
+				break;
+			}
+		}
+	}
+
+	async #processMessageQueue(success = false) {
+		if (success)
+			this.#messageQueue.shift();
+
+		if (!this.#messageQueue.length)
+			return;
+
+		const m = this.#messageQueue[0];
+		const res = await this.#app.api.sendMessage(m.message, m.id, m.rawAttachment);
+		let msg, nextAfter = 75, s = false;
+		if (typeof res === 'string')
+			msg = res;
+		else
+			msg = res.message, nextAfter = +(res.retryAfter || 0.075) * 1000;
+
+		switch (msg) {
+			case '429':
+			case 'newlineLimit':
+			case 'attachmentLimit':
+				if (!app.popup.isOpen) {
+					let title = '', subtitle;
+					if (msg === '429')
+						title = 'Hola, hola! Nie za szybko?', subtitle = 'Wysyłasz zbyt wiele wiadomości!';
+					else if (msg === 'newlineLimit')
+						title = 'Hola, hola! Nie za wiele?', subtitle = 'Wysyłasz zbyt długie wiadomości!';
+					else
+						title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt wiele załączników!';
+
+					app.showRatelimitModal(title, subtitle);
+				}
+				break;
+			case 'success':
+				s = true;
+				break;
+			default:
+				break;
+		}
+
+		setTimeout(() => {
+			this.#processMessageQueue(s);
+		}, nextAfter);
+	}
+
 	clear() {
 		this.#elements.messages.innerHTML = '';
 		this.#messages = [];
+		this.#messageQueue = [];
 	}
 
 	async load() {
@@ -1877,6 +1928,14 @@ class App {
 			/** @type {HTMLInputElement} */(document.activeElement)?.blur();
 			getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
 		}
+	}
+
+	/**
+	 * @param {string} id
+	 */
+	removeQueuedMessage(id) {
+		getElementP(id, 'div', true)?.remove();
+		this.messages.dequeueMessage(id);
 	}
 }
 

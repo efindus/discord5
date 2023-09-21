@@ -9,11 +9,11 @@ const main = async () => {
 	await connect();
 
 	// @ts-ignore
-	const attachemnts = (await findMany('messages', { ts: { $gt: TS }})).filter(v => v.attachment).map(v => v.id);
+	const attachments = (await findMany('messages', { ts: { $gt: TS }})).filter(v => v.attachment).map(v => v.id);
 	// @ts-ignore
 	await removeMany('messages', { ts: { $gt: TS }});
 
-	for (const attachment of attachemnts)
+	for (const attachment of attachments)
 		await rm(`${ATTACHMENT_BASE_PATH}/attachments/${attachment}`, { recursive: true, force: true });
 
 	process.exit(0);

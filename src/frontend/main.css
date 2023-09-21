@@ -316,6 +316,7 @@ html, body {
 	flex-direction: column;
 	flex-wrap: wrap;
 	word-break: break-word;
+	position: relative;
 }
 
 .message:hover {
@@ -345,6 +346,34 @@ html, body {
 
 .message-content {
 	flex-grow: 100;
+}
+
+.message-shadow > .message-content {
+	display: flex;
+	flex-direction: row;
+	padding-right: 10px;
+	column-gap: 10px;
+}
+
+.message-shadow > div:last-child {
+	display: none;
+	position: absolute;
+	right: 5px;
+	top: 5px;
+	transform: translate(-50%, -50%);
+	padding: 0px 7.7px;
+	border-radius: 5px;
+	background: var(--background-quinary);
+	cursor: pointer;
+	font-size: 20px;
+}
+
+.message-shadow:hover > div:last-child {
+	display: block;
+}
+
+.message-shadow > div:last-child:hover {
+	filter: brightness(130%);
 }
 
 .message-attachment {

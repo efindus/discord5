@@ -296,8 +296,9 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 				result = { status: 401, body: { message: 'sudoRequired' } };
 			} else {
 				const key = reqs.ratelimits?.type === 'ip' ? requestData.ip : /** @type {string} */ (requestData.user?.uid);
-				if (reqs.ratelimits && !ratelimitManager.consume2(reqs.ratelimits.ids, key, requestData.user?.type === 'admin')) {
-					result = { status: 429 };
+				let retryAfter = 0;
+				if (reqs.ratelimits && (retryAfter = ratelimitManager.consume2(reqs.ratelimits.ids, key, requestData.user?.type === 'admin'))) {
+					result = { status: 429, headers: { 'Retry-After': `${Math.ceil(retryAfter / 1000)}` } };
 				} else if (reqs.body && !checkObject(requestData.body, reqs.body)) {
 					result = { status: 400 };
 				} else {

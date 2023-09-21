@@ -1,22 +1,18 @@
 P1:
-retry (and generally handle) ratelimits
-allow cancelling ratelimited messages queued for resend
-reset shadow message timer when receiving ratelimit packets
-ipbans after consistently hitting the rate limit
-ipbans after some treshold of points over the limit
-username allowlist
-
-P2:
-more user feedback on ws ratelimits (and sending attachments etc)
-consider a scroll-to-bottom button
 restore scrollheight on reconnects (using the new parameters for the /api/messages endpoint)
 pasteable attachments
-add admins (admin panel) (and user bans)
-hostname resolution
+remove "innerHTML = sth" wherever possible (to improve performance)
+add admin panel with user bans and username allowlist
+
+P2:
+consider a scroll-to-bottom button
 improve online bar
+ipbans after consistently hitting the rate limit
+ipbans after some treshold of points over the limit
+hostname resolution
 
 P3:
 fix mobile
-add avatars
 add replies
 add mentions
+add avatars
