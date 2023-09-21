@@ -57,6 +57,7 @@ class ApiManager {
 	/**
 	 * @param {string} username
 	 * @param {string} password
+	 * @returns {Promise<'success' | 'invalidLogin' | '429' | 'serverError'>}
 	 */
 	async login(username, password) {
 		try {
@@ -71,7 +72,6 @@ class ApiManager {
 				}),
 			})).message;
 		} catch (err) {
-			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
 		}
 	}
@@ -80,6 +80,7 @@ class ApiManager {
 	 * @param {string} username
 	 * @param {string} password
 	 * @param {any} captcha
+	 * @returns {Promise<'success' | 'usernameAlreadyInUse' | 'invalidSolution' | 'captchaExpired' | '400' | '418' | '429' | 'serverError'>}
 	 */
 	async register(username, password, captcha) {
 		try {
@@ -95,7 +96,6 @@ class ApiManager {
 				}),
 			})).message;
 		} catch (err) {
-			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
 		}
 	}
@@ -106,7 +106,6 @@ class ApiManager {
 				method: 'POST',
 			});
 		} catch (err) {
-			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
 		}
 	}
@@ -142,7 +141,6 @@ class ApiManager {
 		try {
 			return await this.#makeRequest(`/api/messages?${params.toString()}`);
 		} catch (err) {
-			// TODO: handle server fails
 			throw new Error();
 		}
 	}
@@ -154,6 +152,7 @@ class ApiManager {
 	 * @returns {Promise<'success' | 'attachmentLimit' | 'newlineLimit' | '429' | '400'>}
 	 */
 	async sendMessage(message, nonce, attachment = undefined) {
+		// TODO: automagically retry
 		try {
 			const reqBody = JSON.stringify({
 				message,
@@ -235,7 +234,6 @@ class ApiManager {
 				})).message;
 			}
 		} catch (err) {
-			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
 		}
 	}
@@ -243,7 +241,7 @@ class ApiManager {
 	/**
 	 * @param {string} currentPassword
 	 * @param {string} password
-	 * @returns {Promise<'success' | 'invalidLogin'>}
+	 * @returns {Promise<'success' | 'invalidLogin' | '429'>}
 	 */
 	async changePassword(currentPassword, password) {
 		try {
@@ -258,14 +256,13 @@ class ApiManager {
 				}),
 			})).message;
 		} catch (err) {
-			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
 		}
 	}
 
 	/**
 	 * @param {string} nickname
-	 * @returns {Promise<'success' | 'usernameInvalidLength' | 'usernameInvalidFormat'>}
+	 * @returns {Promise<'success' | 'usernameInvalidLength' | 'usernameInvalidFormat' | '429'>}
 	 */
 	async changeNickname(nickname) {
 		try {
@@ -279,7 +276,6 @@ class ApiManager {
 				}),
 			})).message;
 		} catch (err) {
-			// TODO: handle server fails
 			return /** @type {any} */ (err).message;
 		}
 	}
@@ -289,6 +285,7 @@ class ApiManager {
 	 * @returns {Promise<UserData?>}
 	 */
 	async getUser(uid) {
+		// TODO: automagically retry
 		try {
 			return await this.#makeRequest(`/api/users/${uid}`);
 		} catch (err) {
@@ -299,7 +296,10 @@ class ApiManager {
 	async logOut() {
 		try {
 			await this.#makeRequest('/api/log-out', { method: 'POST' });
-		} catch {}
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
 	/**
@@ -361,7 +361,7 @@ class SocketManager {
 			return;
 		}
 
-		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/gateway`);
+		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/api/gateway`);
 
 		this.#socket.addEventListener('open', () => this.#setupPinger());
 		this.#socket.addEventListener('message', (event) => this.#onMessage(event));
@@ -990,24 +990,7 @@ class MessageManager {
 					value = '¯\\\\_(ツ)_/¯';
 
 				if (this.#sendingMessage) {
-					if (!app.popup.isOpen) {
-						app.popup.create({
-							title: 'Hola, hola! Nie za szybko?',
-							subtitle: 'Twoja poprzednia wiadomość jest jeszcze wysyłana!',
-							subtitleColor: 'var(--text-primary)',
-							isTranslucent: true,
-							footer: [
-								{
-									id: 'ratelimit-modal-close',
-									label: 'Wrzuć na luz',
-								},
-							],
-						});
-
-						/** @type {HTMLInputElement} */(document.activeElement)?.blur();
-						getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
-					}
-
+					app.showRatelimitModal('Hola, hola! Nie za szybko?', 'Twoja poprzednia wiadomość jest jeszcze wysyłana!');
 					return;
 				}
 
@@ -1056,21 +1039,7 @@ class MessageManager {
 								else
 									title = 'Hola, hola! Nie za dużo?', subtitle = 'Wysyłasz zbyt wiele załączników!';
 
-								app.popup.create({
-									title,
-									subtitle,
-									subtitleColor: 'var(--text-primary)',
-									isTranslucent: true,
-									footer: [
-										{
-											id: 'ratelimit-modal-close',
-											label: 'Wrzuć na luz',
-										},
-									],
-								});
-
-								/** @type {HTMLInputElement} */(document.activeElement)?.blur();
-								getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
+								app.showRatelimitModal(title, subtitle);
 							}
 							break;
 						default:
@@ -1166,24 +1135,7 @@ class MessageManager {
 
 					reader.readAsArrayBuffer(this.#elements.uploadInput.files[0]);
 				} else {
-					if (!app.popup.isOpen) {
-						app.popup.create({
-							title: 'Hola, hola! Nie za dużo?',
-							subtitle: 'Wybrany przez Ciebie załącznik jest zbyt duży!',
-							subtitleColor: 'var(--text-primary)',
-							isTranslucent: true,
-							footer: [
-								{
-									id: 'ratelimit-modal-close',
-									label: 'Wrzuć na luz',
-								},
-							],
-						});
-
-						/** @type {HTMLInputElement} */(document.activeElement)?.blur();
-						getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
-					}
-
+					app.showRatelimitModal('Hola, hola! Nie za dużo?', 'Wybrany przez Ciebie załącznik jest zbyt potężny!');
 					this.#elements.uploadInput.value = '';
 				}
 			} else {
@@ -1357,7 +1309,16 @@ class MessageManager {
 
 	async load() {
 		this.#elements.loadMessagesButton.style.display = 'none';
-		const messages = await this.#app.api.getMessages(this.#app.messagesToLoad, this.#messages[0]?.id ?? undefined);
+
+		let messages;
+		try {
+			messages = await this.#app.api.getMessages(this.#app.messagesToLoad, this.#messages[0]?.id ?? undefined);
+		} catch {
+			app.showRatelimitModal('Hola, hola! Nie za szybko?', 'Wczytujesz zbyt wiele wiadomości!');
+
+			this.#app.messages.showLoadButton();
+			return;
+		}
 
 		const oldHeight = this.#app.elements.messageContainer.scrollHeight;
 
@@ -1846,7 +1807,7 @@ class App {
 			x: isSidebar ? position.left - 10 : position.right + 10,
 			y: position.top + ((position.bottom - position.top) / 2),
 			side: isSidebar ? 'right' : 'left',
-			content: `${this.users[uid].username}<br>ID: ${uid}`,
+			content: `<div class="user-username-row"><span>${this.users[uid].username}</span>${this.users[uid].type === 'admin' ? '<span class="user-type">admin</span>' : ''}</div>ID: ${uid}`,
 			withArrow: true,
 		});
 	}
@@ -1871,7 +1832,7 @@ class App {
 			return;
 
 		this.elements.usernameDisplay.innerText = this.user.username;
-		this.elements.userData.innerHTML = `ID: ${this.user.uid}<br>Pseudonim: ${this.user.nickname}`;
+		this.elements.userData.innerHTML = `ID: ${this.user.uid}<br>Pseudonim: ${this.user.nickname}${this.user.type === 'admin' ? '<br>Administrator' : ''}`;
 	}
 
 	/**
@@ -1893,21 +1854,65 @@ class App {
 			});
 		}
 	}
+
+	/**
+	 * @param {string} title
+	 * @param {string} subtitle
+	 */
+	showRatelimitModal(title, subtitle) {
+		if (!app.popup.isOpen) {
+			app.popup.create({
+				title,
+				subtitle,
+				subtitleColor: 'var(--text-primary)',
+				isTranslucent: true,
+				footer: [
+					{
+						id: 'ratelimit-modal-close',
+						label: 'Wrzuć na luz',
+					},
+				],
+			});
+
+			/** @type {HTMLInputElement} */(document.activeElement)?.blur();
+			getElement.div('ratelimit-modal-close').addEventListener('click', () => app.popup.hide());
+		}
+	}
 }
 
 const app = new App();
 
 const logOutEverywhereHandler = async () => {
 	app.spinner.show();
-	// TODO: handle ratelimits
-	await app.api.logOutEverywhere();
+	if (!(await app.api.logOutEverywhere())) {
+		app.spinner.hide();
+		app.showRatelimitModal('Hola, hola! Nie za dużo?', 'Wylogowywujesz się zbyt wiele razy!<br>Bez specjalnej potrzeby używaj zwykłego wylogowywania.');
+	}
 };
 
 const logOutHandler = async () => {
 	app.spinner.show();
 	app.socket.disconnect();
-	await app.api.logOut();
-	app.main();
+	if (await app.api.logOut()) {
+		app.main();
+	} else {
+		app.spinner.hide();
+		app.popup.create({
+			title: 'Coś poszło nie tak...',
+			subtitle: 'Serwis jest chwilowo niedostępny. Spróbuj ponownie później.<br>Jeżeli chcesz wylogować się ręcznie, usuń ciasteczka i dane strony.',
+			subtitleColor: 'var(--text-primary)',
+			footer: [
+				{
+					id: 'popup-button-reloadApp',
+					label: 'Powrót',
+				},
+			],
+		});
+
+		getElement.div('popup-button-reloadApp').addEventListener('click', () => {
+			app.main();
+		});
+	}
 };
 
 const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = '') => {
@@ -1954,6 +1959,12 @@ const changeNicknameHandler = (closeable = true, subtitle = '', startingValue = 
 					app.popup.hide();
 					app.spinner.hide();
 				} else {
+					if (res === '429') {
+						app.popup.setSubtitle({
+							subtitle: 'Zbyt wiele zmian pseudonimu. Spróbuj ponownie później',
+						});
+					}
+
 					app.popup.shake();
 				}
 			} else {
@@ -2035,7 +2046,7 @@ const changePasswordHandler = () => {
 			app.socket.reconnect = true;
 			app.popup.hideSpinner();
 			app.popup.setSubtitle({
-				subtitle: 'Niepoprawne stare hasło',
+				subtitle: res === 'invalidLogin' ? 'Niepoprawne stare hasło' : 'Zbyt wiele prób zmiany hasła. Spróbuj ponownie później',
 			});
 			app.popup.shake();
 		}
@@ -2202,7 +2213,7 @@ const registerHandler = () => {
 				}, 60_000);
 			} else {
 				app.popup.setSubtitle({
-					subtitle: 'Zbyt wiele nieudanych prób rozwiązania CAPTCHA. Spróbuj ponownie później',
+					subtitle: response === '429' ? 'Zbyt wiele nieudanych prób rozwiązania CAPTCHA. Spróbuj ponownie później' : 'Wystąpił nieznany błąd. Spróbuj ponownie później',
 				});
 				app.popup.shake();
 			}

@@ -4,6 +4,7 @@ const { ratelimitManager, MINUTE } = require('../utils/ratelimit');
 const { addEndpoint } = require('../utils/server');
 const { webSocketManager } = require('../utils/websocket');
 
+ratelimitManager.create('GET/messages:M', 100, MINUTE);
 addEndpoint('GET', '/api/messages', async (req) => {
 	const x = req.parameters;
 	const limit = +(x.get('limit') ?? MESSAGES_TO_LOAD), before = x.get('before') ?? undefined, after = x.get('after') ?? undefined;
@@ -11,11 +12,11 @@ addEndpoint('GET', '/api/messages', async (req) => {
 		return { status: 400 };
 
 	return { status: 200, body: await getMessages(limit, before, after) };
-}, { auth: 'user' });
+}, { auth: 'user', ratelimits: { ids: [ 'GET/messages:M' ] } });
 
 ratelimitManager.create('messages:15S', 20, 15 * 1000);
 ratelimitManager.create('messages;newlines:3S', 550, 3 * 1000);
-ratelimitManager.create('messages;newlines:1M', 580, MINUTE);
+ratelimitManager.create('messages;newlines:M', 580, MINUTE);
 ratelimitManager.create('attachmentUploads', 45_000_000, 10 * MINUTE);
 addEndpoint('POST', '/api/messages', async (req) => {
 	const { message, nonce } = req.body;
@@ -25,7 +26,7 @@ addEndpoint('POST', '/api/messages', async (req) => {
 		return { status: 400 };
 
 	const nlCount = trimmedMessage.split('\n').length;
-	if (!(+ratelimitManager.consume('messages;newlines:3S', req.user.uid, nlCount) & +ratelimitManager.consume('messages;newlines:1M', req.user.uid, nlCount)))
+	if (!(+ratelimitManager.consume('messages;newlines:3S', req.user.uid, nlCount) & +ratelimitManager.consume('messages;newlines:M', req.user.uid, nlCount)))
 		return { status: 429, body: { message: 'newlineLimit' } };
 
 	const rawMsg = {

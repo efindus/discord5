@@ -70,8 +70,8 @@ addEndpoint('POST', '/api/log-out', async (req) => {
 	return { status: 200, body: { message: 'success' }, headers: { 'set-cookie': x } };
 }, { auth: 'user' });
 
-ratelimitManager.create('log-out-everywhere:H', 20, HOUR);
-ratelimitManager.create('log-out-everywhere:D', 40, DAY);
+ratelimitManager.create('log-out-everywhere:H', 30, HOUR);
+ratelimitManager.create('log-out-everywhere:D', 50, DAY);
 addEndpoint('POST', '/api/log-out-everywhere', async (req) => {
 	await updateNonce(req.user.uid);
 	webSocketManager.close(req.user.uid);

@@ -176,7 +176,7 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 			requestData.user = await verifyToken(requestData.cookies[TOKEN_COOKIE_NAME]);
 
 		if (req.headers.connection?.toLowerCase().includes('upgrade') && req.headers.upgrade?.toLowerCase() === 'websocket') {
-			if (requestData.path !== '/gateway') {
+			if (requestData.path !== '/api/gateway') {
 				res.writeHead(404);
 				res.end();
 				return;

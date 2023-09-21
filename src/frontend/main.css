@@ -99,6 +99,9 @@
 	--purple: rgb(180, 142, 173);
 	--blue: rgb(94, 129, 172);
 	--online: rgb(65, 179, 127);
+
+	--accent-red-primary: #e84e4f;
+	--accent-red-secondary: #9c2b2e;
 }
 
 html, body {
@@ -243,6 +246,25 @@ html, body {
 	text-align: center;
 }
 
+.user-username-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	column-gap: 7px;
+	margin-bottom: 4px;
+	color: var(--font-primary);
+}
+
+.user-type {
+	display: block;
+	color: var(--font-primary);
+	font-weight: 500;
+	font-size: 13px;
+	padding: 1.5px 5px;
+	border-radius: 5px;
+	background: var(--accent-red-secondary);
+}
+
 .dropdown-entry {
 	padding: 2px 8px;
 	display: flex;
@@ -374,6 +396,7 @@ html, body {
 	border-radius: 5px;
 	word-break: break-all;
 	cursor: pointer;
+	text-align: center;
 }
 
 .online-entry:hover {

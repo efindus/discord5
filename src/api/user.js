@@ -4,8 +4,8 @@ const { ratelimitManager, MINUTE, HOUR, WEEK } = require('../utils/ratelimit');
 const { verifyUsername, verifyLogin, getAllUsers, getUserById, updatePassword, updateType, updateUsername, removeUser, updateNonce, generateTokenCookie, updateNickname } = require('../database/users');
 
 // self API
-ratelimitManager.create('me:M', 30, MINUTE);
-ratelimitManager.create('me:H', 1000, HOUR);
+ratelimitManager.create('me:M', 60, MINUTE);
+ratelimitManager.create('me:H', 2000, HOUR);
 addEndpoint('GET', '/api/me', async (req) => {
 	return {
 		status: 200,
@@ -31,7 +31,7 @@ addEndpoint('PUT', '/api/user/nickname', async (req) => {
 	webSocketManager.send.updateUser({ ...req.user, nickname });
 }, { auth: 'user', body: { nickname: '' }, ratelimits: { ids: [ 'user/nickname:20S', 'user/nickname:H' ] } });
 
-ratelimitManager.create('user/password:H', 15, HOUR);
+ratelimitManager.create('user/password:H', 20, HOUR);
 ratelimitManager.create('user/password:W', 50, WEEK);
 addEndpoint('PUT', '/api/user/password', async (req) => {
 	const { currentPassword, password } = req.body;
