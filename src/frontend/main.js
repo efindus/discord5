@@ -1018,7 +1018,7 @@ class MessageManager {
 						this.resetUpload();
 					}
 
-					const nonce = `${crypto.randomUUID ? crypto.randomUUID() : Math.random()}-${Date.now()}`;
+					const nonce = `${Date.now()}-99${crypto.randomUUID ? crypto.randomUUID() : Math.random()}`;
 					this.queueMessage({
 						id: nonce,
 						ts: Date.now() - this.#app.timeOffset,
@@ -1231,7 +1231,7 @@ class MessageManager {
 			} else {
 				let correctIndex = 0;
 				for (let i = this.#messages.length - 1; i >= 0; i--) {
-					if (this.#messages[i].ts > data.msgData.ts)
+					if (this.#messages[i].id > data.msgData.id)
 						correctIndex++;
 				}
 
