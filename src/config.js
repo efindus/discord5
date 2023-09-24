@@ -12,7 +12,7 @@ module.exports.ATTACHMENT_BASE_PATH = './data';
 module.exports.PROTOCOL_VERSION = '1';
 module.exports.SERVER_USER_UID = 'server';
 
-module.exports.MESSAGES_TO_LOAD = 100;
+module.exports.MESSAGES_TO_LOAD = 150;
 module.exports.MAX_MESSAGE_LENGTH = 2000;
 
 module.exports.MAX_WS_BUFFER_SIZE = 100;

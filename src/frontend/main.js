@@ -419,6 +419,7 @@ class SocketManager {
 
 			this.#app.propagateUserData();
 			this.#app.messages.load();
+			this.#app.messages.resetUpload();
 		} else if (data.packet === 'newMessage') {
 			if (data.nonce)
 				getElementP(data.nonce, 'div', true)?.remove();
@@ -963,6 +964,12 @@ class MessageManager {
 	 * @type {string?}
 	 */
 	#currentAttachment = null;
+	/**
+	 * @type {string?}
+	 */
+	#currentAttachmentName = null;
+
+	#attachmentReset = true;
 
 	get count() {
 		return this.#messages.length;
@@ -1009,9 +1016,9 @@ class MessageManager {
 					this.#elements.input.innerHTML = '<br id="input-last-br">';
 
 					let attachment = undefined;
-					if (this.#currentAttachment && this.#elements.uploadInput.files) {
+					if (this.#currentAttachment && this.#currentAttachmentName) {
 						attachment = {
-							fileName: this.#elements.uploadInput.files[0].name,
+							fileName: this.#currentAttachmentName,
 							data: this.#currentAttachment,
 						};
 
@@ -1100,27 +1107,17 @@ class MessageManager {
 			}
 		});
 
+		document.addEventListener('paste', (event) => {
+			const file = event.clipboardData?.items[0].getAsFile();
+			if (event.clipboardData?.getData('text') || !file)
+				return;
+
+			this.setUpload(file);
+		});
+
 		this.#elements.uploadInput.addEventListener('change', () => {
 			if (this.#elements.uploadInput.value !== '' && this.#elements.uploadInput.files) {
-				if (this.#elements.uploadInput.files[0].name.length >= 250 || this.#elements.uploadInput.files[0].name.includes('/')) {
-					app.showRatelimitModal('Hola, hola! Nie nadążam', 'Wybrany przez Ciebie załącznik ma zbyt długą nazwę (lub zawiera ona znak "/")!');
-					this.#elements.uploadInput.value = '';
-				} else if (this.#elements.uploadInput.files[0].size <= 11_160_000) {
-					this.#elements.uploadButtonIcon.style.transform = 'rotate(45deg)';
-
-					const reader = new FileReader();
-					reader.addEventListener('load', (event) => {
-						if (!event.target?.result || !(event.target.result instanceof ArrayBuffer))
-							return;
-
-						this.#currentAttachment = this.#app.utils.fromArrayBufferToBase64(event.target.result);
-					});
-
-					reader.readAsArrayBuffer(this.#elements.uploadInput.files[0]);
-				} else {
-					app.showRatelimitModal('Hola, hola! Nie za dużo?', 'Wybrany przez Ciebie załącznik jest zbyt potężny!');
-					this.#elements.uploadInput.value = '';
-				}
+				this.setUpload(this.#elements.uploadInput.files[0]);
 			} else {
 				this.#elements.uploadInput.value = '';
 			}
@@ -1395,10 +1392,53 @@ class MessageManager {
 		this.#elements.loadMessagesButton.style.display = 'table';
 	}
 
+	/**
+	 * @param {File} file
+	 */
+	setUpload(file) {
+		if (!file)
+			return;
+
+		try {
+			if (file.name.length >= 250)
+				throw { t: 'Hola, hola! Nie nadążam', m: 'Wybrany przez Ciebie załącznik ma zbyt długą nazwę!' };
+
+			if (file.name.includes('/'))
+				throw { t: 'Hola, hola! Tak nie można!', m: 'Nazwa wybranego przez Ciebie załącznika zawiera znak "/"!' };
+
+			if (file.size > 11_160_000)
+				throw { t: 'Hola, hola! Nie za dużo?', m: 'Wybrany przez Ciebie załącznik jest zbyt potężny!' };
+		} catch (err) {
+			this.resetUpload();
+
+			const e = /** @type {any} */ (err);
+			app.showRatelimitModal(e.t, e.m);
+			return;
+		}
+
+		this.#attachmentReset = false;
+		this.#elements.uploadButtonIcon.style.transform = 'rotate(45deg)';
+
+		const reader = new FileReader();
+		reader.addEventListener('load', (event) => {
+			if (!event.target?.result || !(event.target.result instanceof ArrayBuffer))
+				return;
+
+			if (!this.#attachmentReset) {
+				this.#currentAttachmentName = file.name;
+				this.#currentAttachment = this.#app.utils.fromArrayBufferToBase64(event.target.result);
+			}
+		});
+
+		reader.readAsArrayBuffer(file);
+	}
+
 	resetUpload() {
 		this.#elements.uploadButtonIcon.style.transform = 'rotate(0deg)';
 		this.#elements.uploadInput.value = '';
 		this.#currentAttachment = null;
+		this.#currentAttachmentName = null;
+		this.#attachmentReset = true;
 	}
 
 	/**

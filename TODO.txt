@@ -1,18 +1,22 @@
 P1:
-restore scrollheight on reconnects (using the new parameters for the /api/messages endpoint)
-pasteable attachments
-remove "innerHTML = sth" wherever possible (to improve performance)
 add admin panel with user bans and username allowlist
+fix mobile
+mobile notifications when not open
 
 P2:
-consider a scroll-to-bottom button
+load messages in 151 message sections (1 message and 75 above and below) [ goals:
+ - improve performance with more messages
+ - ability to use bloated templates (or even custom elements) (so features like message meta are toggled by css classes instead of conditional template literals) to cleanup code
+ - justification for a scroll-to-bottom button/bar
+ - allow for restoring scroll-height after app closure/disconnect
+ - feature base to facilitate search/jumping to the original message (of a reply)
+]
 improve online bar
+add replies
+add mentions
+
+P3:
 ipbans after consistently hitting the rate limit
 ipbans after some treshold of points over the limit
 hostname resolution
-
-P3:
-fix mobile
-add replies
-add mentions
 add avatars
