@@ -1096,7 +1096,7 @@ class MessageManager {
 			}
 
 			lastNode?.scrollIntoView({
-				block: 'end',
+				block: 'center',
 			});
 
 			const br = getElementP('input-last-br', 'br', true);
@@ -1478,7 +1478,7 @@ class Utils {
 		multilineComment: /^(\s)*\/\*/g,
 		comment: /^(\s)*\/\//g,
 		keyword: /^(\s)*(alignas|alignof|auto|bool|char8_t|char16_t|char32_t|char|class|const_cast|const|decltype|delete|double|dynamic_cast|enum|explicit|export|extern|false|float|friend|inline|int|long|mutable|namespace|new|noexcept|nullptr|operator|private|protected|public|register|short|signed|sizeof|static_cast|static_assert|static|struct|template|this|thread_local|true|typedef|typeid|typename|union|unsigned|using|virtual|void|volatile|wchar_t)$/g,
-		operator: /^(\s)*(and_eq|and|bitand|bitor|compl|not_eq|not|or_eq|or|xor_eq|xor|\+|-|\*|\/|%|:|;|{|}|\(|\)|&|\||=|\[|]|<|>|,)$/g,
+		operator: /^(\s)*(and_eq|and|bitand|bitor|compl|not_eq|not|or_eq|or|xor_eq|xor|\+|-|\*|\/|%|:|;|{|}|\(|\)|&|\||=|\[|]|<|>|,|!|\.)$/g,
 		instruction: /^(\s)*(break|case|catch|continue|default|do|else|for|goto|if|return|switch|throw|try|while)$/g,
 		number: /^(\s)*(([1-9][0-9]*)|(0[bB][01]+)|(0[0-8]*)|(0[xX][0-9A-Fa-f]+))$/,
 		function: /^(\s)*[A-Za-z0-9_]+(\s)*\(/g,
