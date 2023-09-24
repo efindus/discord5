@@ -24,15 +24,16 @@ module.exports.Ratelimit = class {
 	 * Consume a number of points from a key if possible
 	 * @param {string} key - The key to take the points from
 	 * @param {number} points - The number of points to take [default: 1]
+	 * @param {boolean} checkBefore - Allows overconsumption if the key was previously within limit
 	 * @returns {boolean} Whether the request was within the limit or not
 	 */
-	consume(key, points = 1) {
+	consume(key, points = 1, checkBefore = false) {
 		if (!this.#points[key])
 			this.#points[key] = 0;
 
 		this.#points[key] += points;
 
-		if (this.#points[key] <= this.#limit)
+		if ((!checkBefore ? this.#points[key] : (this.#points[key] - points)) <= this.#limit)
 			return true;
 		else
 			return false;
@@ -104,13 +105,14 @@ class RatelimitManager {
 	 * @param {string} id - Id of the ratelimit instance to consume from
 	 * @param {string} key - The key to take the points from
 	 * @param {number} points - The number of points to take [default: 1]
+	 * @param {boolean} checkBefore - Allows overconsumption if the key was previously within limit
 	 * @returns {boolean} Whether the request was within the limit or not
 	 */
-	consume(id, key, points = 1) {
+	consume(id, key, points = 1, checkBefore = false) {
 		if (!this.#ratelimits[id])
 			throw new Error(`[Ratelimit Manager] Unknown ID: ${id}`);
 
-		return this.#ratelimits[id].consume(key, points);
+		return this.#ratelimits[id].consume(key, points, checkBefore);
 	}
 
 	/**
@@ -119,15 +121,16 @@ class RatelimitManager {
 	 * @param {string} key - The key to take the points from
 	 * @param {boolean} isAdmin - Makes the function return true immediately if set to true
 	 * @param {number} points - The number of points to take [default: 1]
+	 * @param {boolean} checkBefore - Allows overconsumption if the key was previously within limit
 	 * @returns {number} 0 if the request was within all limits, otherwise a number of miliseconds to retry after
 	 */
-	consume2(ids, key, isAdmin = false, points = 1) {
+	consume2(ids, key, isAdmin = false, points = 1, checkBefore = false) {
 		if (isAdmin)
 			return 0;
 
 		let result = 1;
 		for (const id of ids)
-			result &= +this.consume(id, key, points);
+			result &= +this.consume(id, key, points, checkBefore);
 
 		if (!result) {
 			let retryAfter = 0;

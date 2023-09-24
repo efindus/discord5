@@ -13,7 +13,7 @@ module.exports.PROTOCOL_VERSION = '1';
 module.exports.SERVER_USER_UID = 'server';
 
 module.exports.MESSAGES_TO_LOAD = 150;
-module.exports.MAX_MESSAGE_LENGTH = 2000;
+module.exports.MAX_MESSAGE_LENGTH = 4000;
 
 module.exports.MAX_WS_BUFFER_SIZE = 100;
 module.exports.MAX_HTTP_BUFFER_SIZE = 14_900_000;
