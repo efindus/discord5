@@ -357,6 +357,9 @@ class SocketManager {
 	}
 
 	async connect() {
+		if (this.#socket?.readyState === WebSocket.OPEN)
+			return;
+
 		this.#reconnect = true;
 
 		this.#app.spinner.show();
@@ -373,11 +376,15 @@ class SocketManager {
 			return;
 		}
 
-		this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/api/gateway`);
+		try {
+			this.#socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}/api/gateway`);
 
-		this.#socket.addEventListener('open', () => this.#setupPinger());
-		this.#socket.addEventListener('message', (event) => this.#onMessage(event));
-		this.#socket.addEventListener('close', () => this.#onClose());
+			this.#socket.addEventListener('open', () => this.#setupPinger());
+			this.#socket.addEventListener('message', (event) => this.#onMessage(event));
+			this.#socket.addEventListener('close', () => this.#onClose());
+		} catch {
+			this.#onClose();
+		}
 	}
 
 	disconnect() {
@@ -505,7 +512,7 @@ class PopupManager {
 	 * @property {boolean} isTranslucent
 	 * @property {boolean} closeable
 	 * @property {({ label: string, input: { id: string, type: string } & { limit?: number } } | { html: string })[]} body
-	 * @property {({ label: string, id: string } & { color?: string })[]} footer
+	 * @property {({ label: string, id: string } & { color?: string } | {})[]} footer
 	 */
 
 	/**
@@ -562,12 +569,17 @@ class PopupManager {
 		if (data.footer) {
 			this.#elements.body.style.marginBottom = '15px';
 			for (const button of data.footer) {
-				const buttonElement = document.createElement('div');
-				buttonElement.classList.add('popup-button');
-				buttonElement.id = button.id;
-				buttonElement.innerHTML = button.label;
-				buttonElement.style.backgroundColor = button.color ?? 'var(--blue)';
-				this.#elements.footer.appendChild(buttonElement);
+				const element = document.createElement('div');
+				if ('label' in button) {
+					element.classList.add('popup-button');
+					element.id = button.id;
+					element.innerHTML = button.label;
+					element.style.backgroundColor = button.color ?? 'var(--blue)';
+				} else {
+					element.classList.add('popup-separator');
+				}
+
+				this.#elements.footer.appendChild(element);
 			}
 			/** @type {HTMLDivElement} */ (this.#elements.footer.lastChild).style.marginBottom = '0px';
 		}
@@ -1003,6 +1015,10 @@ class MessageManager {
 				event.preventDefault();
 
 				let value = this.#elements.input.innerText.trim();
+				if (value.split('\n').length > 350) {
+					app.showRatelimitModal('Hola, hola! Nie za wiele?', 'Próbujesz wysłać zbyt długą wiadomość.<br>Wiadomości mogą zawierać maksymalnie 350 linii.');
+					return;
+				}
 
 				if (value === '/tableflip')
 					value = '(╯°□°）╯︵ ┻━┻';
@@ -1124,7 +1140,7 @@ class MessageManager {
 		});
 
 		this.#elements.uploadButton.addEventListener('click', (event) => {
-			if (this.#elements.uploadInput.value !== '') {
+			if (this.#currentAttachment !== null) {
 				event.preventDefault();
 				this.resetUpload();
 			}
@@ -2186,6 +2202,7 @@ const loginHandler = () => {
 				id: 'popup-button-login',
 				label: 'Zaloguj się',
 			},
+			{},
 			{
 				id: 'popup-button-register',
 				label: 'Zarejestruj się',
@@ -2276,6 +2293,7 @@ const registerHandler = () => {
 				id: 'popup-button-register',
 				label: 'Zarejestruj się',
 			},
+			{},
 			{
 				id: 'popup-button-login',
 				label: 'Zaloguj się',
@@ -2327,7 +2345,7 @@ const registerHandler = () => {
 			registrationInProgress = true;
 
 		let error = '';
-		const captchaInput = getElement.input('popup-input-captcha');
+		const captchaInput = getElementP('popup-input-captcha', 'input', true);
 		if (!captchaInput)
 			error = 'Musisz potwierdzić że nie jesteś robotem';
 
@@ -2352,7 +2370,7 @@ const registerHandler = () => {
 			id: captchaData.id,
 			timestamp: captchaData.timestamp,
 			signature: captchaData.signature,
-			solution: captchaInput.value,
+			solution: /** @type {string} */ (captchaInput?.value),
 		});
 
 		switch (response) {

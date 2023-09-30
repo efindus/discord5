@@ -538,6 +538,12 @@ html, body {
 	filter: saturate(250%);
 }
 
+.popup-separator {
+	height: 1px;
+	margin: 10px 0px;
+	background-color: var(--background-quinary);
+}
+
 /* Input */
 .input-container {
 	color: var(--text-primary);
