@@ -3,7 +3,7 @@ const { rm } = require('fs/promises');
 const { ATTACHMENT_BASE_PATH } = require('../config');
 const { connect, findMany, removeMany } = require('../utils/database');
 
-const TS = 1663766593895;
+const TS = 1696114645064;
 
 const main = async () => {
 	await connect();
