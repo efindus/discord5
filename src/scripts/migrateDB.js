@@ -1,9 +1,9 @@
-const { randomUUID } = require('crypto');
-const { rename, mkdir } = require('fs/promises');
-
-const { ATTACHMENT_BASE_PATH, SERVER_USER_UID } = require('../config');
-const { connect, findOne, findMany, updateOne, updateMany } = require('../utils/database');
 const { existsSync } = require('fs');
+const { rename, mkdir } = require('fs/promises');
+const { randomUUID, randomBytes } = require('crypto');
+
+const { ATTACHMENT_BASE_PATH, SERVER_USER_UID, NONCE_LENGTH } = require('../config');
+const { connect, findOne, findMany, updateOne, updateMany } = require('../utils/database');
 
 const main = async () => {
 	await connect();
@@ -19,7 +19,7 @@ const main = async () => {
 			} while (await findOne('users', { uid }));
 		}
 
-		await updateOne('users', { uid: user.uid }, { uid });
+		await updateOne('users', { uid: user.uid }, { uid, nonce: randomBytes(NONCE_LENGTH).toString('hex') });
 		await updateMany('messages', { uid: user.uid }, { uid });
 		await updateMany('messages', { originalAuthor: user.uid }, { originalAuthor: uid });
 

@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-		"start": "node .",
+    "start": "node .",
     "backup": "node ./src/scripts/backup",
     "restoreBackup": "node ./src/scripts/restoreBackup",
     "migrateDB": "node ./src/scripts/migrateDB"
@@ -13,7 +13,8 @@
   "license": "GPL-3.0",
   "dependencies": {
     "mime": "^3.0.0",
-    "mongodb": "^6.0.0"
+    "mongodb": "^6.0.0",
+    "node-7z": "^3.0.0"
   },
   "devDependencies": {
     "eslint": "^8.47.0"
