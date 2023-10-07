@@ -249,7 +249,7 @@ class ApiManager {
 	async changePassword(currentPassword, password) {
 		try {
 			return (await this.#makeRequest('/api/user/password', {
-				method: 'PUT',
+				method: 'POST',
 				headers: {
 					'content-type': 'application/json',
 				},

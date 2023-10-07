@@ -33,7 +33,7 @@ addEndpoint('PUT', '/api/user/nickname', async (req) => {
 
 ratelimitManager.create('user/password:H', 20, HOUR);
 ratelimitManager.create('user/password:W', 50, WEEK);
-addEndpoint('PUT', '/api/user/password', async (req) => {
+addEndpoint('POST', '/api/user/password', async (req) => {
 	const { currentPassword, password } = req.body;
 
 	if (!(await verifyLogin(req.user, currentPassword)))
