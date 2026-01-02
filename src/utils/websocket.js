@@ -330,16 +330,9 @@ class WebSocketManager {
 			}
 		},
 		updateOnline: () => {
-			/**
-			 * @type {Record<string, boolean>}
-			 */
-			const onlineUsers = {};
-			for (const key in this.#webSocketData)
-				onlineUsers[this.#webSocketData[key].uid] = true;
-
 			this.#sendAll(JSON.stringify({
 				packet: 'clientsOnline',
-				clients: Object.keys(onlineUsers),
+				clients: Object.values(this.#webSocketData).map(x => x.uid),
 			}));
 		},
 		/**

@@ -70,6 +70,29 @@ const fetchIPBans = async () => {
 	}
 };
 
+/**
+ * @param {import('net').Socket} socket
+ * @param {number} code
+ */
+const abortHandshake = (socket, code) => {
+	/** @type {Record<string, any>} */
+	const headers = {
+		'Connection': 'close',
+		'Content-Type': 'text/html',
+		'Content-Length': 0,
+	};
+
+	socket.once('finish', socket.destroy);
+
+	socket.end(
+		`HTTP/1.1 ${code}\r\n` +
+		Object.keys(headers)
+			.map((h) => `${h}: ${headers[h]}`)
+			.join('\r\n') +
+		'\r\n\r\n',
+	);
+}
+
 fetchIPBans();
 setInterval(fetchIPBans, 30_000);
 
@@ -83,6 +106,32 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 		key: key,
 		cert: cert,
 		allowHTTP1: true,
+	});
+
+	server.on('upgrade', async (req, socket, head) => {
+		if (ipBans[ipv6tov4(socket.remoteAddress)])
+			return abortHandshake(socket, 503);
+
+		if (req.url !== '/api/gateway')
+			return abortHandshake(socket, 404);
+
+		let user = null, cookies = null;
+		if (typeof req.headers.cookie === 'string')
+			cookies = parseCookieHeader(req.headers.cookie);
+		else
+			return abortHandshake(socket, 400);
+
+		if (typeof cookies[TOKEN_COOKIE_NAME] === 'string')
+			user = await verifyToken(cookies[TOKEN_COOKIE_NAME]);
+
+		if (!user)
+			return abortHandshake(socket, 401);
+
+		webSocketManager.create(req.socket, req.headers['sec-websocket-key'] || '', user.uid, cookies[TOKEN_COOKIE_NAME], () => {
+			webSocketManager.send.updateOnline();
+		});
+
+		webSocketManager.send.updateOnline();
 	});
 
 	server.on('request', async (req, res) => {
@@ -179,28 +228,6 @@ module.exports.createHTTPSServer = (key, cert, port) => {
 
 		if (typeof requestData.cookies[TOKEN_COOKIE_NAME] === 'string')
 			requestData.user = await verifyToken(requestData.cookies[TOKEN_COOKIE_NAME]);
-
-		if (req.headers.connection?.toLowerCase().includes('upgrade') && req.headers.upgrade?.toLowerCase() === 'websocket') {
-			if (requestData.path !== '/api/gateway') {
-				res.writeHead(404);
-				res.end();
-				return;
-			}
-
-			if (!requestData.user) {
-				res.writeHead(401);
-				res.end();
-				return;
-			}
-
-			webSocketManager.create(req.socket, req.headers['sec-websocket-key'] || '', requestData.user.uid, requestData.cookies[TOKEN_COOKIE_NAME], () => {
-				webSocketManager.send.updateOnline();
-			});
-
-			webSocketManager.send.updateOnline();
-
-			return;
-		}
 
 		const returnMainPage = () => {
 			if (!ratelimitManager.consume('static', requestData.ip)) {
